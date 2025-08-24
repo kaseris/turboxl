@@ -1,44 +1,65 @@
-# XLSX → CSV Reader
+# TurboXL
 
-A small, fast, read-only library that converts a worksheet from an XLSX file into a CSV string. Usable from both C++ and Python.
+Fast, read-only XLSX to CSV converter with C++20 core and Python bindings.
 
-## Features
+## Performance
 
-- **Fast**: 2-5 million cells/minute on modern hardware
-- **Memory Efficient**: Under 300MB for 1M × 10 sheets
-- **Cross-Platform**: Linux, macOS (x86_64/arm64), Windows (x64)
-- **Dual Language**: C++20 core with Python bindings
-- **Robust**: Handles large files with security limits
+**Real-world benchmarks** on Chicago Crime dataset (21.9MB, 146,574 rows):
+
+| Metric | TurboXL | OpenPyXL | Improvement |
+|--------|---------|----------|-------------|
+| **Speed** | 8.4s | 64.7s | **7.7x faster** |
+| **Memory** | 33.5MB | 66.9MB | **2x less** |
+| **Throughput** | 17,457 rows/sec | 2,266 rows/sec | **7.7x faster** |
+
+*Dataset: [Chicago Crimes 2025](https://data.cityofchicago.org/Public-Safety/Crimes-2025/t7ek-mgzi/about_data)*
 
 ## What It Does
 
-- Resolves shared strings and inline strings
-- Handles numbers, booleans, and Excel errors
-- Date/time conversion using styles and workbook date system
-- No formula evaluation (uses cached values only)
-- Optional merged-cells propagation
-- RFC 4180 compliant CSV output
+- ✅ Read XLSX files and convert to CSV
+- ✅ Handle shared strings, numbers, dates, booleans
+- ✅ Process multiple worksheets
+- ✅ Memory-efficient streaming (33.5MB for 146k rows)
+- ✅ Cross-platform (Linux, macOS, Windows)
 
 ## What It Doesn't Do
 
-- Write or modify XLSX files
-- Evaluate formulas
-- Handle charts, pivot tables, images, or comments
-- Preserve rich text formatting (flattens to plain text)
-
-## Requirements
-
-- **C++**: C++20 compiler (GCC 10+, Clang 12+, MSVC 2019+)
-- **Build**: CMake 3.20+
-- **Dependencies**: libxml2, minizip-ng (or libzip)
-- **Python**: CPython 3.8-3.12
+- ❌ Write or modify XLSX files
+- ❌ Formula evaluation (uses cached values)
+- ❌ Charts, images, pivot tables
+- ❌ Password-protected files
 
 ## Quick Start
+
+### Python
+
+```python
+import turboxl
+
+# Convert first sheet
+csv_data = turboxl.read_sheet_to_csv("data.xlsx")
+
+# Convert specific sheet
+csv_data = turboxl.read_sheet_to_csv("data.xlsx", sheet="Sheet2")
+
+# Custom options
+csv_data = turboxl.read_sheet_to_csv(
+    "data.xlsx",
+    sheet=0,
+    delimiter=";",
+    date_mode="iso"
+)
+
+# Save to file
+with open("output.csv", "w", encoding="utf-8") as f:
+    f.write(csv_data)
+```
 
 ### C++
 
 ```cpp
 #include <xlsxcsv.hpp>
+#include <iostream>
 
 int main() {
     try {
@@ -51,38 +72,18 @@ int main() {
 }
 ```
 
-### Python
-
-```python
-import turboxl
-
-# Convert first sheet to CSV
-csv_data = turboxl.read_sheet_to_csv("data.xlsx")
-
-# Convert specific sheet by name
-csv_data = turboxl.read_sheet_to_csv("data.xlsx", sheet="Sheet2")
-
-# Custom options
-csv_data = turboxl.read_sheet_to_csv(
-    "data.xlsx",
-    sheet=0,  # First sheet
-    delimiter=";",
-    date_mode="iso"
-)
-```
-
 ## Building
 
 ### Prerequisites
 
-Install system dependencies:
+Install dependencies:
 
 ```bash
-# Ubuntu/Debian
-sudo apt-get install libxml2-dev libminizip-dev
-
 # macOS
-brew install libxml2 minizip-ng
+brew install libxml2 minizip-ng cmake
+
+# Ubuntu/Debian
+sudo apt-get install libxml2-dev libminizip-dev cmake build-essential
 
 # Windows (vcpkg)
 vcpkg install libxml2 minizip-ng
@@ -93,7 +94,7 @@ vcpkg install libxml2 minizip-ng
 ```bash
 mkdir build && cd build
 cmake ..
-make -j$(nproc)
+make -j4
 ```
 
 ### Build Options
@@ -101,129 +102,45 @@ make -j$(nproc)
 - `BUILD_TESTS=ON/OFF` - Build test suite (default: ON)
 - `BUILD_PYTHON=ON/OFF` - Build Python bindings (default: ON)
 - `BUILD_CLI=ON/OFF` - Build command-line tool (default: OFF)
-- `BUILD_BENCHMARKS=ON/OFF` - Build benchmarks (default: OFF)
+
+## Requirements
+
+- **C++**: C++20 compiler (GCC 10+, Clang 12+, MSVC 2019+)
+- **Build**: CMake 3.20+
+- **Python**: 3.8-3.12 (for Python bindings)
 
 ## API Reference
 
-### C++ Options
-
-```cpp
-struct CsvOptions {
-    std::string sheetByName;           // Select by name
-    int sheetByIndex = -1;             // Select by index (-1 = auto)
-    char delimiter = ',';               // Field delimiter
-    Newline newline = Newline::LF;     // Line ending
-    bool includeBom = false;           // UTF-8 BOM
-    DateMode dateMode = DateMode::ISO; // Date format
-    bool quoteAll = false;             // Quote all fields
-    // ... more options
-};
-```
-
-### Python Options
+### Python
 
 ```python
-read_sheet_to_csv(
+turboxl.read_sheet_to_csv(
     xlsx_path: str,
-    sheet: Union[str, int],
-    *,
+    sheet: Union[str, int] = None,  # First sheet if None
     delimiter: str = ",",
     newline: Literal["LF", "CRLF"] = "LF",
     include_bom: bool = False,
-    date_mode: Literal["iso", "rawNumber"] = "iso",
-    quote_all: bool = False,
-    # ... more options
+    date_mode: Literal["iso", "rawNumber"] = "iso"
 ) -> str
 ```
 
-## Performance
+### C++
 
-- **Throughput**: 2-5 million cells/minute
-- **Memory**: Under 300MB for 1M × 10 sheets
-- **Startup**: ~500ms for typical files
-- **Large Files**: Handles files up to 2GB uncompressed
+```cpp
+struct CsvOptions {
+    std::string sheetByName;
+    int sheetByIndex = -1;
+    char delimiter = ',';
+    bool includeBom = false;
+    // ... more options
+};
 
-## Security Features
-
-- **ZIP Limits**: Configurable entry count and size limits
-- **Path Validation**: Prevents zip-slip attacks
-- **XML Safety**: Disables DTDs and external entities
-- **Encryption Detection**: Rejects encrypted workbooks
-
-## Development
-
-### Project Structure
-
-```
-.
-├── cmake/           # CMake helpers
-├── src/
-│   ├── core/       # Core components
-│   ├── csv/        # CSV encoding
-│   ├── facade/     # Public API
-│   └── python/     # Python bindings
-├── include/         # Public headers
-├── tests/          # Test suite
-├── python/         # Python packaging
-├── benchmarks/     # Performance tests
-└── tools/          # CLI tool
-```
-
-### Testing
-
-```bash
-# Run C++ tests
-make test
-
-# Run Python tests
-cd python
-pytest
-
-# Run with coverage
-pytest --cov=xlsxcsv
-```
-
-### Code Quality
-
-```bash
-# Format code
-clang-format -i src/**/*.cpp include/**/*.hpp
-
-# Lint
-clang-tidy src/**/*.cpp
-
-# Python formatting
-black python/
-isort python/
+std::string readSheetToCsv(
+    const std::string& xlsxPath,
+    const CsvOptions& opts = {}
+);
 ```
 
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
-
-## Roadmap
-
-- [x] Project setup and build system
-- [ ] ZIP and OPC package handling
-- [ ] Workbook parsing and date systems
-- [ ] Styles and number formats
-- [ ] Shared strings handling
-- [ ] Sheet streaming and cell parsing
-- [ ] CSV encoding and output
-- [ ] Python bindings
-- [ ] Performance optimization
-- [ ] Documentation and release
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/yourusername/xlsxcsv/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/xlsxcsv/discussions)
-- **Wiki**: [Project Wiki](https://github.com/yourusername/xlsxcsv/wiki)
