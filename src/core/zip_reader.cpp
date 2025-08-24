@@ -150,16 +150,29 @@ public:
             throw XlsxError("Failed to open ZIP entry: " + path);
         }
         
-        ByteVector data(fileInfo.uncompressed_size);
-        int bytesRead = unzReadCurrentFile(m_unzFile, data.data(), data.size());
+        // Use chunked reading with 512 KiB buffers for better I/O efficiency
+        static constexpr size_t BUFFER_SIZE = 512 * 1024; // 512 KiB chunks
+        ByteVector data;
+        data.reserve(fileInfo.uncompressed_size);
         
-        unzCloseCurrentFile(m_unzFile);
+        ByteVector buffer(BUFFER_SIZE);
         
-        if (bytesRead < 0) {
-            throw XlsxError("Failed to read ZIP entry: " + path);
+        while (true) {
+            int bytesRead = unzReadCurrentFile(m_unzFile, buffer.data(), buffer.size());
+            if (bytesRead < 0) {
+                unzCloseCurrentFile(m_unzFile);
+                throw XlsxError("Failed to read ZIP entry: " + path);
+            }
+            
+            if (bytesRead == 0) {
+                break; // End of file
+            }
+            
+            // Append the chunk to our data
+            data.insert(data.end(), buffer.begin(), buffer.begin() + bytesRead);
         }
         
-        data.resize(bytesRead);
+        unzCloseCurrentFile(m_unzFile);
         return data;
     }
     
