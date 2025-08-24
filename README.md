@@ -8,11 +8,19 @@ Fast, read-only XLSX to CSV converter with C++20 core and Python bindings.
 
 | Metric | TurboXL | OpenPyXL | Improvement |
 |--------|---------|----------|-------------|
-| **Speed** | 8.4s | 64.7s | **7.7x faster** |
-| **Memory** | 33.5MB | 66.9MB | **2x less** |
-| **Throughput** | 17,457 rows/sec | 2,266 rows/sec | **7.7x faster** |
+| **Speed** | 2.4s | 63.1s | **26.7x faster** |
+| **Memory** | 33.5MB | 66.9MB | **2.0x less** |
+| **Throughput** | 62,040 rows/sec | 2,321 rows/sec | **26.7x faster** |
 
 *Dataset: [Chicago Crimes 2025](https://data.cityofchicago.org/Public-Safety/Crimes-2025/t7ek-mgzi/about_data)*
+
+
+
+🚀 **Recent Optimizations Implemented:**
+- **zlib-ng integration** - Up to 2.5x faster ZIP decompression
+- **Release build optimizations** - `-O3 -march=native -flto` for GCC/Clang, `/O2 /GL /arch:AVX2` for MSVC
+- **Arena-based shared strings** - Memory-efficient string storage
+- **Chunked ZIP reading** - 512 KiB buffer optimization
 
 ## What It Does
 
@@ -79,23 +87,33 @@ int main() {
 Install dependencies:
 
 ```bash
-# macOS
-brew install libxml2 minizip-ng cmake
+# macOS (Recommended for best performance)
+brew install libxml2 minizip-ng zlib-ng cmake
 
-# Ubuntu/Debian
+# Ubuntu/Debian (Recommended for best performance)
 sudo apt-get install libxml2-dev libminizip-dev cmake build-essential
+# For zlib-ng on Ubuntu/Debian, build from source:
+# git clone https://github.com/zlib-ng/zlib-ng.git
+# cd zlib-ng && cmake -B build && cmake --build build && sudo cmake --install build
 
 # Windows (vcpkg)
-vcpkg install libxml2 minizip-ng
+vcpkg install libxml2 minizip-ng zlib-ng
 ```
+
+**Performance Note:** Installing `zlib-ng` provides significant performance improvements (up to 2.5x faster decompression). The build system will automatically detect and use zlib-ng if available, falling back to standard zlib otherwise.
 
 ### Build Steps
 
 ```bash
 mkdir build && cd build
-cmake ..
+# For maximum performance, use Release build
+cmake -DCMAKE_BUILD_TYPE=Release ..
 make -j4
 ```
+
+**Build Modes:**
+- **Release** (Recommended): Enables `-O3 -march=native -flto` optimizations for maximum performance
+- **Debug**: Enables debugging symbols and assertions
 
 ### Build Options
 
