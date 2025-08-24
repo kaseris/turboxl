@@ -20,8 +20,25 @@ if(NOT LIBXML2_FOUND)
     message(FATAL_ERROR "libxml2 not found. Please install libxml2-dev")
 endif()
 
-# Find minizip-ng or libzip
+# Find zlib-ng with compatibility mode (preferred) or fallback to standard zlib
 find_package(PkgConfig QUIET)
+pkg_check_modules(ZLIB_NG zlib-ng)
+if(ZLIB_NG_FOUND)
+    set(ZLIB_LIBRARY "zlib-ng")
+    set(ZLIB_INCLUDE_DIRS ${ZLIB_NG_INCLUDE_DIRS})
+    set(ZLIB_LIBRARIES ${ZLIB_NG_LIBRARIES})
+    set(ZLIB_LIBRARY_DIRS ${ZLIB_NG_LIBRARY_DIRS})
+    message(STATUS "Using zlib-ng for optimized compression performance")
+else()
+    find_package(ZLIB REQUIRED)
+    set(ZLIB_LIBRARY "zlib")
+    set(ZLIB_INCLUDE_DIRS ${ZLIB_INCLUDE_DIRS})
+    set(ZLIB_LIBRARIES ${ZLIB_LIBRARIES})
+    set(ZLIB_LIBRARY_DIRS "")
+    message(STATUS "Using standard zlib (consider installing zlib-ng for better performance)")
+endif()
+
+# Find minizip-ng or libzip
 pkg_check_modules(MINIZIP minizip-ng)
 if(MINIZIP_FOUND)
     set(ZIP_LIBRARY "minizip-ng")
@@ -61,13 +78,20 @@ target_include_directories(turboxl_core
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${LIBXML2_INCLUDE_DIRS}
         ${ZIP_INCLUDE_DIRS}
+        ${ZLIB_INCLUDE_DIRS}
 )
 
 target_link_libraries(turboxl_core
     PRIVATE
         ${LIBXML2_LIBRARIES}
         ${ZIP_LIBRARIES}
+        ${ZLIB_LIBRARIES}
 )
+
+# Add library search directories for zlib-ng if needed
+if(ZLIB_LIBRARY_DIRS)
+    target_link_directories(turboxl_core PRIVATE ${ZLIB_LIBRARY_DIRS})
+endif()
 
 target_compile_features(turboxl_core PUBLIC cxx_std_20)
 
@@ -77,6 +101,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         -Wall -Wextra -Wpedantic
         -fvisibility=hidden
     )
+    
+    # Performance optimization flags for Release builds
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        target_compile_options(turboxl_core PRIVATE
+            -O3 -march=native -flto
+        )
+        target_link_options(turboxl_core PRIVATE -flto)
+    endif()
 endif()
 
 if(MSVC)
@@ -86,6 +118,14 @@ if(MSVC)
     target_compile_definitions(turboxl_core PRIVATE
         _CRT_SECURE_NO_WARNINGS
     )
+    
+    # Performance optimization flags for Release builds
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        target_compile_options(turboxl_core PRIVATE
+            /O2 /GL /arch:AVX2
+        )
+        target_link_options(turboxl_core PRIVATE /LTCG)
+    endif()
 endif()
 
 # Python bindings
@@ -94,6 +134,11 @@ if(BUILD_PYTHON)
     
     pybind11_add_module(turboxl src/python/module.cpp)
     target_link_libraries(turboxl PRIVATE turboxl_core)
+    
+    # Add library search directories for zlib-ng if needed
+    if(ZLIB_LIBRARY_DIRS)
+        target_link_directories(turboxl PRIVATE ${ZLIB_LIBRARY_DIRS})
+    endif()
     
     # Ensure hidden visibility for small ABI surface
     set_target_properties(turboxl PROPERTIES
@@ -139,6 +184,11 @@ if(BUILD_TESTS)
             GTest::gtest
             GTest::gtest_main
     )
+    
+    # Add library search directories for zlib-ng if needed
+    if(ZLIB_LIBRARY_DIRS)
+        target_link_directories(turboxl_tests PRIVATE ${ZLIB_LIBRARY_DIRS})
+    endif()
     
     add_test(NAME core_tests COMMAND turboxl_tests)
 endif()
