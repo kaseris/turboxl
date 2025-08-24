@@ -13,11 +13,11 @@ namespace xlsxcsv::core {
 class SharedStringsProvider::Impl {
 public:
     Impl() : m_config(), m_isOpen(false), m_activeMode(SharedStringsMode::Auto), 
-             m_stringCount(0), m_memoryUsage(0), m_isUsingDisk(false) {}
+             m_stringCount(0), m_memoryUsage(0), m_arenaCapacity(0), m_isUsingDisk(false) {}
     
     explicit Impl(const SharedStringsConfig& config) : m_config(config), m_isOpen(false), 
                                                        m_activeMode(config.mode), m_stringCount(0), 
-                                                       m_memoryUsage(0), m_isUsingDisk(false) {}
+                                                       m_memoryUsage(0), m_arenaCapacity(0), m_isUsingDisk(false) {}
     
     ~Impl() {
         close();
@@ -45,7 +45,9 @@ public:
     
     void close() {
         m_isOpen = false;
-        m_inMemoryStrings.clear();
+        m_arena.clear();
+        m_offsets.clear();
+        m_arenaCapacity = 0;
         m_stringCount = 0;
         m_memoryUsage = 0;
         
@@ -81,12 +83,23 @@ public:
         if (m_isUsingDisk) {
             return readStringFromDisk(index);
         } else {
-            if (index < m_inMemoryStrings.size()) {
-                return m_inMemoryStrings[index];
-            }
+            return getStringFromArena(index);
+        }
+    }
+    
+    std::optional<std::string> getStringFromArena(size_t index) const {
+        if (index >= m_offsets.size()) {
+            return std::nullopt;
         }
         
-        return std::nullopt;
+        uint32_t offset = m_offsets[index];
+        if (offset >= m_arena.size()) {
+            return std::nullopt;
+        }
+        
+        // Strings are null-terminated in arena
+        const char* str = reinterpret_cast<const char*>(&m_arena[offset]);
+        return std::string(str);
     }
     
     size_t getStringCount() const {
@@ -211,7 +224,10 @@ private:
         }
         
         if (!m_isUsingDisk && m_stringCount > 0) {
-            m_inMemoryStrings.reserve(m_stringCount);
+            // Initialize arena for estimated size
+            m_arenaCapacity = std::max(INITIAL_ARENA_SIZE, estimatedSize * 2);
+            m_arena.reserve(m_arenaCapacity);
+            m_offsets.reserve(m_stringCount + 1); // +1 for sentinel
         }
     }
     
@@ -316,9 +332,32 @@ private:
         if (m_isUsingDisk) {
             storeStringToDisk(index, value);
         } else {
-            m_inMemoryStrings.push_back(value);
-            m_memoryUsage += value.size();
+            storeStringToArena(index, value);
         }
+    }
+    
+    void storeStringToArena(size_t index, const std::string& value) {
+        // Ensure arena has enough space (doubling strategy)
+        size_t needed = value.size() + 1; // +1 for null terminator
+        if (m_arena.size() + needed > m_arena.capacity()) {
+            // Double arena capacity when needed
+            size_t newCapacity = std::max(m_arena.capacity() * 2, m_arena.size() + needed);
+            m_arena.reserve(newCapacity);
+            m_arenaCapacity = newCapacity;
+        }
+        
+        // Store offset before adding string
+        uint32_t offset = static_cast<uint32_t>(m_arena.size());
+        if (index >= m_offsets.size()) {
+            m_offsets.resize(index + 1);
+        }
+        m_offsets[index] = offset;
+        
+        // Append string to arena with null terminator
+        m_arena.insert(m_arena.end(), value.begin(), value.end());
+        m_arena.push_back('\0');
+        
+        m_memoryUsage += needed;
     }
     
     void storeStringToDisk(size_t index, const std::string& value) {
@@ -393,8 +432,11 @@ private:
     size_t m_stringCount;
     size_t m_memoryUsage;
     
-    // In-memory storage
-    std::vector<std::string> m_inMemoryStrings;
+    // Arena-based storage (performance optimization)
+    std::vector<uint8_t> m_arena;          // Single arena buffer for all strings
+    std::vector<uint32_t> m_offsets;       // Start offset of each string in arena
+    size_t m_arenaCapacity;                // Current arena capacity
+    static constexpr size_t INITIAL_ARENA_SIZE = 8 * 1024 * 1024;  // 8MB initial
     
     // Disk storage
     bool m_isUsingDisk;
