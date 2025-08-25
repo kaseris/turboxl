@@ -1,22 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="260" height="72" viewBox="0 0 260 72">
   <defs>
-    <linearGradient id="velGradC" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#0A6CFF"/>
-      <stop offset="100%" stop-color="#22D3EE"/>
+    <linearGradient id="excelGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#217346"/>
+      <stop offset="100%" stop-color="#33C481"/>
     </linearGradient>
   </defs>
   <!-- Velocity bars -->
-  <g transform="translate(16,18)" stroke-linecap="round" stroke="url(#velGradC)">
+  <g transform="translate(16,18)" stroke-linecap="round" stroke="url(#excelGrad)">
     <line x1="0" y1="8"  x2="52" y2="8"  stroke-width="7"/>
     <line x1="0" y1="22" x2="40" y2="22" stroke-width="7" opacity="0.8"/>
     <line x1="0" y1="36" x2="28" y2="36" stroke-width="7" opacity="0.6"/>
   </g>
   <!-- Tilted sheet with fold and light grid -->
-  <g transform="translate(72,12) rotate(-10 28 28)" fill="none" stroke="url(#velGradC)">
+  <g transform="translate(72,12) rotate(-10 28 28)" fill="none" stroke="url(#excelGrad)">
     <path d="M0 8 a8 8 0 0 1 8 -8 h32 l8 8 v40 a8 8 0 0 1 -8 8 H8 a8 8 0 0 1 -8 -8 Z"
           stroke-width="2"/>
     <!-- small fold triangle -->
-    <path d="M40 0 L56 16 L56 8 L48 0 Z" stroke-width="0" fill="url(#velGradC)" opacity="0.18"/>
+    <path d="M40 0 L56 16 L56 8 L48 0 Z" stroke-width="0" fill="url(#excelGrad)" opacity="0.18"/>
     <!-- light grid -->
     <g stroke-width="1.5" opacity="0.6">
       <line x1="10" y1="10" x2="46" y2="10"/>
@@ -29,7 +29,7 @@
     </g>
   </g>
   <text x="142" y="48" font-family="Inter, Arial, Helvetica, sans-serif"
-        font-size="30" font-weight="800" fill="url(#velGradC)">
+        font-size="30" font-weight="800" fill="url(#excelGrad)">
     TurboXL
   </text>
 </svg>
