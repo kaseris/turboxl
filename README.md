@@ -1,5 +1,7 @@
 # TurboXL
-
+<p align="center">
+  <img src="assets/logo.svg" alt="TurboXL Logo" width="400"/>
+</p>
 Fast, read-only XLSX to CSV converter with C++20 core and Python bindings.
 
 ## Performance
