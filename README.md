@@ -90,7 +90,7 @@ Install dependencies:
 
 ```bash
 # macOS (Recommended for best performance)
-brew install libxml2 minizip-ng zlib-ng cmake
+brew install libxml2 minizip-ng zlib-ng cmake pybind11 pkg-config
 
 # Ubuntu/Debian (Recommended for best performance)
 sudo apt-get install libxml2-dev libminizip-dev cmake build-essential
