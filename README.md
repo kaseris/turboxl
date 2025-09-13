@@ -86,35 +86,43 @@ int main() {
 
 ### Prerequisites
 
-Install dependencies:
+Install system dependencies (used via pkg-config/CMake):
 
 ```bash
 # macOS (Recommended for best performance)
 brew install libxml2 minizip-ng zlib-ng cmake
 
 # Ubuntu/Debian (Recommended for best performance)
-sudo apt-get install libxml2-dev libminizip-dev cmake build-essential
+sudo apt-get install -y libxml2-dev libminizip-dev cmake build-essential pkg-config
 # For zlib-ng on Ubuntu/Debian, build from source:
 # git clone https://github.com/zlib-ng/zlib-ng.git
-# cd zlib-ng && cmake -B build && cmake --build build && sudo cmake --install build
+# cd zlib-ng && cmake -B build && cmake --build build -j && sudo cmake --install build
 
 # Windows (vcpkg)
 vcpkg install libxml2 minizip-ng zlib-ng
 ```
 
-**Performance Note:** Installing `zlib-ng` provides significant performance improvements (up to 2.5x faster decompression). The build system will automatically detect and use zlib-ng if available, falling back to standard zlib otherwise.
+**Performance Note:** Installing `zlib-ng` provides significant performance improvements (up to 2.5x faster decompression). The build system automatically detects and uses zlib-ng if available, falling back to standard zlib otherwise.
 
-### Build Steps
+### Build C++ Core (library only)
+
+Build the C++ core without Python bindings (no Python/pybind11 required):
 
 ```bash
-mkdir build && cd build
-# For maximum performance, use Release build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make -j4
+# From repo root
+cmake -S . -B build \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DBUILD_TESTS=OFF \
+  -DBUILD_PYTHON=OFF \
+  -DBUILD_CLI=OFF
+cmake --build build -j4
 ```
 
+Artifacts:
+- Static library: `build/libturboxl_core.a`
+
 **Build Modes:**
-- **Release** (Recommended): Enables `-O3 -march=native -flto` optimizations for maximum performance
+- **Release** (Recommended): Enables `-O3 -march=native -flto` optimizations
 - **Debug**: Enables debugging symbols and assertions
 
 ### Build Options
@@ -122,6 +130,42 @@ make -j4
 - `BUILD_TESTS=ON/OFF` - Build test suite (default: ON)
 - `BUILD_PYTHON=ON/OFF` - Build Python bindings (default: ON)
 - `BUILD_CLI=ON/OFF` - Build command-line tool (default: OFF)
+
+---
+
+## Python Wheel
+
+TurboXL ships a PEP 517/518 build powered by scikit-build-core. The wheel builds the C++ core and Python extension in Release mode using CMake.
+
+### Python prerequisites
+
+```bash
+python3 -m pip install -U pip build scikit-build-core pybind11
+```
+
+System dependencies listed above (libxml2, minizip-ng, zlib-ng, cmake, compiler) must be installed and discoverable by CMake/pkg-config.
+
+### Build the wheel
+
+```bash
+# From repo root
+cd python
+python3 -m build -w
+```
+
+Outputs go to `python/dist/`, for example:
+- `python/dist/turboxl-0.1.0-<python>-<abi>-<platform>.whl`
+
+Install the built wheel locally:
+
+```bash
+pip install python/dist/turboxl-*.whl
+```
+
+Tips:
+- Parallel CMake build: `CMAKE_BUILD_PARALLEL_LEVEL=4 python3 -m build -w`
+- macOS arch (defaults to arm64 via `pyproject.toml`): to override, you can pass
+  `--config-setting=cmake.define.CMAKE_OSX_ARCHITECTURES="arm64;x86_64"` to `python -m build`.
 
 ## Requirements
 
