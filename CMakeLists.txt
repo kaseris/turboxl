@@ -42,8 +42,13 @@ endif()
 pkg_check_modules(MINIZIP minizip-ng)
 if(MINIZIP_FOUND)
     set(ZIP_LIBRARY "minizip-ng")
-    set(ZIP_INCLUDE_DIRS "/opt/homebrew/include")
-    set(ZIP_LIBRARIES "/opt/homebrew/Cellar/minizip-ng/4.0.10/lib/libminizip-ng.dylib")
+    set(ZIP_INCLUDE_DIRS ${MINIZIP_INCLUDE_DIRS})
+    # Also add parent include directory so includes like <minizip-ng/...> resolve
+    foreach(_inc IN LISTS MINIZIP_INCLUDE_DIRS)
+        get_filename_component(_parent_inc "${_inc}" DIRECTORY)
+        list(APPEND ZIP_INCLUDE_DIRS "${_parent_inc}")
+    endforeach()
+    set(ZIP_LIBRARIES ${MINIZIP_LIBRARIES})
 else()
     pkg_check_modules(LIBZIP libzip)
     if(LIBZIP_FOUND)
@@ -93,6 +98,14 @@ if(ZLIB_LIBRARY_DIRS)
     target_link_directories(turboxl_core PRIVATE ${ZLIB_LIBRARY_DIRS})
 endif()
 
+# Add library search directories for minizip/libzip if provided
+if(MINIZIP_FOUND AND MINIZIP_LIBRARY_DIRS)
+    target_link_directories(turboxl_core PRIVATE ${MINIZIP_LIBRARY_DIRS})
+endif()
+if(LIBZIP_FOUND AND LIBZIP_LIBRARY_DIRS)
+    target_link_directories(turboxl_core PRIVATE ${LIBZIP_LIBRARY_DIRS})
+endif()
+
 target_compile_features(turboxl_core PUBLIC cxx_std_20)
 
 # Compiler-specific settings
@@ -139,11 +152,25 @@ if(BUILD_PYTHON)
     if(ZLIB_LIBRARY_DIRS)
         target_link_directories(turboxl PRIVATE ${ZLIB_LIBRARY_DIRS})
     endif()
+    # Add library search directories for minizip/libzip if provided
+    if(MINIZIP_FOUND AND MINIZIP_LIBRARY_DIRS)
+        target_link_directories(turboxl PRIVATE ${MINIZIP_LIBRARY_DIRS})
+    endif()
+    if(LIBZIP_FOUND AND LIBZIP_LIBRARY_DIRS)
+        target_link_directories(turboxl PRIVATE ${LIBZIP_LIBRARY_DIRS})
+    endif()
     
     # Ensure hidden visibility for small ABI surface
     set_target_properties(turboxl PROPERTIES
         CXX_VISIBILITY_PRESET hidden
         VISIBILITY_INLINES_HIDDEN ON
+    )
+
+    # Install the Python extension into the wheel's platlib root
+    install(TARGETS turboxl
+        LIBRARY DESTINATION .
+        RUNTIME DESTINATION .
+        ARCHIVE DESTINATION .
     )
 endif()
 
