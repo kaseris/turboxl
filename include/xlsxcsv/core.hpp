@@ -5,6 +5,7 @@
 #include <vector>
 #include <functional>
 #include <optional>
+#include <variant>
 
 namespace xlsxcsv::core {
 
