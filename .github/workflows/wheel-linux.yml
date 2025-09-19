@@ -31,9 +31,17 @@ jobs:
         env:
           CIBW_ARCHS_LINUX: "x86_64 aarch64"
           CIBW_SKIP: "pp* *-musllinux_*"
-          CIBW_ENVIRONMENT: "CMAKE_BUILD_PARALLEL_LEVEL=4"
+          CIBW_ENVIRONMENT: "CMAKE_BUILD_PARALLEL_LEVEL=4 PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:$PKG_CONFIG_PATH"
           CIBW_BEFORE_ALL_LINUX: |
-            yum install -y gcc gcc-c++ make cmake pkgconfig libxml2-devel zlib-devel libzip-devel
+            set -euxo pipefail
+            yum install -y gcc gcc-c++ make cmake pkgconfig libxml2-devel zlib-devel curl
+            # Build and install minizip-ng from source (provides pkg-config file)
+            MZ_VER=4.0.7
+            curl -L -o /tmp/minizip-ng.tar.gz https://github.com/zlib-ng/minizip-ng/archive/refs/tags/${MZ_VER}.tar.gz
+            mkdir -p /tmp/minizip-ng && tar -xf /tmp/minizip-ng.tar.gz -C /tmp/minizip-ng --strip-components=1
+            cmake -S /tmp/minizip-ng -B /tmp/minizip-ng/build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DMZ_BUILD_TESTS=OFF -DMZ_FETCH_LIBS=OFF
+            cmake --build /tmp/minizip-ng/build --parallel
+            cmake --install /tmp/minizip-ng/build
         run: |
           python -m cibuildwheel --output-dir wheelhouse
 
@@ -75,8 +83,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          tag_name: v0.1.4
-          name: v0.1.4
+          tag_name: v0.1.5
+          name: v0.1.5
           target_commitish: ${{ github.event.pull_request.merge_commit_sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
