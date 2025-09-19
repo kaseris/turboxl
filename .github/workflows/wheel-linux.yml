@@ -31,10 +31,15 @@ jobs:
         env:
           CIBW_ARCHS_LINUX: "x86_64 aarch64"
           CIBW_SKIP: "pp* *-musllinux_*"
-          CIBW_ENVIRONMENT: "CMAKE_BUILD_PARALLEL_LEVEL=4 PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:$PKG_CONFIG_PATH LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64:$LD_LIBRARY_PATH PATH=/opt/cmake/bin:$PATH"
+          CIBW_ENVIRONMENT: >
+            CMAKE_BUILD_PARALLEL_LEVEL=4
+            PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig
+            LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64:$LD_LIBRARY_PATH
+            PATH=/opt/cmake/bin:$PATH
           CIBW_BEFORE_ALL_LINUX: |
             set -euxo pipefail
             yum install -y gcc gcc-c++ make pkgconfig libxml2-devel zlib-devel curl tar
+
             # Install modern CMake (required >= 3.20)
             CMAKE_VER=3.27.9
             ARCH=$(uname -m)
@@ -42,6 +47,7 @@ jobs:
             curl -L -o /tmp/${CMAKE_PKG} https://github.com/Kitware/CMake/releases/download/v${CMAKE_VER}/${CMAKE_PKG}
             mkdir -p /opt/cmake && tar -xzf /tmp/${CMAKE_PKG} -C /opt/cmake --strip-components=1
             export PATH=/opt/cmake/bin:$PATH
+
             # Build and install minizip-ng from source (provides pkg-config file)
             MZ_VER=4.0.7
             curl -L -o /tmp/minizip-ng.tar.gz https://github.com/zlib-ng/minizip-ng/archive/refs/tags/${MZ_VER}.tar.gz
@@ -58,15 +64,21 @@ jobs:
               -DMZ_LIBBSD=OFF
             cmake --build /tmp/minizip-ng/build --parallel
             cmake --install /tmp/minizip-ng/build
-            # Ensure pkg-config name matches our CMake find (minizip-ng)
-            if [ -f /usr/local/lib/pkgconfig/minizip.pc ]; then \
-              cp /usr/local/lib/pkgconfig/minizip.pc /usr/local/lib/pkgconfig/minizip-ng.pc; \
-              sed -i 's/^Name: .*/Name: minizip-ng/' /usr/local/lib/pkgconfig/minizip-ng.pc; \
+
+            # Ensure pkg-config name matches our CMake find ("minizip-ng")
+            if [ -f /usr/local/lib/pkgconfig/minizip.pc ]; then
+              sed -e 's/^Name:.*/Name: minizip-ng/' \
+                  /usr/local/lib/pkgconfig/minizip.pc > /usr/local/lib/pkgconfig/minizip-ng.pc
             fi
+
             # Provide expected include path for compat headers
-            if [ -d /usr/local/include/minizip ] && [ ! -e /usr/local/include/minizip-ng ]; then \
-              ln -s /usr/local/include/minizip /usr/local/include/minizip-ng; \
+            if [ -d /usr/local/include/minizip ] && [ ! -e /usr/local/include/minizip-ng ]; then
+              ln -s /usr/local/include/minizip /usr/local/include/minizip-ng
             fi
+
+            # Quick visibility/debug
+            ls -la /usr/local/lib/pkgconfig || true
+            (pkg-config --print-errors --modversion minizip-ng || pkg-config --modversion minizip || true)
         run: |
           python -m cibuildwheel --output-dir wheelhouse
 
@@ -108,8 +120,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          tag_name: v0.1.7
-          name: v0.1.7
+          tag_name: v0.1.8
+          name: v0.1.8
           target_commitish: ${{ github.event.pull_request.merge_commit_sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
