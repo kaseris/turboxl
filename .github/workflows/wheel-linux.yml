@@ -41,6 +41,8 @@ jobs:
             set -euxo pipefail
             yum install -y gcc gcc-c++ make pkgconfig libxml2-devel git
             python -m pip install --upgrade pip cmake ninja
+            # Clean previous temp dirs to make this step idempotent across builds
+            rm -rf /tmp/zlib-ng /tmp/build-zlib /tmp/minizip-ng /tmp/build-minizip
 
             # ---- zlib-ng (static, zlib-compat) ----
             git clone --depth 1 https://github.com/zlib-ng/zlib-ng.git /tmp/zlib-ng
