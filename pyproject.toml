@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "turboxl"
-version = "0.1.1"
+version = "0.1.2"
 description = "Fast XLSX to CSV converter (C++ core with Python bindings)"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -20,8 +20,6 @@ classifiers = [
     "Programming Language :: C++",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Text Processing :: Markup :: XML",
     "Topic :: Office/Business :: Financial :: Spreadsheet",
