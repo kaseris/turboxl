@@ -21,7 +21,6 @@ jobs:
       - name: Check out merge commit
         uses: actions/checkout@v4
         with:
-          # Build the exact merge commit that landed on main
           ref: ${{ github.event.pull_request.merge_commit_sha }}
 
       - name: Set up Python
@@ -48,8 +47,17 @@ jobs:
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
         with:
-          name: turboxl-macos-${{ matrix.arch }}-wheel
+          name: wheel-${{ matrix.arch }}
           path: dist/*.whl
+
+  publish:
+    needs: wheel
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
 
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
