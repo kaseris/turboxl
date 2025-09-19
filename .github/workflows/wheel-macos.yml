@@ -44,7 +44,7 @@ jobs:
           MACOSX_DEPLOYMENT_TARGET: "11.0"
           CMAKE_BUILD_PARALLEL_LEVEL: "4"
         run: |
-          python -m build -w --config-setting=cmake.define.CMAKE_OSX_ARCHITECTURES=${{ matrix.arch }}
+          cd python && python -m build -w --config-setting=cmake.define.CMAKE_OSX_ARCHITECTURES=${{ matrix.arch }}
 
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
