@@ -74,18 +74,18 @@ jobs:
             # Ensure pkg-config metadata exists for both names
             mkdir -p /opt/deps/lib/pkgconfig
             MINIZIP_VERSION=$(/usr/bin/env bash -c 'grep -E "^\#define MZ_VERSION " /tmp/minizip-ng/mz.h | sed -E "s/.*\"(.*)\".*/\1/"' || echo "unknown")
-            cat > /opt/deps/lib/pkgconfig/minizip.pc <<'PC'
-prefix=/opt/deps
-exec_prefix=${prefix}
-libdir=${prefix}/lib
-includedir=${prefix}/include
-
-Name: minizip
-Description: Minizip-ng zip manipulation library
-Version: ${MINIZIP_VERSION}
-Libs: -L${libdir} -lminizip
-Cflags: -I${includedir}
-PC
+            {
+              printf '%s\n' 'prefix=/opt/deps';
+              printf '%s\n' 'exec_prefix=${prefix}';
+              printf '%s\n' 'libdir=${prefix}/lib';
+              printf '%s\n' 'includedir=${prefix}/include';
+              printf '%s\n' '';
+              printf '%s\n' 'Name: minizip';
+              printf '%s\n' 'Description: Minizip-ng zip manipulation library';
+              printf 'Version: %s\n' "$MINIZIP_VERSION";
+              printf '%s\n' 'Libs: -L${libdir} -lminizip';
+              printf '%s\n' 'Cflags: -I${includedir}';
+            } > /opt/deps/lib/pkgconfig/minizip.pc
             cp /opt/deps/lib/pkgconfig/minizip.pc /opt/deps/lib/pkgconfig/minizip-ng.pc
 
             # Quick visibility/debug
@@ -133,8 +133,8 @@ PC
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          tag_name: v0.1.11
-          name: v0.1.11
+          tag_name: v0.1.12
+          name: v0.1.12
           target_commitish: ${{ github.event.pull_request.merge_commit_sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
