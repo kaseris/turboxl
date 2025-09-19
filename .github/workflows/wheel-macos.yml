@@ -2,8 +2,8 @@ name: Build macOS wheels (PR merge to main)
 
 on:
   pull_request:
-    branches: [ main ]
-    types: [ closed ]
+    branches: [main]
+    types: [closed]
 
 jobs:
   wheel:
@@ -27,12 +27,12 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install Homebrew dependencies
         run: |
           brew update
-          brew install cmake pkg-config libxml2 minizip-ng zlib-ng pybind11
+          brew install cmake libxml2 minizip-ng zlib-ng pybind11
 
       - name: Install Python build dependencies
         run: |
@@ -41,8 +41,8 @@ jobs:
       - name: Build wheel
         working-directory: python
         env:
-          MACOSX_DEPLOYMENT_TARGET: '11.0'
-          CMAKE_BUILD_PARALLEL_LEVEL: '4'
+          MACOSX_DEPLOYMENT_TARGET: "11.0"
+          CMAKE_BUILD_PARALLEL_LEVEL: "4"
         run: |
           python -m build -w --config-setting=cmake.define.CMAKE_OSX_ARCHITECTURES=${{ matrix.arch }}
 
@@ -51,4 +51,3 @@ jobs:
         with:
           name: turboxl-macos-${{ matrix.arch }}-wheel
           path: python/dist/*.whl
-
