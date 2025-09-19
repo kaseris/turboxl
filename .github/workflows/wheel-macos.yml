@@ -39,7 +39,6 @@ jobs:
           python -m pip install -U pip build scikit-build-core pybind11
 
       - name: Build wheel
-        working-directory: python
         env:
           MACOSX_DEPLOYMENT_TARGET: "11.0"
           CMAKE_BUILD_PARALLEL_LEVEL: "4"
@@ -50,4 +49,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: turboxl-macos-${{ matrix.arch }}-wheel
-          path: python/dist/*.whl
+          path: dist/*.whl
