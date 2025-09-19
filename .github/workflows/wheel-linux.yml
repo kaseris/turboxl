@@ -35,10 +35,11 @@ jobs:
             CMAKE_BUILD_PARALLEL_LEVEL=4
             PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig
             LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64:$LD_LIBRARY_PATH
+            CMAKE_PREFIX_PATH=/usr/local
             PATH=/opt/cmake/bin:$PATH
           CIBW_BEFORE_ALL_LINUX: |
             set -euxo pipefail
-            yum install -y gcc gcc-c++ make pkgconfig libxml2-devel zlib-devel curl tar
+            yum install -y gcc gcc-c++ make pkgconfig libxml2-devel curl tar
 
             # Install modern CMake (required >= 3.20)
             CMAKE_VER=3.27.9
@@ -48,7 +49,18 @@ jobs:
             mkdir -p /opt/cmake && tar -xzf /tmp/${CMAKE_PKG} -C /opt/cmake --strip-components=1
             export PATH=/opt/cmake/bin:$PATH
 
-            # Build and install minizip-ng from source (provides pkg-config file)
+            # Build and install zlib-ng from source (compat mode)
+            ZLIB_NG_VER=2.1.6
+            curl -L -o /tmp/zlib-ng.tar.gz https://github.com/zlib-ng/zlib-ng/archive/refs/tags/${ZLIB_NG_VER}.tar.gz
+            mkdir -p /tmp/zlib-ng && tar -xf /tmp/zlib-ng.tar.gz -C /tmp/zlib-ng --strip-components=1
+            cmake -S /tmp/zlib-ng -B /tmp/zlib-ng/build \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DBUILD_SHARED_LIBS=ON \
+              -DZLIB_COMPAT=ON
+            cmake --build /tmp/zlib-ng/build --parallel
+            cmake --install /tmp/zlib-ng/build
+
+            # Build and install minizip-ng from source
             MZ_VER=4.0.7
             curl -L -o /tmp/minizip-ng.tar.gz https://github.com/zlib-ng/minizip-ng/archive/refs/tags/${MZ_VER}.tar.gz
             mkdir -p /tmp/minizip-ng && tar -xf /tmp/minizip-ng.tar.gz -C /tmp/minizip-ng --strip-components=1
@@ -61,15 +73,10 @@ jobs:
               -DMZ_ZLIB=ON \
               -DMZ_OPENSSL=OFF \
               -DMZ_BZIP2=OFF \
-              -DMZ_LIBBSD=OFF
+              -DMZ_LIBBSD=OFF \
+              -DCMAKE_PREFIX_PATH=/usr/local
             cmake --build /tmp/minizip-ng/build --parallel
             cmake --install /tmp/minizip-ng/build
-
-            # Ensure pkg-config name matches our CMake find ("minizip-ng")
-            if [ -f /usr/local/lib/pkgconfig/minizip.pc ]; then
-              sed -e 's/^Name:.*/Name: minizip-ng/' \
-                  /usr/local/lib/pkgconfig/minizip.pc > /usr/local/lib/pkgconfig/minizip-ng.pc
-            fi
 
             # Provide expected include path for compat headers
             if [ -d /usr/local/include/minizip ] && [ ! -e /usr/local/include/minizip-ng ]; then
@@ -78,7 +85,7 @@ jobs:
 
             # Quick visibility/debug
             ls -la /usr/local/lib/pkgconfig || true
-            (pkg-config --print-errors --modversion minizip-ng || pkg-config --modversion minizip || true)
+            (pkg-config --print-errors --modversion minizip || true)
         run: |
           python -m cibuildwheel --output-dir wheelhouse
 
