@@ -48,6 +48,7 @@ jobs:
                   -DZLIB_COMPAT=ON \
                   -DBUILD_SHARED_LIBS=OFF \
                   -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+                  -DCMAKE_INSTALL_LIBDIR=lib \
                   -DCMAKE_INSTALL_PREFIX=/opt/deps
             cmake --build /tmp/build-zlib --target install --config Release
 
@@ -63,6 +64,8 @@ jobs:
                   -DMZ_COMPAT=ON \
                   -DBUILD_SHARED_LIBS=OFF \
                   -DZLIB_ROOT=/opt/deps \
+                  -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+                  -DCMAKE_INSTALL_LIBDIR=lib \
                   -DCMAKE_INSTALL_PREFIX=/opt/deps
             cmake --build /tmp/build-minizip --target install --config Release
 
@@ -89,6 +92,7 @@ jobs:
             cp /opt/deps/lib/pkgconfig/minizip.pc /opt/deps/lib/pkgconfig/minizip-ng.pc
 
             # Quick visibility/debug
+            echo "Installed libs:" && ls -la /opt/deps/lib || true
             ls -la /opt/deps/lib/pkgconfig || true
             (pkg-config --print-errors --modversion minizip || true)
             (pkg-config --print-errors --modversion minizip-ng || true)
