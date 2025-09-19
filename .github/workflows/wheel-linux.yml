@@ -56,6 +56,11 @@ jobs:
             cmake -S /tmp/minizip-ng -B /tmp/build-minizip -G Ninja \
                   -DMZ_ZLIB=ON \
                   -DMZ_OPENSSL=OFF \
+                  -DMZ_BZIP2=OFF \
+                  -DMZ_LZMA=OFF \
+                  -DMZ_ZSTD=OFF \
+                  -DMZ_LIBBSD=OFF \
+                  -DMZ_COMPAT=ON \
                   -DBUILD_SHARED_LIBS=OFF \
                   -DZLIB_ROOT=/opt/deps \
                   -DCMAKE_INSTALL_PREFIX=/opt/deps
@@ -66,9 +71,27 @@ jobs:
               ln -s /opt/deps/include/minizip /opt/deps/include/minizip-ng; \
             fi
 
+            # Ensure pkg-config metadata exists for both names
+            mkdir -p /opt/deps/lib/pkgconfig
+            MINIZIP_VERSION=$(/usr/bin/env bash -c 'grep -E "^\#define MZ_VERSION " /tmp/minizip-ng/mz.h | sed -E "s/.*\"(.*)\".*/\1/"' || echo "unknown")
+            cat > /opt/deps/lib/pkgconfig/minizip.pc <<'PC'
+prefix=/opt/deps
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: minizip
+Description: Minizip-ng zip manipulation library
+Version: ${MINIZIP_VERSION}
+Libs: -L${libdir} -lminizip
+Cflags: -I${includedir}
+PC
+            cp /opt/deps/lib/pkgconfig/minizip.pc /opt/deps/lib/pkgconfig/minizip-ng.pc
+
             # Quick visibility/debug
             ls -la /opt/deps/lib/pkgconfig || true
             (pkg-config --print-errors --modversion minizip || true)
+            (pkg-config --print-errors --modversion minizip-ng || true)
         run: |
           python -m cibuildwheel --output-dir wheelhouse
 
