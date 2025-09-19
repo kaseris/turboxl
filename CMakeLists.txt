@@ -38,16 +38,10 @@ else()
     message(STATUS "Using standard zlib (consider installing zlib-ng for better performance)")
 endif()
 
-# Find minizip-ng or libzip
-pkg_check_modules(MINIZIP minizip-ng)
+pkg_check_modules(MINIZIP minizip)
 if(MINIZIP_FOUND)
-    set(ZIP_LIBRARY "minizip-ng")
+    set(ZIP_LIBRARY "minizip")
     set(ZIP_INCLUDE_DIRS ${MINIZIP_INCLUDE_DIRS})
-    # Also add parent include directory so includes like <minizip-ng/...> resolve
-    foreach(_inc IN LISTS MINIZIP_INCLUDE_DIRS)
-        get_filename_component(_parent_inc "${_inc}" DIRECTORY)
-        list(APPEND ZIP_INCLUDE_DIRS "${_parent_inc}")
-    endforeach()
     set(ZIP_LIBRARIES ${MINIZIP_LIBRARIES})
 else()
     pkg_check_modules(LIBZIP libzip)
