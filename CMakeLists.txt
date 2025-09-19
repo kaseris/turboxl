@@ -11,6 +11,12 @@ option(BUILD_PYTHON "Build Python module" ON)
 option(BUILD_CLI "Build CLI tool" OFF)
 option(BUILD_BENCHMARKS "Build benchmarks" OFF)
 
+# Detect cibuildwheel environment to disable -march=native
+option(PORTABLE_BUILD "Disable CPU-specific optimizations for portable wheels" OFF)
+if(DEFINED ENV{CIBUILDWHEEL})
+  set(PORTABLE_BUILD ON)
+endif()
+
 # Find required packages
 find_package(PkgConfig REQUIRED)
 
@@ -21,7 +27,6 @@ if(NOT LIBXML2_FOUND)
 endif()
 
 # Find zlib-ng with compatibility mode (preferred) or fallback to standard zlib
-find_package(PkgConfig QUIET)
 pkg_check_modules(ZLIB_NG zlib-ng)
 if(ZLIB_NG_FOUND)
     set(ZLIB_LIBRARY "zlib-ng")
@@ -32,14 +37,18 @@ if(ZLIB_NG_FOUND)
 else()
     find_package(ZLIB REQUIRED)
     set(ZLIB_LIBRARY "zlib")
-    set(ZLIB_INCLUDE_DIRS ${ZLIB_INCLUDE_DIRS})
-    set(ZLIB_LIBRARIES ${ZLIB_LIBRARIES})
+    set(ZLIB_INCLUDE_DIRS ${ZLIB_INCLUDE_DIR})
+    set(ZLIB_LIBRARIES ZLIB::ZLIB)
     set(ZLIB_LIBRARY_DIRS "")
     message(STATUS "Using standard zlib (consider installing zlib-ng for better performance)")
 endif()
 
-# Find minizip-ng or libzip
+# Find minizip-ng, fallback to plain minizip, then libzip
 pkg_check_modules(MINIZIP minizip-ng)
+if(NOT MINIZIP_FOUND)
+    pkg_check_modules(MINIZIP minizip) # many distros ship just "minizip"
+endif()
+
 if(MINIZIP_FOUND)
     set(ZIP_LIBRARY "minizip-ng")
     set(ZIP_INCLUDE_DIRS ${MINIZIP_INCLUDE_DIRS})
@@ -49,14 +58,16 @@ if(MINIZIP_FOUND)
         list(APPEND ZIP_INCLUDE_DIRS "${_parent_inc}")
     endforeach()
     set(ZIP_LIBRARIES ${MINIZIP_LIBRARIES})
+    message(STATUS "Using minizip (${ZIP_LIBRARIES})")
 else()
     pkg_check_modules(LIBZIP libzip)
     if(LIBZIP_FOUND)
         set(ZIP_LIBRARY "libzip")
         set(ZIP_INCLUDE_DIRS ${LIBZIP_INCLUDE_DIRS})
         set(ZIP_LIBRARIES ${LIBZIP_LIBRARIES})
+        message(STATUS "Using libzip (${ZIP_LIBRARIES})")
     else()
-        message(FATAL_ERROR "Neither minizip-ng nor libzip found. Please install one of them.")
+        message(FATAL_ERROR "Neither minizip-ng/minizip nor libzip found. Please install one of them.")
     endif()
 endif()
 
@@ -93,12 +104,10 @@ target_link_libraries(turboxl_core
         ${ZLIB_LIBRARIES}
 )
 
-# Add library search directories for zlib-ng if needed
+# Add library search directories if needed
 if(ZLIB_LIBRARY_DIRS)
     target_link_directories(turboxl_core PRIVATE ${ZLIB_LIBRARY_DIRS})
 endif()
-
-# Add library search directories for minizip/libzip if provided
 if(MINIZIP_FOUND AND MINIZIP_LIBRARY_DIRS)
     target_link_directories(turboxl_core PRIVATE ${MINIZIP_LIBRARY_DIRS})
 endif()
@@ -115,12 +124,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         -fvisibility=hidden
     )
     
-    # Performance optimization flags for Release builds
     if(CMAKE_BUILD_TYPE STREQUAL "Release")
-        target_compile_options(turboxl_core PRIVATE
-            -O3 -march=native -flto
-        )
-        target_link_options(turboxl_core PRIVATE -flto)
+        if(NOT PORTABLE_BUILD)
+            target_compile_options(turboxl_core PRIVATE -O3 -march=native -flto)
+            target_link_options(turboxl_core PRIVATE -flto)
+        else()
+            target_compile_options(turboxl_core PRIVATE -O3 -flto)
+            target_link_options(turboxl_core PRIVATE -flto)
+        endif()
     endif()
 endif()
 
@@ -132,7 +143,6 @@ if(MSVC)
         _CRT_SECURE_NO_WARNINGS
     )
     
-    # Performance optimization flags for Release builds
     if(CMAKE_BUILD_TYPE STREQUAL "Release")
         target_compile_options(turboxl_core PRIVATE
             /O2 /GL /arch:AVX2
@@ -148,11 +158,9 @@ if(BUILD_PYTHON)
     pybind11_add_module(turboxl src/python/module.cpp)
     target_link_libraries(turboxl PRIVATE turboxl_core)
     
-    # Add library search directories for zlib-ng if needed
     if(ZLIB_LIBRARY_DIRS)
         target_link_directories(turboxl PRIVATE ${ZLIB_LIBRARY_DIRS})
     endif()
-    # Add library search directories for minizip/libzip if provided
     if(MINIZIP_FOUND AND MINIZIP_LIBRARY_DIRS)
         target_link_directories(turboxl PRIVATE ${MINIZIP_LIBRARY_DIRS})
     endif()
@@ -160,13 +168,11 @@ if(BUILD_PYTHON)
         target_link_directories(turboxl PRIVATE ${LIBZIP_LIBRARY_DIRS})
     endif()
     
-    # Ensure hidden visibility for small ABI surface
     set_target_properties(turboxl PROPERTIES
         CXX_VISIBILITY_PRESET hidden
         VISIBILITY_INLINES_HIDDEN ON
     )
 
-    # Install the Python extension into the wheel's platlib root
     install(TARGETS turboxl
         LIBRARY DESTINATION .
         RUNTIME DESTINATION .
@@ -178,10 +184,8 @@ endif()
 if(BUILD_TESTS)
     enable_testing()
     
-    # Find Google Test
     find_package(GTest QUIET)
     if(NOT GTest_FOUND)
-        # Fallback: download and build GTest
         include(FetchContent)
         FetchContent_Declare(
             googletest
@@ -212,7 +216,6 @@ if(BUILD_TESTS)
             GTest::gtest_main
     )
     
-    # Add library search directories for zlib-ng if needed
     if(ZLIB_LIBRARY_DIRS)
         target_link_directories(turboxl_tests PRIVATE ${ZLIB_LIBRARY_DIRS})
     endif()
@@ -264,7 +267,6 @@ install(EXPORT turboxlTargets
     DESTINATION lib/cmake/turboxl
 )
 
-# Create config file
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/turboxlConfigVersion.cmake"
