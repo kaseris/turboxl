@@ -1,5 +1,5 @@
 #include "xlsxcsv/core.hpp"
-#include <minizip/unzip.h>
+#include <minizip-ng/unzip.h>
 #include <algorithm>
 #include <filesystem>
 #include <regex>
