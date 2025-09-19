@@ -5,6 +5,7 @@
 #include <memory>
 #include <sstream>
 #include <charconv>
+#include <cstring>
 
 namespace xlsxcsv::core {
 
