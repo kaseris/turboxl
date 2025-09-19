@@ -33,58 +33,41 @@ jobs:
           CIBW_SKIP: "pp* *-musllinux_*"
           CIBW_ENVIRONMENT: >
             CMAKE_BUILD_PARALLEL_LEVEL=4
-            PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig
-            LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64:$LD_LIBRARY_PATH
-            CMAKE_PREFIX_PATH=/usr/local
-            PATH=/opt/cmake/bin:$PATH
-          CIBW_BEFORE_ALL_LINUX: |
+            PKG_CONFIG_PATH=/opt/deps/lib/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig
+            LD_LIBRARY_PATH=/opt/deps/lib:/usr/local/lib:/usr/local/lib64:$LD_LIBRARY_PATH
+            CMAKE_PREFIX_PATH=/opt/deps:/usr/local
+            ZLIB_ROOT=/opt/deps
+          CIBW_BEFORE_BUILD_LINUX: |
             set -euxo pipefail
-            yum install -y gcc gcc-c++ make pkgconfig libxml2-devel curl tar
+            yum install -y gcc gcc-c++ make pkgconfig libxml2-devel git
+            python -m pip install --upgrade pip cmake ninja
 
-            # Install modern CMake (required >= 3.20)
-            CMAKE_VER=3.27.9
-            ARCH=$(uname -m)
-            if [ "$ARCH" = "x86_64" ]; then CMAKE_PKG=cmake-${CMAKE_VER}-linux-x86_64.tar.gz; else CMAKE_PKG=cmake-${CMAKE_VER}-linux-aarch64.tar.gz; fi
-            curl -L -o /tmp/${CMAKE_PKG} https://github.com/Kitware/CMake/releases/download/v${CMAKE_VER}/${CMAKE_PKG}
-            mkdir -p /opt/cmake && tar -xzf /tmp/${CMAKE_PKG} -C /opt/cmake --strip-components=1
-            export PATH=/opt/cmake/bin:$PATH
+            # ---- zlib-ng (static, zlib-compat) ----
+            git clone --depth 1 https://github.com/zlib-ng/zlib-ng.git /tmp/zlib-ng
+            cmake -S /tmp/zlib-ng -B /tmp/build-zlib -G Ninja \
+                  -DZLIB_COMPAT=ON \
+                  -DBUILD_SHARED_LIBS=OFF \
+                  -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+                  -DCMAKE_INSTALL_PREFIX=/opt/deps
+            cmake --build /tmp/build-zlib --target install --config Release
 
-            # Build and install zlib-ng from source (compat mode)
-            ZLIB_NG_VER=2.1.6
-            curl -L -o /tmp/zlib-ng.tar.gz https://github.com/zlib-ng/zlib-ng/archive/refs/tags/${ZLIB_NG_VER}.tar.gz
-            mkdir -p /tmp/zlib-ng && tar -xf /tmp/zlib-ng.tar.gz -C /tmp/zlib-ng --strip-components=1
-            cmake -S /tmp/zlib-ng -B /tmp/zlib-ng/build \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DBUILD_SHARED_LIBS=ON \
-              -DZLIB_COMPAT=ON
-            cmake --build /tmp/zlib-ng/build --parallel
-            cmake --install /tmp/zlib-ng/build
+            # ---- minizip-ng (static) ----
+            git clone --depth 1 https://github.com/zlib-ng/minizip-ng.git /tmp/minizip-ng
+            cmake -S /tmp/minizip-ng -B /tmp/build-minizip -G Ninja \
+                  -DMZ_ZLIB=ON \
+                  -DMZ_OPENSSL=OFF \
+                  -DBUILD_SHARED_LIBS=OFF \
+                  -DZLIB_ROOT=/opt/deps \
+                  -DCMAKE_INSTALL_PREFIX=/opt/deps
+            cmake --build /tmp/build-minizip --target install --config Release
 
-            # Build and install minizip-ng from source
-            MZ_VER=4.0.7
-            curl -L -o /tmp/minizip-ng.tar.gz https://github.com/zlib-ng/minizip-ng/archive/refs/tags/${MZ_VER}.tar.gz
-            mkdir -p /tmp/minizip-ng && tar -xf /tmp/minizip-ng.tar.gz -C /tmp/minizip-ng --strip-components=1
-            cmake -S /tmp/minizip-ng -B /tmp/minizip-ng/build \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DBUILD_SHARED_LIBS=ON \
-              -DMZ_BUILD_TESTS=OFF \
-              -DMZ_FETCH_LIBS=OFF \
-              -DMZ_COMPAT=ON \
-              -DMZ_ZLIB=ON \
-              -DMZ_OPENSSL=OFF \
-              -DMZ_BZIP2=OFF \
-              -DMZ_LIBBSD=OFF \
-              -DCMAKE_PREFIX_PATH=/usr/local
-            cmake --build /tmp/minizip-ng/build --parallel
-            cmake --install /tmp/minizip-ng/build
-
-            # Provide expected include path for compat headers
-            if [ -d /usr/local/include/minizip ] && [ ! -e /usr/local/include/minizip-ng ]; then \
-              ln -s /usr/local/include/minizip /usr/local/include/minizip-ng; \
+            # Provide expected include path for compat headers used by code
+            if [ -d /opt/deps/include/minizip ] && [ ! -e /opt/deps/include/minizip-ng ]; then \
+              ln -s /opt/deps/include/minizip /opt/deps/include/minizip-ng; \
             fi
 
             # Quick visibility/debug
-            ls -la /usr/local/lib/pkgconfig || true
+            ls -la /opt/deps/lib/pkgconfig || true
             (pkg-config --print-errors --modversion minizip || true)
         run: |
           python -m cibuildwheel --output-dir wheelhouse
@@ -127,8 +110,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          tag_name: v0.1.9
-          name: v0.1.9
+          tag_name: v0.1.10
+          name: v0.1.10
           target_commitish: ${{ github.event.pull_request.merge_commit_sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
