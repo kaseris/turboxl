@@ -1,4 +1,5 @@
 # TurboXL
+
 <p align="center">
   <img src="assets/logo.svg" alt="TurboXL Logo" width="400"/>
 </p>
@@ -8,17 +9,16 @@ Fast, read-only XLSX to CSV converter with C++20 core and Python bindings.
 
 **Real-world benchmarks** on Chicago Crime dataset (21.9MB, 146,574 rows):
 
-| Metric | TurboXL | OpenPyXL | Improvement |
-|--------|---------|----------|-------------|
-| **Speed** | 2.4s | 63.1s | **26.7x faster** |
-| **Memory** | 33.5MB | 66.9MB | **2.0x less** |
+| Metric         | TurboXL         | OpenPyXL       | Improvement      |
+| -------------- | --------------- | -------------- | ---------------- |
+| **Speed**      | 2.4s            | 63.1s          | **26.7x faster** |
+| **Memory**     | 33.5MB          | 66.9MB         | **2.0x less**    |
 | **Throughput** | 62,040 rows/sec | 2,321 rows/sec | **26.7x faster** |
 
-*Dataset: [Chicago Crimes 2025](https://data.cityofchicago.org/Public-Safety/Crimes-2025/t7ek-mgzi/about_data)*
-
-
+_Dataset: [Chicago Crimes 2025](https://data.cityofchicago.org/Public-Safety/Crimes-2025/t7ek-mgzi/about_data)_
 
 🚀 **Recent Optimizations Implemented:**
+
 - **zlib-ng integration** - Up to 2.5x faster ZIP decompression
 - **Release build optimizations** - `-O3 -march=native -flto` for GCC/Clang, `/O2 /GL /arch:AVX2` for MSVC
 - **Arena-based shared strings** - Memory-efficient string storage
@@ -119,9 +119,11 @@ cmake --build build -j4
 ```
 
 Artifacts:
+
 - Static library: `build/libturboxl_core.a`
 
 **Build Modes:**
+
 - **Release** (Recommended): Enables `-O3 -march=native -flto` optimizations
 - **Debug**: Enables debugging symbols and assertions
 
@@ -149,12 +151,12 @@ System dependencies listed above (libxml2, minizip-ng, zlib-ng, cmake, compiler)
 
 ```bash
 # From repo root
-cd python
 python3 -m build -w
 ```
 
-Outputs go to `python/dist/`, for example:
-- `python/dist/turboxl-0.1.0-<python>-<abi>-<platform>.whl`
+Outputs go to `dist/`, for example:
+
+- `dist/turboxl-0.1.0-<python>-<abi>-<platform>.whl`
 
 Install the built wheel locally:
 
@@ -163,6 +165,7 @@ pip install python/dist/turboxl-*.whl
 ```
 
 Tips:
+
 - Parallel CMake build: `CMAKE_BUILD_PARALLEL_LEVEL=4 python3 -m build -w`
 - macOS arch (defaults to arm64 via `pyproject.toml`): to override, you can pass
   `--config-setting=cmake.define.CMAKE_OSX_ARCHITECTURES="arm64;x86_64"` to `python -m build`.
