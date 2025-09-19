@@ -79,8 +79,8 @@ jobs:
             cmake --install /tmp/minizip-ng/build
 
             # Provide expected include path for compat headers
-            if [ -d /usr/local/include/minizip ] && [ ! -e /usr/local/include/minizip-ng ]; then
-              ln -s /usr/local/include/minizip /usr/local/include/minizip-ng
+            if [ -d /usr/local/include/minizip ] && [ ! -e /usr/local/include/minizip-ng ]; then \
+              ln -s /usr/local/include/minizip /usr/local/include/minizip-ng; \
             fi
 
             # Quick visibility/debug
