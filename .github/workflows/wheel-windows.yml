@@ -42,10 +42,10 @@ jobs:
             python -m pip install -U pip cmake ninja build scikit-build-core pybind11
           CIBW_ENVIRONMENT_WINDOWS: >
             CMAKE_BUILD_PARALLEL_LEVEL=4
-            CMAKE_PREFIX_PATH={project}\vcpkg\installed\x64-windows-static-md
-            PKG_CONFIG_PATH={project}\vcpkg\installed\x64-windows-static-md\lib\pkgconfig
+            CMAKE_PREFIX_PATH=${{ github.workspace }}\vcpkg\installed\x64-windows-static-md
+            PKG_CONFIG_PATH=${{ github.workspace }}\vcpkg\installed\x64-windows-static-md\lib\pkgconfig
             VCPKG_TARGET_TRIPLET=x64-windows-static-md
-            CMAKE_ARGS=-DCMAKE_TOOLCHAIN_FILE={project}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON
+            CMAKE_ARGS=-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON
         run: |
           python -m cibuildwheel --output-dir wheelhouse
 
@@ -87,8 +87,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          tag_name: v0.1.20
-          name: v0.1.20
+          tag_name: v0.1.21
+          name: v0.1.21
           target_commitish: ${{ github.event.pull_request.merge_commit_sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
