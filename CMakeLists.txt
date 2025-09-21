@@ -16,9 +16,13 @@ find_package(PkgConfig REQUIRED)
 
 # --- Windows-specific discovery (minimal guard) ---
 if(WIN32)
-    # Prefer CMake package configs supplied by vcpkg; keep variable names used below.
-    find_package(LibXml2 REQUIRED)
-    # The FindLibXml2 module defines LIBXML2_INCLUDE_DIRS/LIBXML2_LIBRARIES
+    # Prefer pkg-config first (works well with vcpkg's .pc files),
+    # then fall back to CMake's FindLibXml2.
+    pkg_check_modules(LIBXML2 libxml-2.0)
+    if(NOT LIBXML2_FOUND)
+        find_package(LibXml2 REQUIRED)
+        # The FindLibXml2 module defines LIBXML2_INCLUDE_DIRS/LIBXML2_LIBRARIES
+    endif()
 
     # zlib: with zlib-ng[compat] in vcpkg, find_package(ZLIB) resolves to the
     # compatibility layer, so consumers still link against ZLIB as usual.
