@@ -4,10 +4,10 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "turboxl"
-version = "0.1.16"
+version = "0.1.17"
 description = "Fast XLSX to CSV converter (C++ core with Python bindings)"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 authors = [{ name = "Michail Kaseris", email = "mich.kaseris@gmail.com" }]
 license = { text = "MIT" }
 classifiers = [
