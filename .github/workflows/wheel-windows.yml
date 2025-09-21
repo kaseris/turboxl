@@ -44,6 +44,8 @@ jobs:
             CMAKE_BUILD_PARALLEL_LEVEL=4
             CMAKE_PREFIX_PATH={project}\vcpkg\installed\x64-windows-static-md
             PKG_CONFIG_PATH={project}\vcpkg\installed\x64-windows-static-md\lib\pkgconfig
+            CMAKE_TOOLCHAIN_FILE={project}\vcpkg\scripts\buildsystems\vcpkg.cmake
+            CMAKE_FIND_PACKAGE_PREFER_CONFIG=ON
         run: |
           python -m cibuildwheel --output-dir wheelhouse
 

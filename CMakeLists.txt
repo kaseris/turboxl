@@ -20,6 +20,10 @@ if(WIN32)
     # then fall back to CMake's FindLibXml2.
     pkg_check_modules(LIBXML2 libxml-2.0)
     if(NOT LIBXML2_FOUND)
+        # Some Windows package managers name it 'libxml2'
+        pkg_check_modules(LIBXML2 libxml2)
+    endif()
+    if(NOT LIBXML2_FOUND)
         find_package(LibXml2 REQUIRED)
         # The FindLibXml2 module defines LIBXML2_INCLUDE_DIRS/LIBXML2_LIBRARIES
     endif()
