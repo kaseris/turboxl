@@ -14,49 +14,76 @@ option(BUILD_BENCHMARKS "Build benchmarks" OFF)
 # Find required packages
 find_package(PkgConfig REQUIRED)
 
-# Find libxml2
-pkg_check_modules(LIBXML2 REQUIRED libxml-2.0)
-if(NOT LIBXML2_FOUND)
-    message(FATAL_ERROR "libxml2 not found. Please install libxml2-dev")
-endif()
+# --- Windows-specific discovery (minimal guard) ---
+if(WIN32)
+    # Prefer CMake package configs supplied by vcpkg; keep variable names used below.
+    find_package(LibXml2 REQUIRED)
+    # The FindLibXml2 module defines LIBXML2_INCLUDE_DIRS/LIBXML2_LIBRARIES
 
-# Find zlib-ng with compatibility mode (preferred) or fallback to standard zlib
-find_package(PkgConfig QUIET)
-pkg_check_modules(ZLIB_NG zlib-ng)
-if(ZLIB_NG_FOUND)
-    set(ZLIB_LIBRARY "zlib-ng")
-    set(ZLIB_INCLUDE_DIRS ${ZLIB_NG_INCLUDE_DIRS})
-    set(ZLIB_LIBRARIES ${ZLIB_NG_LIBRARIES})
-    set(ZLIB_LIBRARY_DIRS ${ZLIB_NG_LIBRARY_DIRS})
-    message(STATUS "Using zlib-ng for optimized compression performance")
-else()
+    # zlib: with zlib-ng[compat] in vcpkg, find_package(ZLIB) resolves to the
+    # compatibility layer, so consumers still link against ZLIB as usual.
     find_package(ZLIB REQUIRED)
     set(ZLIB_LIBRARY "zlib")
     set(ZLIB_INCLUDE_DIRS ${ZLIB_INCLUDE_DIRS})
     set(ZLIB_LIBRARIES ${ZLIB_LIBRARIES})
     set(ZLIB_LIBRARY_DIRS "")
-    message(STATUS "Using standard zlib (consider installing zlib-ng for better performance)")
-endif()
 
-# Find minizip-ng or libzip
-pkg_check_modules(MINIZIP minizip-ng)
-if(MINIZIP_FOUND)
-    set(ZIP_LIBRARY "minizip-ng")
-    set(ZIP_INCLUDE_DIRS ${MINIZIP_INCLUDE_DIRS})
-    # Also add parent include directory so includes like <minizip-ng/...> resolve
-    foreach(_inc IN LISTS MINIZIP_INCLUDE_DIRS)
-        get_filename_component(_parent_inc "${_inc}" DIRECTORY)
-        list(APPEND ZIP_INCLUDE_DIRS "${_parent_inc}")
-    endforeach()
-    set(ZIP_LIBRARIES ${MINIZIP_LIBRARIES})
-else()
-    pkg_check_modules(LIBZIP libzip)
-    if(LIBZIP_FOUND)
-        set(ZIP_LIBRARY "libzip")
-        set(ZIP_INCLUDE_DIRS ${LIBZIP_INCLUDE_DIRS})
-        set(ZIP_LIBRARIES ${LIBZIP_LIBRARIES})
+    # minizip-ng via its CMake config (vcpkg installs target minizip::minizip)
+    find_package(minizip CONFIG QUIET)
+    if(minizip_FOUND)
+        set(ZIP_LIBRARY "minizip-ng")
+        set(ZIP_INCLUDE_DIRS "")
+        set(ZIP_LIBRARIES minizip::minizip)
     else()
-        message(FATAL_ERROR "Neither minizip-ng nor libzip found. Please install one of them.")
+        message(FATAL_ERROR "minizip-ng not found (install via vcpkg).")
+    endif()
+
+else()
+    # --- Non-Windows: keep existing pkg-config based discovery ---
+    # Find libxml2
+    pkg_check_modules(LIBXML2 REQUIRED libxml-2.0)
+    if(NOT LIBXML2_FOUND)
+        message(FATAL_ERROR "libxml2 not found. Please install libxml2-dev")
+    endif()
+
+    # Find zlib-ng with compatibility mode (preferred) or fallback to standard zlib
+    find_package(PkgConfig QUIET)
+    pkg_check_modules(ZLIB_NG zlib-ng)
+    if(ZLIB_NG_FOUND)
+        set(ZLIB_LIBRARY "zlib-ng")
+        set(ZLIB_INCLUDE_DIRS ${ZLIB_NG_INCLUDE_DIRS})
+        set(ZLIB_LIBRARIES ${ZLIB_NG_LIBRARIES})
+        set(ZLIB_LIBRARY_DIRS ${ZLIB_NG_LIBRARY_DIRS})
+        message(STATUS "Using zlib-ng for optimized compression performance")
+    else()
+        find_package(ZLIB REQUIRED)
+        set(ZLIB_LIBRARY "zlib")
+        set(ZLIB_INCLUDE_DIRS ${ZLIB_INCLUDE_DIRS})
+        set(ZLIB_LIBRARIES ${ZLIB_LIBRARIES})
+        set(ZLIB_LIBRARY_DIRS "")
+        message(STATUS "Using standard zlib (consider installing zlib-ng for better performance)")
+    endif()
+
+    # Find minizip-ng or libzip
+    pkg_check_modules(MINIZIP minizip-ng)
+    if(MINIZIP_FOUND)
+        set(ZIP_LIBRARY "minizip-ng")
+        set(ZIP_INCLUDE_DIRS ${MINIZIP_INCLUDE_DIRS})
+        # Also add parent include directory so includes like <minizip-ng/...> resolve
+        foreach(_inc IN LISTS MINIZIP_INCLUDE_DIRS)
+            get_filename_component(_parent_inc "${_inc}" DIRECTORY)
+            list(APPEND ZIP_INCLUDE_DIRS "${_parent_inc}")
+        endforeach()
+        set(ZIP_LIBRARIES ${MINIZIP_LIBRARIES})
+    else()
+        pkg_check_modules(LIBZIP libzip)
+        if(LIBZIP_FOUND)
+            set(ZIP_LIBRARY "libzip")
+            set(ZIP_INCLUDE_DIRS ${LIBZIP_INCLUDE_DIRS})
+            set(ZIP_LIBRARIES ${LIBZIP_LIBRARIES})
+        else()
+            message(FATAL_ERROR "Neither minizip-ng nor libzip found. Please install one of them.")
+        endif()
     endif()
 endif()
 
