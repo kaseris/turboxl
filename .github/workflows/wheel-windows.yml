@@ -1,0 +1,93 @@
+name: Build Windows wheels (PR merge to main)
+
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+
+jobs:
+  wheel-windows:
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
+    runs-on: windows-2022
+    steps:
+      - name: Check out merge commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Set up Python (for cibuildwheel runner)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install cibuildwheel
+        run: |
+          python -m pip install -U pip cibuildwheel
+
+      - name: Build Windows wheels with cibuildwheel
+        env:
+          CIBW_ARCHS_WINDOWS: "AMD64"
+          CIBW_SKIP: "pp*"
+          CIBW_BEFORE_BUILD_WINDOWS: |
+            choco install -y pkgconfiglite git
+            git clone https://github.com/microsoft/vcpkg %GITHUB_WORKSPACE%\vcpkg
+            %GITHUB_WORKSPACE%\vcpkg\bootstrap-vcpkg.bat
+
+            set VCPKG_TRIPLET=x64-windows-static-md
+            %GITHUB_WORKSPACE%\vcpkg\vcpkg.exe install ^
+              libxml2:%VCPKG_TRIPLET% ^
+              minizip-ng:%VCPKG_TRIPLET% ^
+              zlib-ng[compat]:%VCPKG_TRIPLET%
+
+            python -m pip install -U pip cmake ninja build scikit-build-core pybind11
+          CIBW_ENVIRONMENT_WINDOWS: >
+            CMAKE_BUILD_PARALLEL_LEVEL=4
+            CMAKE_PREFIX_PATH={project}\vcpkg\installed\x64-windows-static-md
+            PKG_CONFIG_PATH={project}\vcpkg\installed\x64-windows-static-md\lib\pkgconfig
+        run: |
+          python -m cibuildwheel --output-dir wheelhouse
+
+      - name: Upload wheel artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-windows
+          path: wheelhouse/*.whl
+
+  publish:
+    needs: wheel-windows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: wheels-windows
+          path: dist
+
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+  release-assets:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download built wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: wheels-windows
+          path: dist
+
+      - name: Upload wheels to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          tag_name: v0.1.16
+          name: v0.1.16
+          target_commitish: ${{ github.event.pull_request.merge_commit_sha }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
