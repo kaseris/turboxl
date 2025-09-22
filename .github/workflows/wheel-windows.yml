@@ -26,35 +26,27 @@ jobs:
           architecture: ${{ matrix.arch }}
 
       - name: Build zlib-ng
-        run: |
-          git clone --depth 1 https://github.com/zlib-ng/zlib-ng.git
-          cmake -G "Visual Studio 17 2022" -A ${{ matrix.arch }} -B zlib-ng-build zlib-ng ^
-            -DZLIB_COMPAT=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=C:\deps\zlib-ng
-          cmake --build zlib-ng-build --config Release --target install
+          run: |
+            git clone --depth 1 https://github.com/zlib-ng/zlib-ng.git
+            cmake -G "Visual Studio 17 2022" -A ${{ matrix.arch }} -B zlib-ng-build zlib-ng -DZLIB_COMPAT=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=C:\deps\zlib-ng
+            cmake --build zlib-ng-build --config Release --target install
 
       - name: Build minizip-ng (with zlib-ng)
         run: |
           git clone --depth 1 https://github.com/zlib-ng/minizip-ng.git
-          cmake -G "Visual Studio 17 2022" -A ${{ matrix.arch }} -B minizip-build minizip-ng ^
-            -DMZ_FETCH_LIBS=OFF -DMZ_ZLIB=ON -DMZ_ZLIB_FLAVOR=zlib-ng -DBUILD_SHARED_LIBS=OFF ^
-            -DCMAKE_INSTALL_PREFIX=C:\deps\minizip ^
-            -DZLIB_LIBRARY=C:\deps\zlib-ng\lib\zlib.lib -DZLIB_INCLUDE_DIR=C:\deps\zlib-ng\include
+          cmake -G "Visual Studio 17 2022" -A ${{ matrix.arch }} -B minizip-build minizip-ng -DMZ_FETCH_LIBS=OFF -DMZ_ZLIB=ON -DMZ_ZLIB_FLAVOR=zlib-ng -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=C:\deps\minizip -DZLIB_LIBRARY=C:\deps\zlib-ng\lib\zlib.lib -DZLIB_INCLUDE_DIR=C:\deps\zlib-ng\include
           cmake --build minizip-build --config Release --target install
 
       - name: Build libxml2 (without iconv, with zlib-ng)
         run: |
           git clone --depth 1 https://github.com/GNOME/libxml2.git
-          cmake -G "Visual Studio 17 2022" -A ${{ matrix.arch }} -B libxml2-build libxml2 ^
-            -DLIBXML2_WITH_ICONV=OFF -DLIBXML2_WITH_ZLIB=ON -DBUILD_SHARED_LIBS=OFF ^
-            -DCMAKE_INSTALL_PREFIX=C:\deps\libxml2 ^
-            -DZLIB_LIBRARY=C:\deps\zlib-ng\lib\zlib.lib -DZLIB_INCLUDE_DIR=C:\deps\zlib-ng\include
+          cmake -G "Visual Studio 17 2022" -A ${{ matrix.arch }} -B libxml2-build libxml2 -DLIBXML2_WITH_ICONV=OFF -DLIBXML2_WITH_ZLIB=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=C:\deps\libxml2 -DZLIB_LIBRARY=C:\deps\zlib-ng\lib\zlib.lib -DZLIB_INCLUDE_DIR=C:\deps\zlib-ng\include
           cmake --build libxml2-build --config Release --target install
 
       - name: Install pybind11 from source
         run: |
           git clone --depth 1 https://github.com/pybind/pybind11.git
-          cmake -G "Visual Studio 17 2022" -A ${{ matrix.arch }} -B pybind11-build pybind11 ^
-            -DPYBIND11_INSTALL=ON -DPYBIND11_TEST=OFF -DCMAKE_INSTALL_PREFIX=C:\deps\pybind11
+          cmake -G "Visual Studio 17 2022" -A ${{ matrix.arch }} -B pybind11-build pybind11 -DPYBIND11_INSTALL=ON -DPYBIND11_TEST=OFF -DCMAKE_INSTALL_PREFIX=C:\deps\pybind11
           cmake --build pybind11-build --config Release --target install
 
       - name: Install Python build dependencies
@@ -106,8 +98,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          tag_name: v0.1.30
-          name: v0.1.30
+          tag_name: v0.1.31
+          name: v0.1.31
           target_commitish: ${{ github.event.pull_request.merge_commit_sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
