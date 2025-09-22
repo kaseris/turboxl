@@ -1,102 +1,66 @@
 cmake_minimum_required(VERSION 3.20)
 project(turboxl LANGUAGES CXX)
 
-# Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Project options
-option(BUILD_TESTS "Build tests" ON)
+option(BUILD_TESTS "Build tests" OFF)
 option(BUILD_PYTHON "Build Python module" ON)
 option(BUILD_CLI "Build CLI tool" OFF)
 option(BUILD_BENCHMARKS "Build benchmarks" OFF)
 
-if(NOT WIN32)
-    find_package(PkgConfig REQUIRED)
-endif()
 
-# --- Windows-specific discovery (minimal guard) ---
 if(WIN32)
-    # Prefer pkg-config first (works well with vcpkg's .pc files),
-    # then fall back to CMake's FindLibXml2.
-    pkg_check_modules(LIBXML2 libxml-2.0)
-    if(NOT LIBXML2_FOUND)
-        # Some Windows package managers name it 'libxml2'
-        pkg_check_modules(LIBXML2 libxml2)
-    endif()
-    if(NOT LIBXML2_FOUND)
-        find_package(LibXml2 REQUIRED)
-        # The FindLibXml2 module defines LIBXML2_INCLUDE_DIRS/LIBXML2_LIBRARIES
-    endif()
-
-    # zlib: with zlib-ng[compat] in vcpkg, find_package(ZLIB) resolves to the
-    # compatibility layer, so consumers still link against ZLIB as usual.
+    find_package(LibXml2 REQUIRED)
     find_package(ZLIB REQUIRED)
-    set(ZLIB_LIBRARY "zlib")
+
+    find_package(minizip CONFIG REQUIRED)
+
+    set(LIBXML2_INCLUDE_DIRS ${LIBXML2_INCLUDE_DIRS})
+    set(LIBXML2_LIBRARIES ${LIBXML2_LIBRARIES})
     set(ZLIB_INCLUDE_DIRS ${ZLIB_INCLUDE_DIRS})
     set(ZLIB_LIBRARIES ${ZLIB_LIBRARIES})
-    set(ZLIB_LIBRARY_DIRS "")
-
-    # minizip-ng via its CMake config (vcpkg installs target minizip::minizip)
-    find_package(minizip CONFIG QUIET)
-    if(minizip_FOUND)
-        set(ZIP_LIBRARY "minizip-ng")
-        set(ZIP_INCLUDE_DIRS "")
-        set(ZIP_LIBRARIES minizip::minizip)
-    else()
-        message(FATAL_ERROR "minizip-ng not found (install via vcpkg).")
-    endif()
+    set(ZIP_LIBRARIES minizip::minizip)
 
 else()
-    # --- Non-Windows: keep existing pkg-config based discovery ---
-    # Find libxml2
+    find_package(PkgConfig REQUIRED)
+
+    # libxml2
     pkg_check_modules(LIBXML2 REQUIRED libxml-2.0)
     if(NOT LIBXML2_FOUND)
         message(FATAL_ERROR "libxml2 not found. Please install libxml2-dev")
     endif()
 
-    # Find zlib-ng with compatibility mode (preferred) or fallback to standard zlib
-    find_package(PkgConfig QUIET)
+    # zlib-ng (preferred) or zlib
     pkg_check_modules(ZLIB_NG zlib-ng)
     if(ZLIB_NG_FOUND)
         set(ZLIB_LIBRARY "zlib-ng")
         set(ZLIB_INCLUDE_DIRS ${ZLIB_NG_INCLUDE_DIRS})
         set(ZLIB_LIBRARIES ${ZLIB_NG_LIBRARIES})
-        set(ZLIB_LIBRARY_DIRS ${ZLIB_NG_LIBRARY_DIRS})
-        message(STATUS "Using zlib-ng for optimized compression performance")
+        message(STATUS "Using zlib-ng")
     else()
         find_package(ZLIB REQUIRED)
-        set(ZLIB_LIBRARY "zlib")
         set(ZLIB_INCLUDE_DIRS ${ZLIB_INCLUDE_DIRS})
         set(ZLIB_LIBRARIES ${ZLIB_LIBRARIES})
-        set(ZLIB_LIBRARY_DIRS "")
-        message(STATUS "Using standard zlib (consider installing zlib-ng for better performance)")
+        message(STATUS "Using standard zlib")
     endif()
 
-    # Find minizip-ng or libzip
+    # minizip-ng or libzip
     pkg_check_modules(MINIZIP minizip-ng)
     if(MINIZIP_FOUND)
-        set(ZIP_LIBRARY "minizip-ng")
-        set(ZIP_INCLUDE_DIRS ${MINIZIP_INCLUDE_DIRS})
-        # Also add parent include directory so includes like <minizip-ng/...> resolve
-        foreach(_inc IN LISTS MINIZIP_INCLUDE_DIRS)
-            get_filename_component(_parent_inc "${_inc}" DIRECTORY)
-            list(APPEND ZIP_INCLUDE_DIRS "${_parent_inc}")
-        endforeach()
         set(ZIP_LIBRARIES ${MINIZIP_LIBRARIES})
+        set(ZIP_INCLUDE_DIRS ${MINIZIP_INCLUDE_DIRS})
     else()
         pkg_check_modules(LIBZIP libzip)
         if(LIBZIP_FOUND)
-            set(ZIP_LIBRARY "libzip")
-            set(ZIP_INCLUDE_DIRS ${LIBZIP_INCLUDE_DIRS})
             set(ZIP_LIBRARIES ${LIBZIP_LIBRARIES})
+            set(ZIP_INCLUDE_DIRS ${LIBZIP_INCLUDE_DIRS})
         else()
-            message(FATAL_ERROR "Neither minizip-ng nor libzip found. Please install one of them.")
+            message(FATAL_ERROR "Neither minizip-ng nor libzip found.")
         endif()
     endif()
 endif()
 
-# Core library
 add_library(turboxl_core
     src/core/zip_reader.cpp
     src/core/opc_package.cpp
@@ -116,7 +80,6 @@ target_include_directories(turboxl_core
         $<INSTALL_INTERFACE:include>
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${LIBXML2_INCLUDE_DIRS}
         ${ZIP_INCLUDE_DIRS}
         ${ZLIB_INCLUDE_DIRS}
@@ -129,80 +92,33 @@ target_link_libraries(turboxl_core
         ${ZLIB_LIBRARIES}
 )
 
-# Add library search directories for zlib-ng if needed
-if(ZLIB_LIBRARY_DIRS)
-    target_link_directories(turboxl_core PRIVATE ${ZLIB_LIBRARY_DIRS})
-endif()
-
-# Add library search directories for minizip/libzip if provided
-if(MINIZIP_FOUND AND MINIZIP_LIBRARY_DIRS)
-    target_link_directories(turboxl_core PRIVATE ${MINIZIP_LIBRARY_DIRS})
-endif()
-if(LIBZIP_FOUND AND LIBZIP_LIBRARY_DIRS)
-    target_link_directories(turboxl_core PRIVATE ${LIBZIP_LIBRARY_DIRS})
-endif()
-
 target_compile_features(turboxl_core PUBLIC cxx_std_20)
 
-# Compiler-specific settings
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-    target_compile_options(turboxl_core PRIVATE
-        -Wall -Wextra -Wpedantic
-        -fvisibility=hidden
-    )
-    
-    # Performance optimization flags for Release builds
+if(MSVC)
+    target_compile_options(turboxl_core PRIVATE /W4 /wd4251)
+    target_compile_definitions(turboxl_core PRIVATE _CRT_SECURE_NO_WARNINGS)
     if(CMAKE_BUILD_TYPE STREQUAL "Release")
-        target_compile_options(turboxl_core PRIVATE
-            -O3 -march=native -flto
-        )
+        target_compile_options(turboxl_core PRIVATE /O2 /GL /arch:AVX2)
+        target_link_options(turboxl_core PRIVATE /LTCG)
+    endif()
+else()
+    target_compile_options(turboxl_core PRIVATE -Wall -Wextra -Wpedantic -fvisibility=hidden)
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        target_compile_options(turboxl_core PRIVATE -O3 -march=native -flto)
         target_link_options(turboxl_core PRIVATE -flto)
     endif()
 endif()
 
-if(MSVC)
-    target_compile_options(turboxl_core PRIVATE
-        /W4 /wd4251
-    )
-    target_compile_definitions(turboxl_core PRIVATE
-        _CRT_SECURE_NO_WARNINGS
-    )
-    
-    # Performance optimization flags for Release builds
-    if(CMAKE_BUILD_TYPE STREQUAL "Release")
-        target_compile_options(turboxl_core PRIVATE
-            /O2 /GL /arch:AVX2
-        )
-        target_link_options(turboxl_core PRIVATE /LTCG)
-    endif()
-endif()
-
-# Python bindings
 if(BUILD_PYTHON)
     find_package(pybind11 CONFIG REQUIRED)
-    
     pybind11_add_module(turboxl src/python/module.cpp)
     target_link_libraries(turboxl PRIVATE turboxl_core)
-    
-    # Add library search directories for zlib-ng if needed
-    if(ZLIB_LIBRARY_DIRS)
-        target_link_directories(turboxl PRIVATE ${ZLIB_LIBRARY_DIRS})
-    endif()
-    # Add library search directories for minizip/libzip if provided
-    if(MINIZIP_FOUND AND MINIZIP_LIBRARY_DIRS)
-        target_link_directories(turboxl PRIVATE ${MINIZIP_LIBRARY_DIRS})
-    endif()
-    if(LIBZIP_FOUND AND LIBZIP_LIBRARY_DIRS)
-        target_link_directories(turboxl PRIVATE ${LIBZIP_LIBRARY_DIRS})
-    endif()
-    
-    # Ensure hidden visibility for small ABI surface
+
     set_target_properties(turboxl PROPERTIES
         CXX_VISIBILITY_PRESET hidden
         VISIBILITY_INLINES_HIDDEN ON
     )
 
-    # Install the Python extension into the wheel's platlib root
     install(TARGETS turboxl
         LIBRARY DESTINATION .
         RUNTIME DESTINATION .
@@ -210,14 +126,10 @@ if(BUILD_PYTHON)
     )
 endif()
 
-# Tests
 if(BUILD_TESTS)
     enable_testing()
-    
-    # Find Google Test
     find_package(GTest QUIET)
     if(NOT GTest_FOUND)
-        # Fallback: download and build GTest
         include(FetchContent)
         FetchContent_Declare(
             googletest
@@ -226,7 +138,7 @@ if(BUILD_TESTS)
         )
         FetchContent_MakeAvailable(googletest)
     endif()
-    
+
     add_executable(turboxl_tests
         tests/main.cpp
         tests/test_zip_reader.cpp
@@ -240,29 +152,18 @@ if(BUILD_TESTS)
         tests/test_csv_encoder.cpp
         tests/test_integration.cpp
     )
-    
+
     target_link_libraries(turboxl_tests
-        PRIVATE
-            turboxl_core
-            GTest::gtest
-            GTest::gtest_main
+        PRIVATE turboxl_core GTest::gtest GTest::gtest_main
     )
-    
-    # Add library search directories for zlib-ng if needed
-    if(ZLIB_LIBRARY_DIRS)
-        target_link_directories(turboxl_tests PRIVATE ${ZLIB_LIBRARY_DIRS})
-    endif()
-    
     add_test(NAME core_tests COMMAND turboxl_tests)
 endif()
 
-# CLI tool
 if(BUILD_CLI)
     add_executable(turboxl_cli tools/cli.cpp)
     target_link_libraries(turboxl_cli PRIVATE turboxl_core)
 endif()
 
-# Benchmarks
 if(BUILD_BENCHMARKS)
     find_package(benchmark QUIET)
     if(NOT benchmark_FOUND)
@@ -274,16 +175,11 @@ if(BUILD_BENCHMARKS)
         )
         FetchContent_MakeAvailable(benchmark)
     endif()
-    
+
     add_executable(turboxl_benchmarks benchmarks/main.cpp)
-    target_link_libraries(turboxl_benchmarks
-        PRIVATE
-            turboxl_core
-            benchmark::benchmark
-    )
+    target_link_libraries(turboxl_benchmarks PRIVATE turboxl_core benchmark::benchmark)
 endif()
 
-# Installation
 install(TARGETS turboxl_core
     EXPORT turboxlTargets
     LIBRARY DESTINATION lib
@@ -300,7 +196,6 @@ install(EXPORT turboxlTargets
     DESTINATION lib/cmake/turboxl
 )
 
-# Create config file
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/turboxlConfigVersion.cmake"
