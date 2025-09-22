@@ -11,8 +11,9 @@ option(BUILD_PYTHON "Build Python module" ON)
 option(BUILD_CLI "Build CLI tool" OFF)
 option(BUILD_BENCHMARKS "Build benchmarks" OFF)
 
-# Find required packages
-find_package(PkgConfig REQUIRED)
+if(NOT WIN32)
+    find_package(PkgConfig REQUIRED)
+endif()
 
 # --- Windows-specific discovery (minimal guard) ---
 if(WIN32)
