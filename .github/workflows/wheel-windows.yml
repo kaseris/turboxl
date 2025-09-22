@@ -24,13 +24,6 @@ jobs:
         run: |
           python -m pip install -U pip cibuildwheel
 
-      - name: Normalize workspace path (POSIX style)
-        id: paths
-        shell: pwsh
-        run: |
-          $p = "${{ github.workspace }}".Replace('\\','/')
-          echo "workspace_posix=$p" >> $env:GITHUB_OUTPUT
-
       - name: Cache vcpkg build artifacts
         uses: actions/cache@v4
         with:
@@ -109,8 +102,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          tag_name: v0.1.27
-          name: v0.1.27
+          tag_name: v0.1.28
+          name: v0.1.28
           target_commitish: ${{ github.event.pull_request.merge_commit_sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
