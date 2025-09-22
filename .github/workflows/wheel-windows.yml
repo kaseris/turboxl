@@ -26,10 +26,10 @@ jobs:
           architecture: ${{ matrix.arch }}
 
       - name: Build zlib-ng
-          run: |
-            git clone --depth 1 https://github.com/zlib-ng/zlib-ng.git
-            cmake -G "Visual Studio 17 2022" -A ${{ matrix.arch }} -B zlib-ng-build zlib-ng -DZLIB_COMPAT=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=C:\deps\zlib-ng
-            cmake --build zlib-ng-build --config Release --target install
+        run: |
+          git clone --depth 1 https://github.com/zlib-ng/zlib-ng.git
+          cmake -G "Visual Studio 17 2022" -A ${{ matrix.arch }} -B zlib-ng-build zlib-ng -DZLIB_COMPAT=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=C:\deps\zlib-ng
+          cmake --build zlib-ng-build --config Release --target install
 
       - name: Build minizip-ng (with zlib-ng)
         run: |
@@ -98,8 +98,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          tag_name: v0.1.31
-          name: v0.1.31
+          tag_name: v0.1.32
+          name: v0.1.32
           target_commitish: ${{ github.event.pull_request.merge_commit_sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
