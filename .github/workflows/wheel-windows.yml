@@ -43,6 +43,7 @@ jobs:
           cmake --build minizip-build --config Release --target install
           dir C:\deps\minizip\lib
           dir C:\deps\minizip\include
+          if (Test-Path 'C:\\deps\\minizip\\lib\\cmake') { dir C:\\deps\\minizip\\lib\\cmake -Recurse }
 
       - name: Build libxml2 (without iconv, with zlib-ng)
         run: |
@@ -68,6 +69,7 @@ jobs:
         run: |
           $zlibLib = if (Test-Path 'C:/deps/zlib-ng/lib/zlib.lib') { 'C:/deps/zlib-ng/lib/zlib.lib' } else { 'C:/deps/zlib-ng/lib/zlibstatic.lib' }
           $libxml2Lib = if (Test-Path 'C:/deps/libxml2/lib/libxml2s.lib') { 'C:/deps/libxml2/lib/libxml2s.lib' } else { 'C:/deps/libxml2/lib/libxml2.lib' }
+          $minizipDir = if (Test-Path 'C:/deps/minizip/lib/cmake/minizip/minizip-config.cmake') { 'C:/deps/minizip/lib/cmake/minizip' } elseif (Test-Path 'C:/deps/minizip/lib/cmake/minizip-ng/minizip-ng-config.cmake') { 'C:/deps/minizip/lib/cmake/minizip-ng' } else { 'C:/deps/minizip' }
 
           $args = @(
             '-w'
@@ -76,7 +78,7 @@ jobs:
             "--config-setting=cmake.define.ZLIB_LIBRARY=$zlibLib"
             '--config-setting=cmake.define.LIBXML2_INCLUDE_DIR=C:/deps/libxml2/include'
             "--config-setting=cmake.define.LIBXML2_LIBRARY=$libxml2Lib"
-            '--config-setting=cmake.define.minizip_DIR=C:/deps/minizip/lib/cmake/minizip'
+            "--config-setting=cmake.define.minizip_DIR=$minizipDir"
           )
 
           python -m build @args
@@ -119,8 +121,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          tag_name: v0.1.38
-          name: v0.1.38
+          tag_name: v0.1.39
+          name: v0.1.39
           target_commitish: ${{ github.event.pull_request.merge_commit_sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
