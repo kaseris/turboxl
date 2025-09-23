@@ -45,6 +45,22 @@ jobs:
           dir C:\deps\minizip\include
           if (Test-Path 'C:\\deps\\minizip\\lib\\cmake') { dir C:\\deps\\minizip\\lib\\cmake -Recurse }
 
+      - name: Create CMake import for minizip target
+        run: |
+          $minizipLib = (Get-ChildItem -Path 'C:/deps/minizip/lib' -Filter 'minizip*.lib' -Recurse | Select-Object -First 1).FullName
+          if (-not $minizipLib) { throw 'Could not locate minizip .lib in C:/deps/minizip/lib' }
+          $minizipInc = 'C:/deps/minizip/include'
+          New-Item -ItemType Directory -Path 'C:/deps/cmake' -Force | Out-Null
+          @"
+          if(NOT TARGET minizip::minizip)
+            add_library(minizip::minizip STATIC IMPORTED)
+            set_target_properties(minizip::minizip PROPERTIES
+              IMPORTED_LOCATION "${minizipLib}"
+              INTERFACE_INCLUDE_DIRECTORIES "${minizipInc}"
+            )
+          endif()
+          "@ | Set-Content -Path 'C:/deps/cmake/minizip_import.cmake' -Encoding UTF8
+
       - name: Build libxml2 (without iconv, with zlib-ng)
         run: |
           git clone --depth 1 https://github.com/GNOME/libxml2.git
@@ -85,6 +101,7 @@ jobs:
             '--config-setting=cmake.define.LIBXML2_INCLUDE_DIR=C:/deps/libxml2/include'
             "--config-setting=cmake.define.LIBXML2_LIBRARY=$libxml2Lib"
             "--config-setting=cmake.define.minizip_DIR=$minizipDir"
+            '--config-setting=cmake.define.CMAKE_PROJECT_TOPLEVEL_INCLUDES=C:/deps/cmake/minizip_import.cmake'
           )
 
           python -m build @args
@@ -127,8 +144,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          tag_name: v0.1.40
-          name: v0.1.40
+          tag_name: v0.1.41
+          name: v0.1.41
           target_commitish: ${{ github.event.pull_request.merge_commit_sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
