@@ -91,6 +91,9 @@ jobs:
           } else {
             $minizipDir = 'C:/deps/minizip'
           }
+          $minizipLib = (Get-ChildItem -Path 'C:/deps/minizip/lib' -Filter 'minizip*.lib' -Recurse | Select-Object -First 1).FullName
+          if (-not $minizipLib) { throw 'Could not locate minizip .lib in C:/deps/minizip/lib' }
+          $minizipInc = 'C:/deps/minizip/include'
 
           $args = @(
             '-w'
@@ -101,7 +104,8 @@ jobs:
             '--config-setting=cmake.define.LIBXML2_INCLUDE_DIR=C:/deps/libxml2/include'
             "--config-setting=cmake.define.LIBXML2_LIBRARY=$libxml2Lib"
             "--config-setting=cmake.define.minizip_DIR=$minizipDir"
-            '--config-setting=cmake.define.CMAKE_PROJECT_TOPLEVEL_INCLUDES=C:/deps/cmake/minizip_import.cmake'
+            "--config-setting=cmake.define.MINIZIP_LIBRARY=$minizipLib"
+            "--config-setting=cmake.define.MINIZIP_INCLUDE_DIR=$minizipInc"
           )
 
           python -m build @args
@@ -144,8 +148,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          tag_name: v0.1.41
-          name: v0.1.41
+          tag_name: v0.1.42
+          name: v0.1.42
           target_commitish: ${{ github.event.pull_request.merge_commit_sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
