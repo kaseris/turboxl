@@ -1,5 +1,11 @@
 #include "xlsxcsv/core.hpp"
-#include <minizip-ng/unzip.h>
+#if __has_include(<minizip-ng/unzip.h>)
+#  include <minizip-ng/unzip.h>
+#elif __has_include(<minizip/unzip.h>)
+#  include <minizip/unzip.h>
+#else
+#  error "minizip unzip.h header not found"
+#endif
 #include <algorithm>
 #include <filesystem>
 #include <regex>
