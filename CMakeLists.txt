@@ -28,14 +28,49 @@ if(WIN32)
     set(ZLIB_LIBRARIES ${ZLIB_LIBRARIES})
     set(ZLIB_LIBRARY_DIRS "")
 
-    # minizip-ng via its CMake config (vcpkg installs target minizip::minizip)
+    # minizip-ng via its CMake config (prefer config packages); fall back to manual override
     find_package(minizip CONFIG QUIET)
     if(minizip_FOUND)
-        set(ZIP_LIBRARY "minizip-ng")
-        set(ZIP_INCLUDE_DIRS "")
-        set(ZIP_LIBRARIES minizip::minizip)
+        # Accept common exported target names
+        if(TARGET minizip::minizip)
+            set(ZIP_LIBRARY "minizip-ng")
+            set(ZIP_INCLUDE_DIRS "")
+            set(ZIP_LIBRARIES minizip::minizip)
+        elseif(TARGET minizip)
+            # Create expected namespace alias if only plain target exists
+            add_library(minizip::minizip ALIAS minizip)
+            set(ZIP_LIBRARY "minizip-ng")
+            set(ZIP_INCLUDE_DIRS "")
+            set(ZIP_LIBRARIES minizip::minizip)
+        else()
+            # Allow explicit override if a config is present but no expected targets are exported
+            if(DEFINED MINIZIP_LIBRARY AND DEFINED MINIZIP_INCLUDE_DIR)
+                add_library(minizip::minizip STATIC IMPORTED)
+                set_target_properties(minizip::minizip PROPERTIES
+                    IMPORTED_LOCATION "${MINIZIP_LIBRARY}"
+                    INTERFACE_INCLUDE_DIRECTORIES "${MINIZIP_INCLUDE_DIR}"
+                )
+                set(ZIP_LIBRARY "minizip-ng")
+                set(ZIP_INCLUDE_DIRS "${MINIZIP_INCLUDE_DIR}")
+                set(ZIP_LIBRARIES minizip::minizip)
+            else()
+                message(FATAL_ERROR "minizip package found, but expected target not exported; set MINIZIP_LIBRARY and MINIZIP_INCLUDE_DIR to override.")
+            endif()
+        endif()
     else()
-        message(FATAL_ERROR "minizip-ng not found (install via vcpkg).")
+        # Final fallback: manual override via variables provided by the build system
+        if(DEFINED MINIZIP_LIBRARY AND DEFINED MINIZIP_INCLUDE_DIR)
+            add_library(minizip::minizip STATIC IMPORTED)
+            set_target_properties(minizip::minizip PROPERTIES
+                IMPORTED_LOCATION "${MINIZIP_LIBRARY}"
+                INTERFACE_INCLUDE_DIRECTORIES "${MINIZIP_INCLUDE_DIR}"
+            )
+            set(ZIP_LIBRARY "minizip-ng")
+            set(ZIP_INCLUDE_DIRS "${MINIZIP_INCLUDE_DIR}")
+            set(ZIP_LIBRARIES minizip::minizip)
+        else()
+            message(FATAL_ERROR "minizip-ng not found (install via vcpkg) and no manual override provided.")
+        endif()
     endif()
 
 else()
