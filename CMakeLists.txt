@@ -73,6 +73,12 @@ if(WIN32)
         endif()
     endif()
 
+    # If we have a concrete include dir, also add its parent so includes like <minizip-ng/...> resolve
+    if(DEFINED MINIZIP_INCLUDE_DIR)
+        get_filename_component(_parent_inc "${MINIZIP_INCLUDE_DIR}" DIRECTORY)
+        list(APPEND ZIP_INCLUDE_DIRS "${_parent_inc}")
+    endif()
+
 else()
     # --- Non-Windows: keep existing pkg-config based discovery ---
     # Find libxml2
