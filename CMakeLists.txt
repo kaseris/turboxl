@@ -154,8 +154,22 @@ target_include_directories(turboxl_core
         ${ZLIB_INCLUDE_DIRS}
 )
 
+# On Windows, when linking against a static libxml2, headers expect LIBXML_STATIC
+if(WIN32)
+    set(_LIBXML2_IS_STATIC OFF)
+    foreach(_lib ${LIBXML2_LIBRARIES})
+        string(TOLOWER "${_lib}" _lib_lower)
+        if(_lib_lower MATCHES "libxml2s\\.lib" OR _lib_lower MATCHES "libxml2\\.a")
+            set(_LIBXML2_IS_STATIC ON)
+        endif()
+    endforeach()
+    if(_LIBXML2_IS_STATIC)
+        target_compile_definitions(turboxl_core PRIVATE LIBXML_STATIC)
+    endif()
+endif()
+
 target_link_libraries(turboxl_core
-    PRIVATE
+    PUBLIC
         ${LIBXML2_LIBRARIES}
         ${ZIP_LIBRARIES}
         ${ZLIB_LIBRARIES}
@@ -215,6 +229,11 @@ if(BUILD_PYTHON)
     
     pybind11_add_module(turboxl src/python/module.cpp)
     target_link_libraries(turboxl PRIVATE turboxl_core)
+
+    # Propagate LIBXML_STATIC to the Python extension compile if needed
+    if(WIN32 AND _LIBXML2_IS_STATIC)
+        target_compile_definitions(turboxl PRIVATE LIBXML_STATIC)
+    endif()
     
     # Add library search directories for zlib-ng if needed
     if(ZLIB_LIBRARY_DIRS)
