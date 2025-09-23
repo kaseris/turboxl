@@ -6,62 +6,75 @@ on:
     types: [closed]
 
 jobs:
-  wheel-windows:
+  wheel:
     if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main'
-    runs-on: windows-2022
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64]
     steps:
       - name: Check out merge commit
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
 
-      - name: Set up Python (for cibuildwheel runner)
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          architecture: ${{ matrix.arch }}
 
-      - name: Install cibuildwheel
+      - name: Build zlib-ng
         run: |
-          python -m pip install -U pip cibuildwheel
+          git clone --depth 1 https://github.com/zlib-ng/zlib-ng.git
+          cmake -G "Visual Studio 17 2022" -A ${{ matrix.arch }} -B zlib-ng-build zlib-ng -DZLIB_COMPAT=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=C:\deps\zlib-ng
+          cmake --build zlib-ng-build --config Release --target install
 
-      - name: Build Windows wheels with cibuildwheel
+      - name: Build minizip-ng (with zlib-ng)
+        run: |
+          git clone --depth 1 https://github.com/zlib-ng/minizip-ng.git
+          cmake -G "Visual Studio 17 2022" -A ${{ matrix.arch }} -B minizip-build minizip-ng -DMZ_FETCH_LIBS=OFF -DMZ_ZLIB=ON -DMZ_ZLIB_FLAVOR=zlib-ng -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=C:\deps\minizip -DZLIB_LIBRARY=C:\deps\zlib-ng\lib\zlib.lib -DZLIB_INCLUDE_DIR=C:\deps\zlib-ng\include
+          cmake --build minizip-build --config Release --target install
+
+      - name: Build libxml2 (without iconv, with zlib-ng)
+        run: |
+          git clone --depth 1 https://github.com/GNOME/libxml2.git
+          cmake -G "Visual Studio 17 2022" -A ${{ matrix.arch }} -B libxml2-build libxml2 -DLIBXML2_WITH_ICONV=OFF -DLIBXML2_WITH_ZLIB=ON -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=C:\deps\libxml2 -DZLIB_LIBRARY=C:\deps\zlib-ng\lib\zlibstatic.lib -DZLIB_INCLUDE_DIR=C:\deps\zlib-ng\include
+          cmake --build libxml2-build --config Release --target install
+
+      - name: Install pybind11 from source
+        run: |
+          git clone --depth 1 https://github.com/pybind/pybind11.git
+          cmake -G "Visual Studio 17 2022" -A ${{ matrix.arch }} -B pybind11-build pybind11 -DPYBIND11_INSTALL=ON -DPYBIND11_TEST=OFF -DCMAKE_INSTALL_PREFIX=C:\deps\pybind11
+          cmake --build pybind11-build --config Release --target install
+
+      - name: Install Python build dependencies
+        run: |
+          python -m pip install -U pip build scikit-build-core
+
+      - name: Build wheel
         env:
-          CIBW_ARCHS_WINDOWS: "AMD64"
-          CIBW_SKIP: "pp*"
-          CIBW_BEFORE_BUILD_WINDOWS: |
-            choco install -y pkgconfiglite git
-            git clone https://github.com/microsoft/vcpkg %GITHUB_WORKSPACE%\vcpkg
-            %GITHUB_WORKSPACE%\vcpkg\bootstrap-vcpkg.bat
-
-            set VCPKG_TRIPLET=x64-windows-static-md
-            %GITHUB_WORKSPACE%\vcpkg\vcpkg.exe install ^
-              libxml2:%VCPKG_TRIPLET% ^
-              minizip-ng:%VCPKG_TRIPLET% ^
-              zlib-ng[compat]:%VCPKG_TRIPLET%
-
-            python -m pip install -U pip cmake ninja build scikit-build-core pybind11
-          CIBW_ENVIRONMENT_WINDOWS: >
-            CMAKE_BUILD_PARALLEL_LEVEL=4
-            CMAKE_PREFIX_PATH={project}\vcpkg\installed\x64-windows-static-md
-            PKG_CONFIG_PATH={project}\vcpkg\installed\x64-windows-static-md\lib\pkgconfig
+          CMAKE_BUILD_PARALLEL_LEVEL: "4"
         run: |
-          python -m cibuildwheel --output-dir wheelhouse
+          python -m build -w `
+            --config-setting=cmake.define.CMAKE_PREFIX_PATH="C:/deps/zlib-ng;C:/deps/minizip;C:/deps/libxml2;C:/deps/pybind11"
 
-      - name: Upload wheel artifacts
+      - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-windows
-          path: wheelhouse/*.whl
+          name: wheel-windows-${{ matrix.arch }}
+          path: dist/*.whl
 
   publish:
-    needs: wheel-windows
+    needs: wheel
     runs-on: ubuntu-latest
     steps:
-      - name: Download Windows wheel artifacts
+      - name: Download all wheel artifacts
         uses: actions/download-artifact@v4
         with:
-          name: wheels-windows
           path: dist
+          merge-multiple: true
 
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
@@ -78,15 +91,15 @@ jobs:
       - name: Download built wheels
         uses: actions/download-artifact@v4
         with:
-          name: wheels-windows
           path: dist
+          merge-multiple: true
 
       - name: Upload wheels to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          tag_name: v0.1.17
-          name: v0.1.17
+          tag_name: v0.1.35
+          name: v0.1.35
           target_commitish: ${{ github.event.pull_request.merge_commit_sha }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
