@@ -11,9 +11,6 @@ option(BUILD_PYTHON "Build Python module" ON)
 option(BUILD_CLI "Build CLI tool" OFF)
 option(BUILD_BENCHMARKS "Build benchmarks" OFF)
 
-# Find required packages
-find_package(PkgConfig REQUIRED)
-
 # --- Windows-specific discovery (minimal guard) ---
 if(WIN32)
     # Prefer CMake package configs supplied by vcpkg; keep variable names used below.
@@ -28,11 +25,42 @@ if(WIN32)
     set(ZLIB_LIBRARIES ${ZLIB_LIBRARIES})
     set(ZLIB_LIBRARY_DIRS "")
 
-    # minizip-ng via its CMake config (prefer config packages); fall back to manual override
+    # minizip-ng via CMake config (vcpkg installs config under minizip-ng).
+    find_package(minizip-ng CONFIG QUIET)
     find_package(minizip CONFIG QUIET)
-    if(minizip_FOUND)
-        # Accept common exported target names
+    find_package(unofficial-minizip-ng CONFIG QUIET)
+    find_package(unofficial-minizip CONFIG QUIET)
+    if(
+        minizip-ng_FOUND OR
+        minizip_FOUND OR
+        TARGET MINIZIP::minizip-ng OR
+        TARGET MINIZIP::minizip OR
+        TARGET unofficial::minizip-ng::minizip-ng OR
+        TARGET unofficial::minizip::minizip
+    )
+        # Normalize common exported target names to minizip::minizip.
         if(TARGET minizip::minizip)
+            set(ZIP_LIBRARY "minizip-ng")
+            set(ZIP_INCLUDE_DIRS "")
+            set(ZIP_LIBRARIES minizip::minizip)
+        elseif(TARGET MINIZIP::minizip-ng)
+            add_library(minizip::minizip ALIAS MINIZIP::minizip-ng)
+            set(ZIP_LIBRARY "minizip-ng")
+            set(ZIP_INCLUDE_DIRS "")
+            set(ZIP_LIBRARIES minizip::minizip)
+        elseif(TARGET MINIZIP::minizip)
+            add_library(minizip::minizip ALIAS MINIZIP::minizip)
+            set(ZIP_LIBRARY "minizip-ng")
+            set(ZIP_INCLUDE_DIRS "")
+            set(ZIP_LIBRARIES minizip::minizip)
+        elseif(TARGET unofficial::minizip-ng::minizip-ng)
+            add_library(minizip::minizip ALIAS unofficial::minizip-ng::minizip-ng)
+            set(ZIP_LIBRARY "minizip-ng")
+            set(ZIP_INCLUDE_DIRS "")
+            set(ZIP_LIBRARIES minizip::minizip)
+        elseif(TARGET unofficial::minizip::minizip)
+            # Normalize vcpkg's commonly exported target name
+            add_library(minizip::minizip ALIAS unofficial::minizip::minizip)
             set(ZIP_LIBRARY "minizip-ng")
             set(ZIP_INCLUDE_DIRS "")
             set(ZIP_LIBRARIES minizip::minizip)
@@ -81,6 +109,7 @@ if(WIN32)
 
 else()
     # --- Non-Windows: keep existing pkg-config based discovery ---
+    find_package(PkgConfig REQUIRED)
     # Find libxml2
     pkg_check_modules(LIBXML2 REQUIRED libxml-2.0)
     if(NOT LIBXML2_FOUND)
@@ -88,7 +117,6 @@ else()
     endif()
 
     # Find zlib-ng with compatibility mode (preferred) or fallback to standard zlib
-    find_package(PkgConfig QUIET)
     pkg_check_modules(ZLIB_NG zlib-ng)
     if(ZLIB_NG_FOUND)
         set(ZLIB_LIBRARY "zlib-ng")
