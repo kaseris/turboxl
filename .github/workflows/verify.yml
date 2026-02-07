@@ -125,7 +125,7 @@ jobs:
     name: verify-windows-x64
     runs-on: windows-latest
     env:
-      VCPKG_BINARY_SOURCES: clear;files,${{ runner.temp }}\\vcpkg-binary-cache,readwrite
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}\\vcpkg-binary-cache,readwrite
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -141,7 +141,7 @@ jobs:
       - name: Cache vcpkg binary artifacts
         uses: actions/cache@v4
         with:
-          path: ${{ runner.temp }}\vcpkg-binary-cache
+          path: ${{ github.workspace }}\vcpkg-binary-cache
           key: verify-windows-vcpkg-bin-x64-${{ hashFiles('vcpkg.json') }}
           restore-keys: |
             verify-windows-vcpkg-bin-x64-
