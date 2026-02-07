@@ -11,9 +11,6 @@ option(BUILD_PYTHON "Build Python module" ON)
 option(BUILD_CLI "Build CLI tool" OFF)
 option(BUILD_BENCHMARKS "Build benchmarks" OFF)
 
-# Find required packages
-find_package(PkgConfig REQUIRED)
-
 # --- Windows-specific discovery (minimal guard) ---
 if(WIN32)
     # Prefer CMake package configs supplied by vcpkg; keep variable names used below.
@@ -88,6 +85,7 @@ if(WIN32)
 
 else()
     # --- Non-Windows: keep existing pkg-config based discovery ---
+    find_package(PkgConfig REQUIRED)
     # Find libxml2
     pkg_check_modules(LIBXML2 REQUIRED libxml-2.0)
     if(NOT LIBXML2_FOUND)
@@ -95,7 +93,6 @@ else()
     endif()
 
     # Find zlib-ng with compatibility mode (preferred) or fallback to standard zlib
-    find_package(PkgConfig QUIET)
     pkg_check_modules(ZLIB_NG zlib-ng)
     if(ZLIB_NG_FOUND)
         set(ZLIB_LIBRARY "zlib-ng")

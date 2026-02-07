@@ -147,9 +147,6 @@ jobs:
             verify-windows-vcpkg-bin-x64-
             windows-vcpkg-bin-x64-
 
-      - name: Install pkg-config (Chocolatey)
-        run: choco install -y pkgconfiglite
-
       - name: Set up vcpkg
         uses: lukka/run-vcpkg@v11
         with:
