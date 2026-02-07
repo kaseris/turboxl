@@ -134,33 +134,47 @@ else()
         message(STATUS "Using standard zlib (consider installing zlib-ng for better performance)")
     endif()
 
-    # Find minizip-ng or libzip
-    pkg_check_modules(MINIZIP minizip-ng)
-    if(MINIZIP_FOUND)
+    # Find minizip-ng (prefer CMake package target from /opt/deps install),
+    # then fall back to pkg-config.
+    set(_ZIP_READY OFF)
+    find_package(minizip CONFIG QUIET)
+    find_package(minizip-ng CONFIG QUIET)
+    if(TARGET MINIZIP::minizip)
         set(ZIP_LIBRARY "minizip-ng")
-        set(ZIP_INCLUDE_DIRS ${MINIZIP_INCLUDE_DIRS})
-        # Also add parent include directory so includes like <minizip-ng/...> resolve
-        foreach(_inc IN LISTS MINIZIP_INCLUDE_DIRS)
-            get_filename_component(_parent_inc "${_inc}" DIRECTORY)
-            list(APPEND ZIP_INCLUDE_DIRS "${_parent_inc}")
-        endforeach()
-        # Prefer full link entries produced by pkg-config (can include absolute
-        # archive paths), not just bare -l names.
-        if(MINIZIP_LINK_LIBRARIES)
-            set(ZIP_LIBRARIES ${MINIZIP_LINK_LIBRARIES})
-        else()
-            set(ZIP_LIBRARIES ${MINIZIP_LIBRARIES})
-        endif()
-
-        # If pkg-config gave us a static archive path, keep it so we can force
-        # full symbol inclusion on Linux module link.
-        foreach(_mz_lib IN LISTS ZIP_LIBRARIES)
-            if(_mz_lib MATCHES "libminizip(-ng)?\\.a$")
-                set(MZ_WHOLE_ARCHIVE_LIB "${_mz_lib}")
-                break()
-            endif()
-        endforeach()
+        set(ZIP_INCLUDE_DIRS "")
+        set(ZIP_LIBRARIES MINIZIP::minizip)
+        set(_ZIP_READY ON)
     else()
+        pkg_check_modules(MINIZIP minizip-ng)
+        if(MINIZIP_FOUND)
+            set(ZIP_LIBRARY "minizip-ng")
+            set(ZIP_INCLUDE_DIRS ${MINIZIP_INCLUDE_DIRS})
+            # Also add parent include directory so includes like <minizip-ng/...> resolve
+            foreach(_inc IN LISTS MINIZIP_INCLUDE_DIRS)
+                get_filename_component(_parent_inc "${_inc}" DIRECTORY)
+                list(APPEND ZIP_INCLUDE_DIRS "${_parent_inc}")
+            endforeach()
+            # Prefer full link entries produced by pkg-config (can include absolute
+            # archive paths), not just bare -l names.
+            if(MINIZIP_LINK_LIBRARIES)
+                set(ZIP_LIBRARIES ${MINIZIP_LINK_LIBRARIES})
+            else()
+                set(ZIP_LIBRARIES ${MINIZIP_LIBRARIES})
+            endif()
+
+            # If pkg-config gave us a static archive path, keep it so we can force
+            # full symbol inclusion on Linux module link.
+            foreach(_mz_lib IN LISTS ZIP_LIBRARIES)
+                if(_mz_lib MATCHES "libminizip(-ng)?\\.a$")
+                    set(MZ_WHOLE_ARCHIVE_LIB "${_mz_lib}")
+                    break()
+                endif()
+            endforeach()
+            set(_ZIP_READY ON)
+        endif()
+    endif()
+
+    if(NOT _ZIP_READY)
         pkg_check_modules(LIBZIP libzip)
         if(LIBZIP_FOUND)
             set(ZIP_LIBRARY "libzip")
