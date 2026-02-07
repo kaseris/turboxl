@@ -77,7 +77,8 @@ jobs:
                [ -f /opt/deps/lib/pkgconfig/minizip-ng.pc ] && \
                [ -f /opt/deps/include/libxml2/libxml/parser.h ] && \
                [ -f /opt/deps/lib/libminizip.a ] && \
-               nm -g /opt/deps/lib/libminizip.a | grep -q " unzReadCurrentFile$"; then
+               nm -g /opt/deps/lib/libminizip.a | grep -q " unzReadCurrentFile$" && \
+               ! nm -g /opt/deps/lib/libminizip.a | grep -q "Ppmd8_Construct"; then
               echo "Using cached /opt/deps"
               exit 0
             fi
@@ -108,6 +109,10 @@ jobs:
                   -DCMAKE_INSTALL_LIBDIR=lib \
                   -DCMAKE_INSTALL_PREFIX=/opt/deps
             cmake --build /tmp/build-minizip --target install --config Release
+            if nm -g /opt/deps/lib/libminizip.a | grep -q "Ppmd8_Construct"; then
+              echo "minizip archive unexpectedly references Ppmd8_Construct"
+              exit 1
+            fi
             if [ -d /opt/deps/include/minizip ] && [ ! -e /opt/deps/include/minizip-ng ]; then
               ln -s /opt/deps/include/minizip /opt/deps/include/minizip-ng
             fi
