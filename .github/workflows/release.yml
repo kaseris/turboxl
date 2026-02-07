@@ -104,7 +104,6 @@ jobs:
         if: matrix.platform == 'windows'
         uses: lukka/run-vcpkg@v11
         with:
-          vcpkgGitCommitId: 66c0373
           runVcpkgInstall: false
 
       - name: Install vcpkg dependencies (Windows)
