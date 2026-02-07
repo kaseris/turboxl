@@ -144,25 +144,22 @@ else()
             get_filename_component(_parent_inc "${_inc}" DIRECTORY)
             list(APPEND ZIP_INCLUDE_DIRS "${_parent_inc}")
         endforeach()
-        # Prefer a static minizip archive when present to avoid runtime ABI drift
-        # against host-provided shared libminizip variants in wheel environments.
-        set(_MZ_STATIC_LIB "")
-        foreach(_libdir IN LISTS MINIZIP_LIBRARY_DIRS)
-            if(EXISTS "${_libdir}/libminizip.a")
-                set(_MZ_STATIC_LIB "${_libdir}/libminizip.a")
-                break()
-            endif()
-            if(EXISTS "${_libdir}/libminizip-ng.a")
-                set(_MZ_STATIC_LIB "${_libdir}/libminizip-ng.a")
-                break()
-            endif()
-        endforeach()
-        if(_MZ_STATIC_LIB)
-            set(MZ_WHOLE_ARCHIVE_LIB "${_MZ_STATIC_LIB}")
-            set(ZIP_LIBRARIES "${_MZ_STATIC_LIB}")
+        # Prefer full link entries produced by pkg-config (can include absolute
+        # archive paths), not just bare -l names.
+        if(MINIZIP_LINK_LIBRARIES)
+            set(ZIP_LIBRARIES ${MINIZIP_LINK_LIBRARIES})
         else()
             set(ZIP_LIBRARIES ${MINIZIP_LIBRARIES})
         endif()
+
+        # If pkg-config gave us a static archive path, keep it so we can force
+        # full symbol inclusion on Linux module link.
+        foreach(_mz_lib IN LISTS ZIP_LIBRARIES)
+            if(_mz_lib MATCHES "libminizip(-ng)?\\.a$")
+                set(MZ_WHOLE_ARCHIVE_LIB "${_mz_lib}")
+                break()
+            endif()
+        endforeach()
     else()
         pkg_check_modules(LIBZIP libzip)
         if(LIBZIP_FOUND)
