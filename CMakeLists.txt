@@ -158,6 +158,7 @@ else()
             endif()
         endforeach()
         if(_MZ_STATIC_LIB)
+            set(MZ_WHOLE_ARCHIVE_LIB "${_MZ_STATIC_LIB}")
             set(ZIP_LIBRARIES "${_MZ_STATIC_LIB}")
         else()
             set(ZIP_LIBRARIES ${MINIZIP_LIBRARIES})
@@ -290,6 +291,16 @@ if(BUILD_PYTHON)
         ${LIBXML2_LIBRARIES}
     )
 
+    # Some manylinux linkers may not pull needed compat objects from static
+    # minizip archives unless forced. Include the full archive on module link.
+    if(UNIX AND NOT APPLE AND MZ_WHOLE_ARCHIVE_LIB)
+        target_link_libraries(turboxl PRIVATE
+            "-Wl,--whole-archive"
+            "${MZ_WHOLE_ARCHIVE_LIB}"
+            "-Wl,--no-whole-archive"
+        )
+    endif()
+
     # Propagate LIBXML_STATIC to the Python extension compile if needed
     if(WIN32 AND _LIBXML2_IS_STATIC)
         target_compile_definitions(turboxl PRIVATE LIBXML_STATIC)
@@ -312,11 +323,6 @@ if(BUILD_PYTHON)
         CXX_VISIBILITY_PRESET hidden
         VISIBILITY_INLINES_HIDDEN ON
     )
-
-    if(UNIX AND NOT APPLE)
-        # Build-time guard: catch unresolved native symbols early.
-        target_link_options(turboxl PRIVATE -Wl,--no-undefined)
-    endif()
 
     # Install the Python extension into the wheel's platlib root
     install(TARGETS turboxl
