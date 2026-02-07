@@ -118,7 +118,8 @@ jobs:
               printf '%s\n' 'Name: minizip'
               printf '%s\n' 'Description: Minizip-ng zip manipulation library'
               printf 'Version: %s\n' "$MINIZIP_VERSION"
-              printf '%s\n' 'Libs: -L${libdir} -lminizip'
+              printf '%s\n' 'Libs: ${libdir}/libminizip.a'
+              printf '%s\n' 'Libs.private: -lz'
               printf '%s\n' 'Cflags: -I${includedir}'
             } > /opt/deps/lib/pkgconfig/minizip.pc
             cp /opt/deps/lib/pkgconfig/minizip.pc /opt/deps/lib/pkgconfig/minizip-ng.pc
