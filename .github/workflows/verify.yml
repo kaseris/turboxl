@@ -69,6 +69,7 @@ jobs:
             LD_LIBRARY_PATH=/opt/deps/lib:/usr/local/lib:/usr/local/lib64:$LD_LIBRARY_PATH
             CMAKE_PREFIX_PATH=/opt/deps:/usr/local
             ZLIB_ROOT=/opt/deps
+            minizip_DIR=/opt/deps/lib/cmake/minizip
             CMAKE_ARGS="-DTURBOXL_PORTABLE_BUILD=ON"
           CIBW_BEFORE_BUILD_LINUX: |
             set -euxo pipefail
