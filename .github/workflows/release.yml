@@ -157,11 +157,18 @@ jobs:
       - name: Install pkg-config (Chocolatey)
         run: choco install -y pkgconfiglite
 
-      - name: Set up vcpkg (manifest mode)
+      - name: Set up vcpkg
         uses: lukka/run-vcpkg@v11
         with:
-          runVcpkgInstall: true
-          vcpkgJsonGlob: "**/vcpkg.json"
+          runVcpkgInstall: false
+
+      - name: Install vcpkg dependencies (x64-windows-static)
+        run: |
+          & "$env:VCPKG_ROOT\vcpkg.exe" install `
+            --triplet x64-windows-static `
+            libxml2 `
+            minizip-ng `
+            zlib
 
       - name: Install cibuildwheel
         run: python -m pip install -U pip cibuildwheel
@@ -174,6 +181,7 @@ jobs:
             VCPKG_DEFAULT_TRIPLET=x64-windows-static
             CMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
             CMAKE_FIND_PACKAGE_PREFER_CONFIG=ON
+            CMAKE_ARGS=-DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-static -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON
         run: python -m cibuildwheel --output-dir wheelhouse
 
       - name: Upload Windows wheel artifacts
