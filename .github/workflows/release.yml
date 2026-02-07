@@ -173,10 +173,7 @@ jobs:
             CMAKE_BUILD_PARALLEL_LEVEL=4
             VCPKG_DEFAULT_TRIPLET=x64-windows-static
             CMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
-          CIBW_CONFIG_SETTINGS_WINDOWS: >-
-            cmake.define.CMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake
-            cmake.define.VCPKG_TARGET_TRIPLET=x64-windows-static
-            cmake.define.CMAKE_FIND_PACKAGE_PREFER_CONFIG=ON
+            CMAKE_FIND_PACKAGE_PREFER_CONFIG=ON
         run: python -m cibuildwheel --output-dir wheelhouse
 
       - name: Upload Windows wheel artifacts
