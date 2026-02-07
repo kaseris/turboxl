@@ -1,0 +1,10 @@
+{
+  "name": "turboxl",
+  "version-string": "0.1.44",
+  "builtin-baseline": "66c0373dc7fca549e5803087b9487edfe3aca0a1",
+  "dependencies": [
+    "libxml2",
+    "minizip-ng",
+    "zlib"
+  ]
+}

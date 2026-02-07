@@ -104,16 +104,8 @@ jobs:
         if: matrix.platform == 'windows'
         uses: lukka/run-vcpkg@v11
         with:
-          runVcpkgInstall: false
-
-      - name: Install vcpkg dependencies (Windows)
-        if: matrix.platform == 'windows'
-        run: |
-          & "$env:VCPKG_ROOT\vcpkg.exe" install `
-            libxml2 `
-            minizip-ng `
-            zlib-ng `
-            --triplet "${{ matrix.vcpkg_triplet }}"
+          runVcpkgInstall: true
+          vcpkgJsonGlob: "**/vcpkg.json"
 
       - name: Install Linux build dependencies
         if: matrix.platform == 'linux'
