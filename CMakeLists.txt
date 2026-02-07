@@ -305,25 +305,7 @@ if(BUILD_PYTHON)
     find_package(pybind11 CONFIG REQUIRED)
     
     pybind11_add_module(turboxl src/python/module.cpp)
-    # Explicitly link transitive native deps on the module target as well.
-    # This avoids unresolved ZIP symbols surfacing only at module import time
-    # in some manylinux linker configurations.
-    target_link_libraries(turboxl PRIVATE
-        turboxl_core
-        ${ZIP_LIBRARIES}
-        ${ZLIB_LIBRARIES}
-        ${LIBXML2_LIBRARIES}
-    )
-
-    # Some manylinux linkers may not pull needed compat objects from static
-    # minizip archives unless forced. Include the full archive on module link.
-    if(UNIX AND NOT APPLE AND MZ_WHOLE_ARCHIVE_LIB)
-        target_link_libraries(turboxl PRIVATE
-            "-Wl,--whole-archive"
-            "${MZ_WHOLE_ARCHIVE_LIB}"
-            "-Wl,--no-whole-archive"
-        )
-    endif()
+    target_link_libraries(turboxl PRIVATE turboxl_core)
 
     # Propagate LIBXML_STATIC to the Python extension compile if needed
     if(WIN32 AND _LIBXML2_IS_STATIC)
