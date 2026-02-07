@@ -25,12 +25,36 @@ if(WIN32)
     set(ZLIB_LIBRARIES ${ZLIB_LIBRARIES})
     set(ZLIB_LIBRARY_DIRS "")
 
-    # minizip-ng via CMake config (vcpkg often exports unofficial::minizip::minizip)
+    # minizip-ng via CMake config (vcpkg installs config under minizip-ng).
+    find_package(minizip-ng CONFIG QUIET)
     find_package(minizip CONFIG QUIET)
+    find_package(unofficial-minizip-ng CONFIG QUIET)
     find_package(unofficial-minizip CONFIG QUIET)
-    if(minizip_FOUND OR TARGET unofficial::minizip::minizip)
-        # Accept common exported target names
+    if(
+        minizip-ng_FOUND OR
+        minizip_FOUND OR
+        TARGET MINIZIP::minizip-ng OR
+        TARGET MINIZIP::minizip OR
+        TARGET unofficial::minizip-ng::minizip-ng OR
+        TARGET unofficial::minizip::minizip
+    )
+        # Normalize common exported target names to minizip::minizip.
         if(TARGET minizip::minizip)
+            set(ZIP_LIBRARY "minizip-ng")
+            set(ZIP_INCLUDE_DIRS "")
+            set(ZIP_LIBRARIES minizip::minizip)
+        elseif(TARGET MINIZIP::minizip-ng)
+            add_library(minizip::minizip ALIAS MINIZIP::minizip-ng)
+            set(ZIP_LIBRARY "minizip-ng")
+            set(ZIP_INCLUDE_DIRS "")
+            set(ZIP_LIBRARIES minizip::minizip)
+        elseif(TARGET MINIZIP::minizip)
+            add_library(minizip::minizip ALIAS MINIZIP::minizip)
+            set(ZIP_LIBRARY "minizip-ng")
+            set(ZIP_INCLUDE_DIRS "")
+            set(ZIP_LIBRARIES minizip::minizip)
+        elseif(TARGET unofficial::minizip-ng::minizip-ng)
+            add_library(minizip::minizip ALIAS unofficial::minizip-ng::minizip-ng)
             set(ZIP_LIBRARY "minizip-ng")
             set(ZIP_INCLUDE_DIRS "")
             set(ZIP_LIBRARIES minizip::minizip)

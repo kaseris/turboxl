@@ -181,7 +181,7 @@ jobs:
             VCPKG_DEFAULT_TRIPLET=x64-windows-static
             CMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT_FWD }}/scripts/buildsystems/vcpkg.cmake
             CMAKE_FIND_PACKAGE_PREFER_CONFIG=ON
-            CMAKE_ARGS=-DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT_FWD }}/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-static -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON
+            CMAKE_ARGS="-DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT_FWD }}/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-static -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON"
         run: python -m cibuildwheel --output-dir wheelhouse
 
       - name: Upload Windows wheel artifacts
