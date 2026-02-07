@@ -70,15 +70,18 @@ jobs:
             CMAKE_PREFIX_PATH=/opt/deps:/usr/local
             ZLIB_ROOT=/opt/deps
             minizip_DIR=/opt/deps/lib/cmake/minizip
-            CMAKE_ARGS="-DTURBOXL_PORTABLE_BUILD=ON"
+            CMAKE_ARGS="-DTURBOXL_PORTABLE_BUILD=ON -DMINIZIP_LIBRARY=/opt/deps/lib/libminizip.a -DMINIZIP_INCLUDE_DIR=/opt/deps/include/minizip"
           CIBW_BEFORE_BUILD_LINUX: |
             set -euxo pipefail
             if [ -f /opt/deps/lib/pkgconfig/minizip.pc ] && \
                [ -f /opt/deps/lib/pkgconfig/minizip-ng.pc ] && \
-               [ -f /opt/deps/include/libxml2/libxml/parser.h ]; then
+               [ -f /opt/deps/include/libxml2/libxml/parser.h ] && \
+               [ -f /opt/deps/lib/libminizip.a ] && \
+               nm -g /opt/deps/lib/libminizip.a | grep -q " unzReadCurrentFile$"; then
               echo "Using cached /opt/deps"
               exit 0
             fi
+            rm -rf /opt/deps/lib/libminizip* /opt/deps/lib/pkgconfig/minizip*.pc /opt/deps/include/minizip /opt/deps/include/minizip-ng || true
             yum install -y gcc gcc-c++ make pkgconfig libxml2-devel git ccache
             python -m pip install --upgrade pip cmake ninja
             rm -rf /tmp/zlib-ng /tmp/build-zlib /tmp/minizip-ng /tmp/build-minizip
