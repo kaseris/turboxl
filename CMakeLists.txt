@@ -280,7 +280,15 @@ if(BUILD_PYTHON)
     find_package(pybind11 CONFIG REQUIRED)
     
     pybind11_add_module(turboxl src/python/module.cpp)
-    target_link_libraries(turboxl PRIVATE turboxl_core)
+    # Explicitly link transitive native deps on the module target as well.
+    # This avoids unresolved ZIP symbols surfacing only at module import time
+    # in some manylinux linker configurations.
+    target_link_libraries(turboxl PRIVATE
+        turboxl_core
+        ${ZIP_LIBRARIES}
+        ${ZLIB_LIBRARIES}
+        ${LIBXML2_LIBRARIES}
+    )
 
     # Propagate LIBXML_STATIC to the Python extension compile if needed
     if(WIN32 AND _LIBXML2_IS_STATIC)
@@ -304,6 +312,11 @@ if(BUILD_PYTHON)
         CXX_VISIBILITY_PRESET hidden
         VISIBILITY_INLINES_HIDDEN ON
     )
+
+    if(UNIX AND NOT APPLE)
+        # Build-time guard: catch unresolved native symbols early.
+        target_link_options(turboxl PRIVATE -Wl,--no-undefined)
+    endif()
 
     # Install the Python extension into the wheel's platlib root
     install(TARGETS turboxl
