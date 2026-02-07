@@ -14,6 +14,7 @@ concurrency:
 env:
   CIBW_BUILD: "cp312-*"
   CIBW_SKIP: "pp* *-musllinux_*"
+  CIBW_TEST_COMMAND: 'python -c "import turboxl; print(turboxl.read_sheet_to_csv)"'
 
 jobs:
   verify-linux:
@@ -54,6 +55,7 @@ jobs:
       - name: Build verify Linux wheel
         env:
           CIBW_ARCHS_LINUX: x86_64
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
           CIBW_CONTAINER_ENGINE_OPTIONS: >-
             -v ${{ runner.temp }}/cibw-deps/x86_64:/opt/deps
             -v ${{ runner.temp }}/cibw-ccache/x86_64:/opt/ccache
@@ -67,6 +69,7 @@ jobs:
             LD_LIBRARY_PATH=/opt/deps/lib:/usr/local/lib:/usr/local/lib64:$LD_LIBRARY_PATH
             CMAKE_PREFIX_PATH=/opt/deps:/usr/local
             ZLIB_ROOT=/opt/deps
+            CMAKE_ARGS="-DTURBOXL_PORTABLE_BUILD=ON"
           CIBW_BEFORE_BUILD_LINUX: |
             set -euxo pipefail
             if [ -f /opt/deps/lib/pkgconfig/minizip.pc ] && \

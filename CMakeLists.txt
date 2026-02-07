@@ -10,6 +10,7 @@ option(BUILD_TESTS "Build tests" ON)
 option(BUILD_PYTHON "Build Python module" ON)
 option(BUILD_CLI "Build CLI tool" OFF)
 option(BUILD_BENCHMARKS "Build benchmarks" OFF)
+option(TURBOXL_PORTABLE_BUILD "Disable host-specific CPU tuning for portable binaries" OFF)
 
 # --- Windows-specific discovery (minimal guard) ---
 if(WIN32)
@@ -227,9 +228,15 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     
     # Performance optimization flags for Release builds
     if(CMAKE_BUILD_TYPE STREQUAL "Release")
-        target_compile_options(turboxl_core PRIVATE
-            -O3 -march=native -flto
-        )
+        if(TURBOXL_PORTABLE_BUILD)
+            target_compile_options(turboxl_core PRIVATE
+                -O3 -flto
+            )
+        else()
+            target_compile_options(turboxl_core PRIVATE
+                -O3 -march=native -flto
+            )
+        endif()
         target_link_options(turboxl_core PRIVATE -flto)
     endif()
 endif()
