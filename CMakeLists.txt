@@ -28,11 +28,18 @@ if(WIN32)
     set(ZLIB_LIBRARIES ${ZLIB_LIBRARIES})
     set(ZLIB_LIBRARY_DIRS "")
 
-    # minizip-ng via its CMake config (prefer config packages); fall back to manual override
+    # minizip-ng via CMake config (vcpkg often exports unofficial::minizip::minizip)
     find_package(minizip CONFIG QUIET)
-    if(minizip_FOUND)
+    find_package(unofficial-minizip CONFIG QUIET)
+    if(minizip_FOUND OR TARGET unofficial::minizip::minizip)
         # Accept common exported target names
         if(TARGET minizip::minizip)
+            set(ZIP_LIBRARY "minizip-ng")
+            set(ZIP_INCLUDE_DIRS "")
+            set(ZIP_LIBRARIES minizip::minizip)
+        elseif(TARGET unofficial::minizip::minizip)
+            # Normalize vcpkg's commonly exported target name
+            add_library(minizip::minizip ALIAS unofficial::minizip::minizip)
             set(ZIP_LIBRARY "minizip-ng")
             set(ZIP_INCLUDE_DIRS "")
             set(ZIP_LIBRARIES minizip::minizip)
