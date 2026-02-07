@@ -199,5 +199,5 @@ jobs:
           CIBW_ARCHS_MACOS: arm64
           CIBW_ENVIRONMENT_MACOS: >-
             CMAKE_BUILD_PARALLEL_LEVEL=4
-            MACOSX_DEPLOYMENT_TARGET=11.0
+            MACOSX_DEPLOYMENT_TARGET=15.0
         run: python -m cibuildwheel --output-dir wheelhouse
