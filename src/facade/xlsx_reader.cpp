@@ -3,6 +3,9 @@
 #include <stdexcept>
 #include <sstream>
 #include <algorithm>
+#include <chrono>
+#include <cstdlib>
+#include <iostream>
 
 namespace xlsxcsv {
 
@@ -12,6 +15,22 @@ std::string readSheetToCsv(
     const CsvOptions& options) {
     
     try {
+        const bool profileTimings = []() {
+            const char* v = std::getenv("TURBOXL_PROFILE_TIMINGS");
+            return v && (v[0] == '1' || v[0] == 't' || v[0] == 'T' || v[0] == 'y' || v[0] == 'Y');
+        }();
+        const auto t0 = std::chrono::steady_clock::now();
+        auto msSince = [&](const std::chrono::steady_clock::time_point& start) -> double {
+            return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+        };
+        double t_open = 0.0;
+        double t_workbook = 0.0;
+        double t_styles = 0.0;
+        double t_shared = 0.0;
+        double t_sheet = 0.0;
+        double t_csv = 0.0;
+        double t_post = 0.0;
+
         // Create security limits from options
         xlsxcsv::core::ZipSecurityLimits limits;
         limits.maxEntries = options.maxEntries;
@@ -20,19 +39,25 @@ std::string readSheetToCsv(
         
         // Phase 4 implementation: Shared strings + all previous phases
         xlsxcsv::core::OpcPackage package;
+        auto t = std::chrono::steady_clock::now();
         package.open(xlsxPath);
+        t_open = msSince(t);
         
         // Parse workbook structure
         xlsxcsv::core::Workbook workbook;
+        t = std::chrono::steady_clock::now();
         workbook.open(package);
+        t_workbook = msSince(t);
         
         // Parse styles registry
         xlsxcsv::core::StylesRegistry styles;
+        t = std::chrono::steady_clock::now();
         try {
             styles.parse(package);
         } catch (const xlsxcsv::core::XlsxError& e) {
             // Some XLSX files might not have styles.xml, continue without styles
         }
+        t_styles = msSince(t);
         
         // Parse shared strings (Phase 4)
         xlsxcsv::core::SharedStringsConfig sharedConfig;
@@ -43,11 +68,13 @@ std::string readSheetToCsv(
             xlsxcsv::core::SharedStringsMode::External;
         
         xlsxcsv::core::SharedStringsProvider sharedStrings(sharedConfig);
+        t = std::chrono::steady_clock::now();
         try {
             sharedStrings.parse(package);
         } catch (const xlsxcsv::core::XlsxError& e) {
             // Some XLSX files might not have sharedStrings.xml, continue without shared strings
         }
+        t_shared = msSince(t);
         
         // Determine which sheet to parse
         std::optional<xlsxcsv::core::SheetInfo> targetSheet;
@@ -93,9 +120,11 @@ std::string readSheetToCsv(
         );
         
         // Parse the worksheet
+        t = std::chrono::steady_clock::now();
         sheetReader.parseSheet(package, targetSheet->target, csvCollector,
                               sharedStrings.isOpen() ? &sharedStrings : nullptr,
                               styles.isOpen() ? &styles : nullptr);
+        t_sheet = msSince(t);
         
         // Check for parsing errors
         const auto& errors = csvCollector.getErrors();
@@ -110,7 +139,9 @@ std::string readSheetToCsv(
         }
         
         // Return CSV string
+        t = std::chrono::steady_clock::now();
         std::string csvResult = csvCollector.getCsvString();
+        t_csv = msSince(t);
         
         // Handle BOM if requested
         if (options.includeBom) {
@@ -130,6 +161,23 @@ std::string readSheetToCsv(
                 }
             }
             csvResult = std::move(result);
+        }
+        t_post = msSince(t);
+
+        if (profileTimings) {
+            const double totalMs = msSince(t0);
+            std::cerr
+                << "turboxl_timing_ms"
+                << " open=" << t_open
+                << " workbook=" << t_workbook
+                << " styles=" << t_styles
+                << " shared_strings=" << t_shared
+                << " parse_sheet=" << t_sheet
+                << " assemble_csv=" << t_csv
+                << " postprocess=" << t_post
+                << " total=" << totalMs
+                << " rows=" << csvCollector.getRowCount()
+                << "\n";
         }
         
         return csvResult;

@@ -64,6 +64,40 @@ public:
     }
 
 private:
+    static bool parseCellReference(const char* ref, CellCoordinate& out) {
+        if (!ref || *ref == '\0') {
+            return false;
+        }
+
+        int column = 0;
+        int row = 0;
+        const char* p = ref;
+
+        while (*p >= 'A' && *p <= 'Z') {
+            column = (column * 26) + (*p - 'A' + 1);
+            ++p;
+        }
+        if (column == 0) {
+            return false;
+        }
+
+        if (*p < '1' || *p > '9') {
+            return false;
+        }
+        while (*p >= '0' && *p <= '9') {
+            row = (row * 10) + (*p - '0');
+            ++p;
+        }
+
+        if (*p != '\0' || row <= 0) {
+            return false;
+        }
+
+        out.row = row;
+        out.column = column;
+        return true;
+    }
+
     static bool parseInt(const char* s, int& out) {
         if (!s || *s == '\0') {
             return false;
@@ -119,47 +153,52 @@ private:
                   const SharedStringsProvider* sharedStrings,
                   const StylesRegistry* styles) {
         
-        // Get row number
-        xmlChar* rowAttr = xmlTextReaderGetAttribute(reader, BAD_CAST "r");
         int rowNumber = 1; // Default to row 1
-        if (rowAttr) {
-            int parsedRow = 0;
-            if (parseInt(reinterpret_cast<const char*>(rowAttr), parsedRow) && parsedRow > 0) {
-                rowNumber = parsedRow;
-            }
-            xmlFree(rowAttr);
-        }
-        
-        // Check if row is hidden
         bool isHidden = false;
-        xmlChar* hiddenAttr = xmlTextReaderGetAttribute(reader, BAD_CAST "hidden");
-        if (hiddenAttr) {
-            const char* hidden = reinterpret_cast<const char*>(hiddenAttr);
-            isHidden = (hidden[0] == '1' && hidden[1] == '\0') || std::strcmp(hidden, "true") == 0;
-            xmlFree(hiddenAttr);
+        int spanReserveHint = 0;
+
+        if (xmlTextReaderMoveToFirstAttribute(reader) == 1) {
+            do {
+                const char* attrName = reinterpret_cast<const char*>(xmlTextReaderConstName(reader));
+                const char* attrValue = reinterpret_cast<const char*>(xmlTextReaderConstValue(reader));
+                if (!attrName || !attrValue) {
+                    continue;
+                }
+
+                if (attrName[0] == 'r' && attrName[1] == '\0') {
+                    int parsedRow = 0;
+                    if (parseInt(attrValue, parsedRow) && parsedRow > 0) {
+                        rowNumber = parsedRow;
+                    }
+                    continue;
+                }
+
+                if (attrName[0] == 'h' && std::strcmp(attrName, "hidden") == 0) {
+                    isHidden = (attrValue[0] == '1' && attrValue[1] == '\0') || std::strcmp(attrValue, "true") == 0;
+                    continue;
+                }
+
+                if (attrName[0] == 's' && std::strcmp(attrName, "spans") == 0) {
+                    const char* colon = std::strchr(attrValue, ':');
+                    if (!colon) {
+                        continue;
+                    }
+                    int first = 0;
+                    int last = 0;
+                    std::string firstPart(attrValue, static_cast<size_t>(colon - attrValue));
+                    if (parseInt(firstPart.c_str(), first) && parseInt(colon + 1, last) && last >= first) {
+                        spanReserveHint = std::min(last - first + 1, 16384);
+                    }
+                }
+            } while (xmlTextReaderMoveToNextAttribute(reader) == 1);
+            xmlTextReaderMoveToElement(reader);
         }
-        
+
         RowData rowData;
         rowData.rowNumber = rowNumber;
         rowData.hidden = isHidden;
-
-        // Use row span hint to reduce allocations for cells vector.
-        xmlChar* spansAttr = xmlTextReaderGetAttribute(reader, BAD_CAST "spans");
-        if (spansAttr) {
-            const char* spans = reinterpret_cast<const char*>(spansAttr);
-            const char* colon = std::strchr(spans, ':');
-            if (colon) {
-                int first = 0;
-                int last = 0;
-                std::string firstPart(spans, static_cast<size_t>(colon - spans));
-                if (parseInt(firstPart.c_str(), first) && parseInt(colon + 1, last) && last >= first) {
-                    const int hint = std::min(last - first + 1, 16384);
-                    if (hint > 0) {
-                        rowData.cells.reserve(static_cast<size_t>(hint));
-                    }
-                }
-            }
-            xmlFree(spansAttr);
+        if (spanReserveHint > 0) {
+            rowData.cells.reserve(static_cast<size_t>(spanReserveHint));
         }
         
         // Parse cells in this row
@@ -180,7 +219,7 @@ private:
                 // Parse cell
                 auto cell = parseCell(reader, sharedStrings, styles);
                 if (cell.has_value()) {
-                    rowData.cells.push_back(cell.value());
+                    rowData.cells.push_back(std::move(*cell));
                 }
             } else if (nodeType == XML_READER_TYPE_END_ELEMENT && strcmp(name, "row") == 0) {
                 // End of row
@@ -196,50 +235,55 @@ private:
                                       [[maybe_unused]] const StylesRegistry* styles) {
         
         CellData cell;
+        bool hasTypeAttribute = false;
         
-        // Parse cell reference (r="A1")
-        xmlChar* refAttr = xmlTextReaderGetAttribute(reader, BAD_CAST "r");
-        if (refAttr) {
-            std::string refStr = reinterpret_cast<const char*>(refAttr);
-            auto coord = CellCoordinate::fromReference(refStr);
-            if (coord.has_value()) {
-                cell.coordinate = coord.value();
-            }
-            xmlFree(refAttr);
+        if (xmlTextReaderMoveToFirstAttribute(reader) == 1) {
+            do {
+                const char* attrName = reinterpret_cast<const char*>(xmlTextReaderConstName(reader));
+                const char* attrValue = reinterpret_cast<const char*>(xmlTextReaderConstValue(reader));
+                if (!attrName || !attrValue) {
+                    continue;
+                }
+
+                if (attrName[0] == 'r' && attrName[1] == '\0') {
+                    parseCellReference(attrValue, cell.coordinate);
+                    continue;
+                }
+
+                if (attrName[0] == 't' && attrName[1] == '\0') {
+                    hasTypeAttribute = true;
+                    if (attrValue[0] == 'b' && attrValue[1] == '\0') {
+                        cell.type = CellType::Boolean;
+                    } else if (attrValue[0] == 'e' && attrValue[1] == '\0') {
+                        cell.type = CellType::Error;
+                    } else if (attrValue[0] == 'n' && attrValue[1] == '\0') {
+                        cell.type = CellType::Number;
+                    } else if (attrValue[0] == 's' && attrValue[1] == '\0') {
+                        cell.type = CellType::SharedString;
+                    } else if (std::strcmp(attrValue, "str") == 0) {
+                        cell.type = CellType::String;
+                    } else if (std::strcmp(attrValue, "inlineStr") == 0) {
+                        cell.type = CellType::InlineString;
+                    } else {
+                        cell.type = CellType::Unknown;
+                    }
+                    continue;
+                }
+
+                if (attrName[0] == 's' && attrName[1] == '\0') {
+                    int parsedStyle = 0;
+                    if (parseInt(attrValue, parsedStyle) && parsedStyle >= 0) {
+                        cell.styleIndex = parsedStyle;
+                    }
+                    continue;
+                }
+            } while (xmlTextReaderMoveToNextAttribute(reader) == 1);
+            xmlTextReaderMoveToElement(reader);
         }
-        
-        // Parse cell type (t="s", t="b", etc.)
-        xmlChar* typeAttr = xmlTextReaderGetAttribute(reader, BAD_CAST "t");
-        if (typeAttr) {
-            const char* typeStr = reinterpret_cast<const char*>(typeAttr);
-            if (typeStr[0] == 'b' && typeStr[1] == '\0') {
-                cell.type = CellType::Boolean;
-            } else if (typeStr[0] == 'e' && typeStr[1] == '\0') {
-                cell.type = CellType::Error;
-            } else if (typeStr[0] == 'n' && typeStr[1] == '\0') {
-                cell.type = CellType::Number;
-            } else if (typeStr[0] == 's' && typeStr[1] == '\0') {
-                cell.type = CellType::SharedString;
-            } else if (std::strcmp(typeStr, "str") == 0) {
-                cell.type = CellType::String;
-            } else if (std::strcmp(typeStr, "inlineStr") == 0) {
-                cell.type = CellType::InlineString;
-            } else {
-                cell.type = CellType::Unknown;
-            }
-            xmlFree(typeAttr);
-        } else {
-            cell.type = CellType::Number; // Default type
-        }
-        
-        // Parse style index (s="0")
-        xmlChar* styleAttr = xmlTextReaderGetAttribute(reader, BAD_CAST "s");
-        if (styleAttr) {
-            int parsedStyle = 0;
-            if (parseInt(reinterpret_cast<const char*>(styleAttr), parsedStyle) && parsedStyle >= 0) {
-                cell.styleIndex = parsedStyle;
-            }
-            xmlFree(styleAttr);
+
+        if (!hasTypeAttribute) {
+            // No type attribute; default Excel type is numeric.
+            cell.type = CellType::Number;
         }
         
         // Parse cell content
@@ -264,8 +308,7 @@ private:
                     cell.value = convertCellValue(valueStr, cell.type, sharedStrings);
                 } else if (strcmp(name, "is") == 0) {
                     // Inline string
-                    std::string inlineStr = parseInlineString(reader);
-                    cell.value = inlineStr;
+                    cell.value = parseInlineString(reader);
                     cell.type = CellType::InlineString;
                 }
             } else if (nodeType == XML_READER_TYPE_END_ELEMENT && strcmp(name, "c") == 0) {
@@ -279,7 +322,7 @@ private:
     
     CellValue convertCellValue(const std::string& valueStr, 
                               CellType type,
-                              const SharedStringsProvider* sharedStrings) {
+                              [[maybe_unused]] const SharedStringsProvider* sharedStrings) {
         
         if (valueStr.empty()) {
             return std::monostate{};
@@ -307,13 +350,7 @@ private:
                 const char* end = begin + valueStr.size();
                 auto [ptr, ec] = std::from_chars(begin, end, index);
                 if (ec == std::errc{} && ptr == end) {
-                    if (sharedStrings) {
-                        auto str = sharedStrings->tryGetString(static_cast<size_t>(index));
-                        if (str.has_value()) {
-                            return str.value();
-                        }
-                    }
-                    // Fallback: return the index for later resolution
+                    // Keep shared-string index and defer lookup to CSV conversion.
                     return index;
                 }
                 return std::monostate{};
