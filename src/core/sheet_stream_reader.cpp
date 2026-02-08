@@ -64,6 +64,16 @@ public:
     }
 
 private:
+    static bool parseInt(const char* s, int& out) {
+        if (!s || *s == '\0') {
+            return false;
+        }
+        const char* begin = s;
+        const char* end = begin + std::strlen(s);
+        auto [ptr, ec] = std::from_chars(begin, end, out);
+        return ec == std::errc{} && ptr == end;
+    }
+
     void parseWorksheetXml(xmlTextReaderPtr reader,
                           SheetRowHandler& handler,
                           const SharedStringsProvider* sharedStrings,
@@ -113,7 +123,10 @@ private:
         xmlChar* rowAttr = xmlTextReaderGetAttribute(reader, BAD_CAST "r");
         int rowNumber = 1; // Default to row 1
         if (rowAttr) {
-            rowNumber = std::atoi(reinterpret_cast<const char*>(rowAttr));
+            int parsedRow = 0;
+            if (parseInt(reinterpret_cast<const char*>(rowAttr), parsedRow) && parsedRow > 0) {
+                rowNumber = parsedRow;
+            }
             xmlFree(rowAttr);
         }
         
@@ -121,14 +134,33 @@ private:
         bool isHidden = false;
         xmlChar* hiddenAttr = xmlTextReaderGetAttribute(reader, BAD_CAST "hidden");
         if (hiddenAttr) {
-            std::string hiddenStr = reinterpret_cast<const char*>(hiddenAttr);
-            isHidden = (hiddenStr == "1" || hiddenStr == "true");
+            const char* hidden = reinterpret_cast<const char*>(hiddenAttr);
+            isHidden = (hidden[0] == '1' && hidden[1] == '\0') || std::strcmp(hidden, "true") == 0;
             xmlFree(hiddenAttr);
         }
         
         RowData rowData;
         rowData.rowNumber = rowNumber;
         rowData.hidden = isHidden;
+
+        // Use row span hint to reduce allocations for cells vector.
+        xmlChar* spansAttr = xmlTextReaderGetAttribute(reader, BAD_CAST "spans");
+        if (spansAttr) {
+            const char* spans = reinterpret_cast<const char*>(spansAttr);
+            const char* colon = std::strchr(spans, ':');
+            if (colon) {
+                int first = 0;
+                int last = 0;
+                std::string firstPart(spans, static_cast<size_t>(colon - spans));
+                if (parseInt(firstPart.c_str(), first) && parseInt(colon + 1, last) && last >= first) {
+                    const int hint = std::min(last - first + 1, 16384);
+                    if (hint > 0) {
+                        rowData.cells.reserve(static_cast<size_t>(hint));
+                    }
+                }
+            }
+            xmlFree(spansAttr);
+        }
         
         // Parse cells in this row
         if (xmlTextReaderIsEmptyElement(reader)) {
@@ -179,8 +211,22 @@ private:
         // Parse cell type (t="s", t="b", etc.)
         xmlChar* typeAttr = xmlTextReaderGetAttribute(reader, BAD_CAST "t");
         if (typeAttr) {
-            std::string typeStr = reinterpret_cast<const char*>(typeAttr);
-            cell.type = parseCellType(typeStr);
+            const char* typeStr = reinterpret_cast<const char*>(typeAttr);
+            if (typeStr[0] == 'b' && typeStr[1] == '\0') {
+                cell.type = CellType::Boolean;
+            } else if (typeStr[0] == 'e' && typeStr[1] == '\0') {
+                cell.type = CellType::Error;
+            } else if (typeStr[0] == 'n' && typeStr[1] == '\0') {
+                cell.type = CellType::Number;
+            } else if (typeStr[0] == 's' && typeStr[1] == '\0') {
+                cell.type = CellType::SharedString;
+            } else if (std::strcmp(typeStr, "str") == 0) {
+                cell.type = CellType::String;
+            } else if (std::strcmp(typeStr, "inlineStr") == 0) {
+                cell.type = CellType::InlineString;
+            } else {
+                cell.type = CellType::Unknown;
+            }
             xmlFree(typeAttr);
         } else {
             cell.type = CellType::Number; // Default type
@@ -189,7 +235,10 @@ private:
         // Parse style index (s="0")
         xmlChar* styleAttr = xmlTextReaderGetAttribute(reader, BAD_CAST "s");
         if (styleAttr) {
-            cell.styleIndex = std::atoi(reinterpret_cast<const char*>(styleAttr));
+            int parsedStyle = 0;
+            if (parseInt(reinterpret_cast<const char*>(styleAttr), parsedStyle) && parsedStyle >= 0) {
+                cell.styleIndex = parsedStyle;
+            }
             xmlFree(styleAttr);
         }
         
@@ -226,16 +275,6 @@ private:
         }
         
         return cell;
-    }
-    
-    CellType parseCellType(const std::string& typeStr) {
-        if (typeStr == "b") return CellType::Boolean;
-        if (typeStr == "e") return CellType::Error;
-        if (typeStr == "inlineStr") return CellType::InlineString;
-        if (typeStr == "n") return CellType::Number;
-        if (typeStr == "s") return CellType::SharedString;
-        if (typeStr == "str") return CellType::String;
-        return CellType::Unknown;
     }
     
     CellValue convertCellValue(const std::string& valueStr, 
