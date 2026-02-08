@@ -11,6 +11,11 @@ option(BUILD_PYTHON "Build Python module" ON)
 option(BUILD_CLI "Build CLI tool" OFF)
 option(BUILD_BENCHMARKS "Build benchmarks" OFF)
 option(TURBOXL_PORTABLE_BUILD "Disable host-specific CPU tuning for portable binaries" OFF)
+option(TURBOXL_CI_FAST_BUILD "Reduce compile-time optimizations for faster CI builds" OFF)
+option(TURBOXL_ENABLE_NATIVE_OPTIMIZATION "Enable host-specific CPU optimization flags where safe" ON)
+option(TURBOXL_ENABLE_IPO "Enable interprocedural optimization (LTO) for Release builds" ON)
+
+include(CheckIPOSupported)
 
 # --- Windows-specific discovery (minimal guard) ---
 if(WIN32)
@@ -267,36 +272,46 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         -Wall -Wextra -Wpedantic
         -fvisibility=hidden
     )
-    
-    # Performance optimization flags for Release builds
-    if(CMAKE_BUILD_TYPE STREQUAL "Release")
-        if(TURBOXL_PORTABLE_BUILD)
-            target_compile_options(turboxl_core PRIVATE
-                -O3 -flto
-            )
-        else()
-            target_compile_options(turboxl_core PRIVATE
-                -O3 -march=native -flto
-            )
-        endif()
-        target_link_options(turboxl_core PRIVATE -flto)
+
+    if(TURBOXL_CI_FAST_BUILD)
+        target_compile_options(turboxl_core PRIVATE
+            $<$<CONFIG:Release>:-O2>
+        )
+    else()
+        target_compile_options(turboxl_core PRIVATE
+            $<$<CONFIG:Release>:-O3>
+        )
+    endif()
+
+    if(TURBOXL_ENABLE_NATIVE_OPTIMIZATION AND NOT TURBOXL_PORTABLE_BUILD)
+        target_compile_options(turboxl_core PRIVATE
+            $<$<CONFIG:Release>:-march=native>
+        )
     endif()
 endif()
 
 if(MSVC)
     target_compile_options(turboxl_core PRIVATE
         /W4 /wd4251
+        $<$<CONFIG:Release>:/O2>
     )
     target_compile_definitions(turboxl_core PRIVATE
         _CRT_SECURE_NO_WARNINGS
     )
-    
-    # Performance optimization flags for Release builds
-    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+
+    if(TURBOXL_ENABLE_NATIVE_OPTIMIZATION AND NOT TURBOXL_PORTABLE_BUILD)
         target_compile_options(turboxl_core PRIVATE
-            /O2 /GL /arch:AVX2
+            $<$<CONFIG:Release>:/arch:AVX2>
         )
-        target_link_options(turboxl_core PRIVATE /LTCG)
+    endif()
+endif()
+
+if(TURBOXL_ENABLE_IPO)
+    check_ipo_supported(RESULT TURBOXL_IPO_SUPPORTED OUTPUT TURBOXL_IPO_ERROR)
+    if(TURBOXL_IPO_SUPPORTED)
+        set_property(TARGET turboxl_core PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+    else()
+        message(WARNING "IPO/LTO not enabled: ${TURBOXL_IPO_ERROR}")
     endif()
 endif()
 

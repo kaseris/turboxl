@@ -3,8 +3,18 @@ name: Verify Wheels
 on:
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "**.rst"
+      - "docs/**"
+      - ".github/ISSUE_TEMPLATE/**"
   push:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "**.rst"
+      - "docs/**"
+      - ".github/ISSUE_TEMPLATE/**"
   workflow_dispatch:
 
 concurrency:
@@ -15,10 +25,12 @@ env:
   CIBW_BUILD: "cp312-*"
   CIBW_SKIP: "pp* *-musllinux_*"
   CIBW_TEST_COMMAND: 'python -c "import turboxl; print(turboxl.read_sheet_to_csv)"'
+  ZLIB_NG_VERSION: "2.3.3"
+  MINIZIP_NG_VERSION: "4.1.0"
 
 jobs:
-  verify-linux:
-    name: verify-linux-x86_64
+  verify-linux-fast:
+    name: verify-linux-fast-x86_64
     runs-on: ubuntu-22.04
     steps:
       - name: Check out source
@@ -35,34 +47,37 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/cibw-deps/x86_64
-          key: verify-linux-deps-x86_64-${{ hashFiles('.github/workflows/verify.yml') }}
+          key: verify-linux-deps-x86_64-v2-${{ env.ZLIB_NG_VERSION }}-${{ env.MINIZIP_NG_VERSION }}-${{ hashFiles('.github/workflows/verify.yml') }}
           restore-keys: |
-            verify-linux-deps-x86_64-
-            linux-deps-x86_64-
+            verify-linux-deps-x86_64-v2-${{ env.ZLIB_NG_VERSION }}-${{ env.MINIZIP_NG_VERSION }}-
+            verify-linux-deps-x86_64-v2-
 
       - name: Cache Linux ccache
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/cibw-ccache/x86_64
-          key: verify-linux-ccache-x86_64-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**') }}
+          key: verify-linux-fast-ccache-x86_64-v2-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**', 'pyproject.toml') }}
           restore-keys: |
-            verify-linux-ccache-x86_64-
-            linux-ccache-x86_64-
+            verify-linux-fast-ccache-x86_64-v2-
+            verify-linux-ccache-x86_64-v2-
 
       - name: Install cibuildwheel
         run: python -m pip install -U pip cibuildwheel
 
-      - name: Build verify Linux wheel
+      - name: Build verify Linux fast wheel
         env:
           CIBW_ARCHS_LINUX: x86_64
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+          CIBW_BUILD: "cp312-manylinux_x86_64"
           CIBW_CONTAINER_ENGINE_OPTIONS: >-
             -v ${{ runner.temp }}/cibw-deps/x86_64:/opt/deps
             -v ${{ runner.temp }}/cibw-ccache/x86_64:/opt/ccache
           CIBW_ENVIRONMENT_LINUX: >-
             CMAKE_BUILD_PARALLEL_LEVEL=4
             CCACHE_DIR=/opt/ccache
-            CCACHE_MAXSIZE=2G
+            CCACHE_MAXSIZE=3G
+            CCACHE_BASEDIR=/project
+            CCACHE_COMPILERCHECK=content
             CMAKE_C_COMPILER_LAUNCHER=ccache
             CMAKE_CXX_COMPILER_LAUNCHER=ccache
             PKG_CONFIG_PATH=/opt/deps/lib/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig
@@ -70,23 +85,30 @@ jobs:
             CMAKE_PREFIX_PATH=/opt/deps:/usr/local
             ZLIB_ROOT=/opt/deps
             minizip_DIR=/opt/deps/lib/cmake/minizip
-            CMAKE_ARGS="-DTURBOXL_PORTABLE_BUILD=ON -DMINIZIP_LIBRARY=/opt/deps/lib/libminizip.a -DMINIZIP_INCLUDE_DIR=/opt/deps/include/minizip"
-          CIBW_BEFORE_BUILD_LINUX: |
+            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DTURBOXL_PORTABLE_BUILD=ON -DTURBOXL_CI_FAST_BUILD=ON -DTURBOXL_ENABLE_IPO=OFF -DTURBOXL_ENABLE_NATIVE_OPTIMIZATION=OFF -DMINIZIP_LIBRARY=/opt/deps/lib/libminizip.a -DMINIZIP_INCLUDE_DIR=/opt/deps/include/minizip"
+          CIBW_BEFORE_ALL_LINUX: |
             set -euxo pipefail
-            if [ -f /opt/deps/lib/pkgconfig/minizip.pc ] && \
-               [ -f /opt/deps/lib/pkgconfig/minizip-ng.pc ] && \
-               [ -f /opt/deps/include/libxml2/libxml/parser.h ] && \
+            if [ -f /opt/deps/.zlib-ng-version ] && \
+               [ -f /opt/deps/.minizip-ng-version ] && \
+               [ "$(cat /opt/deps/.zlib-ng-version)" = "${ZLIB_NG_VERSION}" ] && \
+               [ "$(cat /opt/deps/.minizip-ng-version)" = "${MINIZIP_NG_VERSION}" ] && \
+               [ -f /opt/deps/lib/libz.a ] && \
                [ -f /opt/deps/lib/libminizip.a ] && \
-               nm -g /opt/deps/lib/libminizip.a | grep -q " unzReadCurrentFile$" && \
-               ! nm -g /opt/deps/lib/libminizip.a | grep -q "Ppmd8_Construct"; then
+               [ -f /opt/deps/lib/pkgconfig/minizip.pc ]; then
               echo "Using cached /opt/deps"
               exit 0
             fi
-            rm -rf /opt/deps/lib/libminizip* /opt/deps/lib/pkgconfig/minizip*.pc /opt/deps/include/minizip /opt/deps/include/minizip-ng || true
-            yum install -y gcc gcc-c++ make pkgconfig libxml2-devel git ccache
+            rm -rf /opt/deps/*
+            mkdir -p /opt/deps/lib/pkgconfig
+            yum install -y gcc gcc-c++ make pkgconfig libxml2-devel curl tar ccache
             python -m pip install --upgrade pip cmake ninja
             rm -rf /tmp/zlib-ng /tmp/build-zlib /tmp/minizip-ng /tmp/build-minizip
-            git clone --depth 1 https://github.com/zlib-ng/zlib-ng.git /tmp/zlib-ng
+            curl -fsSL "https://github.com/zlib-ng/zlib-ng/archive/refs/tags/${ZLIB_NG_VERSION}.tar.gz" \
+              | tar -xz -C /tmp
+            mv "/tmp/zlib-ng-${ZLIB_NG_VERSION}" /tmp/zlib-ng
+            curl -fsSL "https://github.com/zlib-ng/minizip-ng/archive/refs/tags/${MINIZIP_NG_VERSION}.tar.gz" \
+              | tar -xz -C /tmp
+            mv "/tmp/minizip-ng-${MINIZIP_NG_VERSION}" /tmp/minizip-ng
             cmake -S /tmp/zlib-ng -B /tmp/build-zlib -G Ninja \
                   -DZLIB_COMPAT=ON \
                   -DBUILD_SHARED_LIBS=OFF \
@@ -94,7 +116,6 @@ jobs:
                   -DCMAKE_INSTALL_LIBDIR=lib \
                   -DCMAKE_INSTALL_PREFIX=/opt/deps
             cmake --build /tmp/build-zlib --target install --config Release
-            git clone --depth 1 https://github.com/zlib-ng/minizip-ng.git /tmp/minizip-ng
             cmake -S /tmp/minizip-ng -B /tmp/build-minizip -G Ninja \
                   -DMZ_ZLIB=ON \
                   -DMZ_OPENSSL=OFF \
@@ -110,6 +131,14 @@ jobs:
                   -DCMAKE_INSTALL_LIBDIR=lib \
                   -DCMAKE_INSTALL_PREFIX=/opt/deps
             cmake --build /tmp/build-minizip --target install --config Release
+            if [ -f /opt/deps/lib/pkgconfig/minizip.pc ] && \
+               [ -f /opt/deps/lib/pkgconfig/minizip-ng.pc ] && \
+               [ -f /opt/deps/include/libxml2/libxml/parser.h ] && \
+               [ -f /opt/deps/lib/libminizip.a ] && \
+               nm -g /opt/deps/lib/libminizip.a | grep -q " unzReadCurrentFile$" && \
+               ! nm -g /opt/deps/lib/libminizip.a | grep -q "Ppmd8_Construct"; then
+              :
+            fi
             if nm -g /opt/deps/lib/libminizip.a | grep -q "Ppmd8_Construct"; then
               echo "minizip archive unexpectedly references Ppmd8_Construct"
               exit 1
@@ -133,6 +162,136 @@ jobs:
               printf '%s\n' 'Cflags: -I${includedir}'
             } > /opt/deps/lib/pkgconfig/minizip.pc
             cp /opt/deps/lib/pkgconfig/minizip.pc /opt/deps/lib/pkgconfig/minizip-ng.pc
+            printf '%s\n' "${ZLIB_NG_VERSION}" > /opt/deps/.zlib-ng-version
+            printf '%s\n' "${MINIZIP_NG_VERSION}" > /opt/deps/.minizip-ng-version
+        run: python -m cibuildwheel --output-dir wheelhouse
+
+  verify-linux-full:
+    name: verify-linux-full-x86_64
+    if: github.event_name != 'pull_request'
+    needs: verify-linux-fast
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python (runner)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Cache Linux deps
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/cibw-deps/x86_64
+          key: verify-linux-deps-x86_64-v2-${{ env.ZLIB_NG_VERSION }}-${{ env.MINIZIP_NG_VERSION }}-${{ hashFiles('.github/workflows/verify.yml') }}
+          restore-keys: |
+            verify-linux-deps-x86_64-v2-${{ env.ZLIB_NG_VERSION }}-${{ env.MINIZIP_NG_VERSION }}-
+            verify-linux-deps-x86_64-v2-
+
+      - name: Cache Linux ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/cibw-ccache/x86_64
+          key: verify-linux-ccache-x86_64-v2-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**', 'pyproject.toml') }}
+          restore-keys: |
+            verify-linux-ccache-x86_64-v2-
+
+      - name: Install cibuildwheel
+        run: python -m pip install -U pip cibuildwheel
+
+      - name: Build verify Linux full wheels
+        env:
+          CIBW_ARCHS_LINUX: x86_64
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+          CIBW_CONTAINER_ENGINE_OPTIONS: >-
+            -v ${{ runner.temp }}/cibw-deps/x86_64:/opt/deps
+            -v ${{ runner.temp }}/cibw-ccache/x86_64:/opt/ccache
+          CIBW_ENVIRONMENT_LINUX: >-
+            CMAKE_BUILD_PARALLEL_LEVEL=4
+            CCACHE_DIR=/opt/ccache
+            CCACHE_MAXSIZE=3G
+            CCACHE_BASEDIR=/project
+            CCACHE_COMPILERCHECK=content
+            CMAKE_C_COMPILER_LAUNCHER=ccache
+            CMAKE_CXX_COMPILER_LAUNCHER=ccache
+            PKG_CONFIG_PATH=/opt/deps/lib/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig
+            LD_LIBRARY_PATH=/opt/deps/lib:/usr/local/lib:/usr/local/lib64:$LD_LIBRARY_PATH
+            CMAKE_PREFIX_PATH=/opt/deps:/usr/local
+            ZLIB_ROOT=/opt/deps
+            minizip_DIR=/opt/deps/lib/cmake/minizip
+            CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DTURBOXL_PORTABLE_BUILD=ON -DTURBOXL_ENABLE_NATIVE_OPTIMIZATION=OFF -DTURBOXL_ENABLE_IPO=ON -DMINIZIP_LIBRARY=/opt/deps/lib/libminizip.a -DMINIZIP_INCLUDE_DIR=/opt/deps/include/minizip"
+          CIBW_BEFORE_ALL_LINUX: |
+            set -euxo pipefail
+            if [ -f /opt/deps/.zlib-ng-version ] && \
+               [ -f /opt/deps/.minizip-ng-version ] && \
+               [ "$(cat /opt/deps/.zlib-ng-version)" = "${ZLIB_NG_VERSION}" ] && \
+               [ "$(cat /opt/deps/.minizip-ng-version)" = "${MINIZIP_NG_VERSION}" ] && \
+               [ -f /opt/deps/lib/libz.a ] && \
+               [ -f /opt/deps/lib/libminizip.a ] && \
+               [ -f /opt/deps/lib/pkgconfig/minizip.pc ]; then
+              echo "Using cached /opt/deps"
+              exit 0
+            fi
+            rm -rf /opt/deps/*
+            mkdir -p /opt/deps/lib/pkgconfig
+            yum install -y gcc gcc-c++ make pkgconfig libxml2-devel curl tar ccache
+            python -m pip install --upgrade pip cmake ninja
+            rm -rf /tmp/zlib-ng /tmp/build-zlib /tmp/minizip-ng /tmp/build-minizip
+            curl -fsSL "https://github.com/zlib-ng/zlib-ng/archive/refs/tags/${ZLIB_NG_VERSION}.tar.gz" \
+              | tar -xz -C /tmp
+            mv "/tmp/zlib-ng-${ZLIB_NG_VERSION}" /tmp/zlib-ng
+            curl -fsSL "https://github.com/zlib-ng/minizip-ng/archive/refs/tags/${MINIZIP_NG_VERSION}.tar.gz" \
+              | tar -xz -C /tmp
+            mv "/tmp/minizip-ng-${MINIZIP_NG_VERSION}" /tmp/minizip-ng
+            cmake -S /tmp/zlib-ng -B /tmp/build-zlib -G Ninja \
+                  -DZLIB_COMPAT=ON \
+                  -DBUILD_SHARED_LIBS=OFF \
+                  -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+                  -DCMAKE_INSTALL_LIBDIR=lib \
+                  -DCMAKE_INSTALL_PREFIX=/opt/deps
+            cmake --build /tmp/build-zlib --target install --config Release
+            cmake -S /tmp/minizip-ng -B /tmp/build-minizip -G Ninja \
+                  -DMZ_ZLIB=ON \
+                  -DMZ_OPENSSL=OFF \
+                  -DMZ_BZIP2=OFF \
+                  -DMZ_LZMA=OFF \
+                  -DMZ_PPMD=OFF \
+                  -DMZ_ZSTD=OFF \
+                  -DMZ_LIBBSD=OFF \
+                  -DMZ_COMPAT=ON \
+                  -DBUILD_SHARED_LIBS=OFF \
+                  -DZLIB_ROOT=/opt/deps \
+                  -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+                  -DCMAKE_INSTALL_LIBDIR=lib \
+                  -DCMAKE_INSTALL_PREFIX=/opt/deps
+            cmake --build /tmp/build-minizip --target install --config Release
+            if nm -g /opt/deps/lib/libminizip.a | grep -q "Ppmd8_Construct"; then
+              echo "minizip archive unexpectedly references Ppmd8_Construct"
+              exit 1
+            fi
+            if [ -d /opt/deps/include/minizip ] && [ ! -e /opt/deps/include/minizip-ng ]; then
+              ln -s /opt/deps/include/minizip /opt/deps/include/minizip-ng
+            fi
+            MINIZIP_VERSION=$(/usr/bin/env bash -c 'grep -E "^\#define MZ_VERSION " /tmp/minizip-ng/mz.h | sed -E "s/.*\"(.*)\".*/\1/"' || echo "unknown")
+            {
+              printf '%s\n' 'prefix=/opt/deps'
+              printf '%s\n' 'exec_prefix=${prefix}'
+              printf '%s\n' 'libdir=${prefix}/lib'
+              printf '%s\n' 'includedir=${prefix}/include'
+              printf '%s\n' ''
+              printf '%s\n' 'Name: minizip'
+              printf '%s\n' 'Description: Minizip-ng zip manipulation library'
+              printf 'Version: %s\n' "$MINIZIP_VERSION"
+              printf '%s\n' 'Libs: ${libdir}/libminizip.a'
+              printf '%s\n' 'Libs.private: -lz'
+              printf '%s\n' 'Cflags: -I${includedir}'
+            } > /opt/deps/lib/pkgconfig/minizip.pc
+            cp /opt/deps/lib/pkgconfig/minizip.pc /opt/deps/lib/pkgconfig/minizip-ng.pc
+            printf '%s\n' "${ZLIB_NG_VERSION}" > /opt/deps/.zlib-ng-version
+            printf '%s\n' "${MINIZIP_NG_VERSION}" > /opt/deps/.minizip-ng-version
         run: python -m cibuildwheel --output-dir wheelhouse
 
   verify-windows:
