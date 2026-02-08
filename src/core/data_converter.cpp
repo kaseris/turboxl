@@ -5,7 +5,6 @@
 #include <cmath>
 #include <chrono>
 #include <unordered_map>
-#include <charconv>
 
 namespace xlsxcsv::core {
 
@@ -184,18 +183,10 @@ private:
             return std::to_string(static_cast<long long>(value));
         }
         
-        // Match prior behavior: fixed 6 decimals, then trim trailing zeros.
-        char buffer[128];
-        auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), value, std::chars_format::fixed, 6);
-        std::string result;
-        if (ec == std::errc{}) {
-            result.assign(buffer, ptr);
-        } else {
-            // Rare fallback.
-            std::ostringstream oss;
-            oss << std::fixed << std::setprecision(6) << value;
-            result = oss.str();
-        }
+        // Use stream formatting for maximum standard-library portability.
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(6) << value;
+        std::string result = oss.str();
         
         // Remove trailing zeros and decimal point if not needed
         if (result.find('.') != std::string::npos) {
