@@ -87,7 +87,7 @@ jobs:
             minizip_DIR=/opt/deps/lib/cmake/minizip
             CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DTURBOXL_PORTABLE_BUILD=ON -DTURBOXL_CI_FAST_BUILD=ON -DTURBOXL_ENABLE_IPO=OFF -DTURBOXL_ENABLE_NATIVE_OPTIMIZATION=OFF -DMINIZIP_LIBRARY=/opt/deps/lib/libminizip.a -DMINIZIP_INCLUDE_DIR=/opt/deps/include/minizip"
           CIBW_BEFORE_ALL_LINUX: |
-            set -euxo pipefail
+            set -eux
             if [ -f /opt/deps/.zlib-ng-version ] && \
                [ -f /opt/deps/.minizip-ng-version ] && \
                [ "$(cat /opt/deps/.zlib-ng-version)" = "${ZLIB_NG_VERSION}" ] && \
@@ -224,7 +224,7 @@ jobs:
             minizip_DIR=/opt/deps/lib/cmake/minizip
             CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Release -DTURBOXL_PORTABLE_BUILD=ON -DTURBOXL_ENABLE_NATIVE_OPTIMIZATION=OFF -DTURBOXL_ENABLE_IPO=ON -DMINIZIP_LIBRARY=/opt/deps/lib/libminizip.a -DMINIZIP_INCLUDE_DIR=/opt/deps/include/minizip"
           CIBW_BEFORE_ALL_LINUX: |
-            set -euxo pipefail
+            set -eux
             if [ -f /opt/deps/.zlib-ng-version ] && \
                [ -f /opt/deps/.minizip-ng-version ] && \
                [ "$(cat /opt/deps/.zlib-ng-version)" = "${ZLIB_NG_VERSION}" ] && \
