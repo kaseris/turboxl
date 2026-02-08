@@ -67,6 +67,8 @@ jobs:
             CCACHE_COMPILERCHECK=content
             CMAKE_C_COMPILER_LAUNCHER=ccache
             CMAKE_CXX_COMPILER_LAUNCHER=ccache
+            ZLIB_NG_VERSION=${{ env.ZLIB_NG_VERSION }}
+            MINIZIP_NG_VERSION=${{ env.MINIZIP_NG_VERSION }}
             PKG_CONFIG_PATH=/opt/deps/lib/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig
             LD_LIBRARY_PATH=/opt/deps/lib:/usr/local/lib:/usr/local/lib64:$LD_LIBRARY_PATH
             CMAKE_PREFIX_PATH=/opt/deps:/usr/local
