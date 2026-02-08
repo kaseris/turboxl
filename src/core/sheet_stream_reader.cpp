@@ -64,13 +64,20 @@ public:
     }
 
 private:
-    static bool parseCellReference(const char* ref, CellCoordinate& out) {
+    static bool parseIntRange(const char* begin, const char* end, int& out) {
+        if (!begin || !end || begin >= end) {
+            return false;
+        }
+        auto [ptr, ec] = std::from_chars(begin, end, out);
+        return ec == std::errc{} && ptr == end;
+    }
+
+    static bool parseCellColumn(const char* ref, int& outColumn) {
         if (!ref || *ref == '\0') {
             return false;
         }
 
         int column = 0;
-        int row = 0;
         const char* p = ref;
 
         while (*p >= 'A' && *p <= 'Z') {
@@ -84,17 +91,7 @@ private:
         if (*p < '1' || *p > '9') {
             return false;
         }
-        while (*p >= '0' && *p <= '9') {
-            row = (row * 10) + (*p - '0');
-            ++p;
-        }
-
-        if (*p != '\0' || row <= 0) {
-            return false;
-        }
-
-        out.row = row;
-        out.column = column;
+        outColumn = column;
         return true;
     }
 
@@ -185,8 +182,9 @@ private:
                     }
                     int first = 0;
                     int last = 0;
-                    std::string firstPart(attrValue, static_cast<size_t>(colon - attrValue));
-                    if (parseInt(firstPart.c_str(), first) && parseInt(colon + 1, last) && last >= first) {
+                    if (parseIntRange(attrValue, colon, first) &&
+                        parseInt(colon + 1, last) &&
+                        last >= first) {
                         spanReserveHint = std::min(last - first + 1, 16384);
                     }
                 }
@@ -217,7 +215,7 @@ private:
             
             if (nodeType == XML_READER_TYPE_ELEMENT && strcmp(name, "c") == 0) {
                 // Parse cell
-                auto cell = parseCell(reader, sharedStrings, styles);
+                auto cell = parseCell(reader, rowNumber, sharedStrings, styles);
                 if (cell.has_value()) {
                     rowData.cells.push_back(std::move(*cell));
                 }
@@ -231,6 +229,7 @@ private:
     }
     
     std::optional<CellData> parseCell(xmlTextReaderPtr reader,
+                                      int rowNumber,
                                       const SharedStringsProvider* sharedStrings,
                                       [[maybe_unused]] const StylesRegistry* styles) {
         
@@ -246,7 +245,11 @@ private:
                 }
 
                 if (attrName[0] == 'r' && attrName[1] == '\0') {
-                    parseCellReference(attrValue, cell.coordinate);
+                    int column = 0;
+                    if (parseCellColumn(attrValue, column)) {
+                        cell.coordinate.row = rowNumber;
+                        cell.coordinate.column = column;
+                    }
                     continue;
                 }
 

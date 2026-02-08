@@ -230,6 +230,7 @@ public:
     std::optional<CellStyle> getCellStyle(int styleIndex) const;
     std::optional<NumberFormat> getNumberFormat(int formatId) const;
     NumberFormatType detectNumberFormatType(const std::string& formatCode) const;
+    bool isDateTimeStyle(int styleIndex) const;
     
     // Utility methods
     bool isDateTimeFormat(int formatId) const;

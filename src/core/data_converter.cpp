@@ -85,19 +85,6 @@ public:
         return oss.str();
     }
     
-    static bool looksLikeDate(const std::string& formatCode) {
-        // Simple heuristics to detect date/time formats
-        if (formatCode.empty()) return false;
-        
-        // Look for common date/time format indicators
-        return formatCode.find('d') != std::string::npos ||  // day
-               formatCode.find('m') != std::string::npos ||  // month/minute
-               formatCode.find('y') != std::string::npos ||  // year
-               formatCode.find('h') != std::string::npos ||  // hour
-               formatCode.find('s') != std::string::npos ||  // second
-               formatCode.find('/') != std::string::npos ||  // date separator
-               formatCode.find(':') != std::string::npos;    // time separator
-    }
 };
 
 // Main data conversion class
@@ -154,18 +141,8 @@ private:
                                          DateSystem dateSystem) {
         
         // Check if this should be formatted as a date/time
-        if (styles && styleIndex > 0) {
-            auto cellStyle = styles->getCellStyle(styleIndex);
-            if (cellStyle.has_value()) {
-                const auto& numberFormat = cellStyle->numberFormat;
-                
-                // Check if this is a date/time format
-                if (styles->isDateTimeFormat(numberFormat.formatId) ||
-                    DateConverter::looksLikeDate(numberFormat.formatCode)) {
-                    
-                    return DateConverter::convertExcelSerial(value, dateSystem, numberFormat.formatCode);
-                }
-            }
+        if (styles && styleIndex > 0 && styles->isDateTimeStyle(styleIndex)) {
+            return DateConverter::convertExcelSerial(value, dateSystem);
         }
         
         // Format as regular number

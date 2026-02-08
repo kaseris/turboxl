@@ -40,6 +40,7 @@ public:
         m_fills.clear();
         m_borders.clear();
         m_cellStyles.clear();
+        m_dateTimeStyleMask.clear();
     }
     
     bool isOpen() const {
@@ -152,6 +153,13 @@ public:
         return type == NumberFormatType::Date || 
                type == NumberFormatType::Time || 
                type == NumberFormatType::DateTime;
+    }
+
+    bool isDateTimeStyle(int styleIndex) const {
+        if (!m_isOpen || styleIndex < 0 || static_cast<size_t>(styleIndex) >= m_dateTimeStyleMask.size()) {
+            return false;
+        }
+        return m_dateTimeStyleMask[static_cast<size_t>(styleIndex)] != 0;
     }
     
     size_t getStyleCount() const {
@@ -486,6 +494,11 @@ private:
                         xmlFree(borderId);
                     }
                     
+                    const NumberFormatType type = style.numberFormat.type;
+                    const bool isDateTime = (type == NumberFormatType::Date) ||
+                                            (type == NumberFormatType::Time) ||
+                                            (type == NumberFormatType::DateTime);
+                    m_dateTimeStyleMask.push_back(isDateTime ? 1 : 0);
                     m_cellStyles.push_back(style);
                 }
                 
@@ -542,6 +555,7 @@ private:
     std::vector<FillInfo> m_fills;
     std::vector<BorderInfo> m_borders;
     std::vector<CellStyle> m_cellStyles;
+    std::vector<uint8_t> m_dateTimeStyleMask;
 };
 
 // StylesRegistry implementation
@@ -582,6 +596,10 @@ bool StylesRegistry::isDateTimeFormat(int formatId) const {
 
 bool StylesRegistry::isDateTimeFormat(const std::string& formatCode) const {
     return m_impl->isDateTimeFormat(formatCode);
+}
+
+bool StylesRegistry::isDateTimeStyle(int styleIndex) const {
+    return m_impl->isDateTimeStyle(styleIndex);
 }
 
 size_t StylesRegistry::getStyleCount() const {
