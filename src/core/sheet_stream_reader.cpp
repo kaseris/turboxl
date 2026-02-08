@@ -6,6 +6,8 @@
 #include <sstream>
 #include <charconv>
 #include <cstring>
+#include <cstdlib>
+#include <system_error>
 
 namespace xlsxcsv::core {
 
@@ -251,16 +253,21 @@ private:
             }
             
             case CellType::Number: {
-                try {
-                    return std::stod(valueStr);
-                } catch (const std::exception&) {
-                    return std::monostate{};
+                const char* begin = valueStr.data();
+                char* parseEnd = nullptr;
+                double parsed = std::strtod(begin, &parseEnd);
+                if (parseEnd == begin + valueStr.size()) {
+                    return parsed;
                 }
+                return std::monostate{};
             }
             
             case CellType::SharedString: {
-                try {
-                    int index = std::stoi(valueStr);
+                int index = 0;
+                const char* begin = valueStr.data();
+                const char* end = begin + valueStr.size();
+                auto [ptr, ec] = std::from_chars(begin, end, index);
+                if (ec == std::errc{} && ptr == end) {
                     if (sharedStrings) {
                         auto str = sharedStrings->tryGetString(static_cast<size_t>(index));
                         if (str.has_value()) {
@@ -269,9 +276,8 @@ private:
                     }
                     // Fallback: return the index for later resolution
                     return index;
-                } catch (const std::exception&) {
-                    return std::monostate{};
                 }
+                return std::monostate{};
             }
             
             case CellType::Error:

@@ -37,8 +37,8 @@ public:
             return;
         }
         
-        m_xmlData = package.getZipReader().readEntry(sharedStringsPath);
-        parseSharedStringsXml(m_xmlData);
+        ByteVector xmlData = package.getZipReader().readEntry(sharedStringsPath);
+        parseSharedStringsXml(xmlData);
         
         m_isOpen = true;
     }
@@ -128,6 +128,10 @@ public:
 
 private:
     void parseSharedStringsXml(const ByteVector& xmlData) {
+        // Heuristic estimate: extracted string payload is often in the same order
+        // of magnitude as sharedStrings.xml.
+        decideStorageMode(xmlData.size());
+
         xmlTextReaderPtr reader = xmlReaderForMemory(
             reinterpret_cast<const char*>(xmlData.data()),
             static_cast<int>(xmlData.size()),
@@ -140,66 +144,13 @@ private:
         }
         
         try {
-            parseWithReader(reader);
+            parseStrings(reader);
         } catch (...) {
             xmlFreeTextReader(reader);
             throw;
         }
         
         xmlFreeTextReader(reader);
-    }
-    
-    void parseWithReader(xmlTextReaderPtr reader) {
-        size_t estimatedSize = 0;
-        m_stringCount = 0;
-        
-        // First pass: count strings and estimate memory usage
-        while (xmlTextReaderRead(reader) == 1) {
-            if (xmlTextReaderNodeType(reader) == XML_READER_TYPE_ELEMENT) {
-                auto nodeName = getNodeName(reader);
-                if (nodeName == "sst") {
-                    // Get count attribute if available
-                    auto countAttr = getAttribute(reader, "count");
-                    if (countAttr.has_value()) {
-                        try {
-                            m_stringCount = std::stoull(countAttr.value());
-                        } catch (...) {
-                            // If parsing fails, we'll count manually
-                        }
-                    }
-                } else if (nodeName == "si") {
-                    if (m_stringCount == 0) {
-                        m_stringCount++; // Count manually if no count attribute
-                    }
-                    // Rough estimation: average 50 bytes per string
-                    estimatedSize += 50;
-                }
-            }
-        }
-        
-        // Decide storage mode
-        decideStorageMode(estimatedSize);
-        
-        // Re-create reader for actual parsing (the original reader is consumed by first pass)
-        auto reader2 = xmlReaderForMemory(
-            reinterpret_cast<const char*>(m_xmlData.data()),
-            static_cast<int>(m_xmlData.size()),
-            nullptr, nullptr,
-            XML_PARSE_RECOVER | XML_PARSE_NONET | XML_PARSE_NOENT
-        );
-        
-        if (!reader2) {
-            throw XlsxError("Failed to re-create XML reader for sharedStrings.xml");
-        }
-        
-        try {
-            parseStrings(reader2);
-        } catch (...) {
-            xmlFreeTextReader(reader2);
-            throw;
-        }
-        
-        xmlFreeTextReader(reader2);
     }
     
     void decideStorageMode(size_t estimatedSize) {
@@ -223,11 +174,11 @@ private:
                 break;
         }
         
-        if (!m_isUsingDisk && m_stringCount > 0) {
-            // Initialize arena for estimated size
+        if (!m_isUsingDisk) {
+            // Initialize arena from estimate even when count is not known yet.
             m_arenaCapacity = std::max(INITIAL_ARENA_SIZE, estimatedSize * 2);
             m_arena.reserve(m_arenaCapacity);
-            m_offsets.reserve(m_stringCount + 1); // +1 for sentinel
+            m_offsets.reserve(1024);
         }
     }
     
@@ -444,8 +395,6 @@ private:
     mutable std::fstream m_diskFile;
     std::vector<std::streampos> m_diskOffsets;
     
-    // Keep XML data for re-parsing
-    ByteVector m_xmlData;
 };
 
 // SharedStringsProvider implementation
