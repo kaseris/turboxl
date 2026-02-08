@@ -5,6 +5,7 @@
 #include <cmath>
 #include <chrono>
 #include <unordered_map>
+#include <charconv>
 
 namespace xlsxcsv::core {
 
@@ -183,10 +184,18 @@ private:
             return std::to_string(static_cast<long long>(value));
         }
         
-        // Format as decimal with appropriate precision
-        std::ostringstream oss;
-        oss << std::fixed << std::setprecision(6) << value;
-        std::string result = oss.str();
+        // Match prior behavior: fixed 6 decimals, then trim trailing zeros.
+        char buffer[128];
+        auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), value, std::chars_format::fixed, 6);
+        std::string result;
+        if (ec == std::errc{}) {
+            result.assign(buffer, ptr);
+        } else {
+            // Rare fallback.
+            std::ostringstream oss;
+            oss << std::fixed << std::setprecision(6) << value;
+            result = oss.str();
+        }
         
         // Remove trailing zeros and decimal point if not needed
         if (result.find('.') != std::string::npos) {
@@ -224,31 +233,42 @@ public:
         
         if (row.cells.empty()) {
             // Empty row
-            m_csvLines.emplace_back();
+            m_csvOutput.push_back('\n');
+            ++m_rowCount;
             return;
         }
-        
-        std::vector<std::string> csvRow;
-        
+
         // Find max column to handle sparse data
         int maxColumn = 0;
         for (const auto& cell : row.cells) {
             maxColumn = std::max(maxColumn, cell.coordinate.column);
         }
-        
-        // Generate CSV row with proper spacing for sparse data
+
+        bool firstField = true;
+        std::size_t cellIndex = 0;
+
+        // Generate CSV row with proper spacing for sparse data.
+        // Row cells are parsed in document order, so advance a single cursor.
         for (int col = 1; col <= maxColumn; ++col) {
             // Check if column should be skipped due to hidden column filtering
             if (m_worksheetMetadata.isColumnHidden(col) && m_options && !m_options->includeHiddenColumns) {
                 continue; // Skip hidden column
             }
-            
-            const CellData* cell = row.findCell(col);
+
+            const CellData* cell = nullptr;
+            while (cellIndex < row.cells.size() && row.cells[cellIndex].coordinate.column < col) {
+                ++cellIndex;
+            }
+            if (cellIndex < row.cells.size() && row.cells[cellIndex].coordinate.column == col) {
+                cell = &row.cells[cellIndex];
+                ++cellIndex;
+            }
+
             std::string cellValue;
-            
+
             if (cell) {
                 cellValue = DataConverter::convertCellValue(*cell, m_sharedStrings, m_styles, m_dateSystem);
-                
+
                 // If this cell is the top-left of a merged range, cache its value
                 if (m_options && m_options->mergedHandling == ::xlsxcsv::CsvOptions::MergedHandling::PROPAGATE) {
                     const MergedCellRange* mergedRange = m_worksheetMetadata.findMergedCellRange(cell->coordinate);
@@ -262,11 +282,16 @@ public:
                 // Check for merged cell propagation
                 cellValue = handleMergedCell(CellCoordinate{row.rowNumber, col});
             }
-            
-            csvRow.push_back(escapeCsvField(cellValue));
+
+            if (!firstField) {
+                m_csvOutput.push_back(m_delimiter);
+            }
+            firstField = false;
+            appendEscapedCsvField(cellValue);
         }
-        
-        m_csvLines.push_back(csvRow);
+
+        m_csvOutput.push_back('\n');
+        ++m_rowCount;
     }
     
     void handleError(const std::string& message) {
@@ -278,17 +303,7 @@ public:
     }
     
     std::string getCsvString() const {
-        std::ostringstream oss;
-        
-        for (const auto& row : m_csvLines) {
-            for (size_t i = 0; i < row.size(); ++i) {
-                if (i > 0) oss << m_delimiter;
-                oss << row[i];
-            }
-            oss << "\n";
-        }
-        
-        return oss.str();
+        return m_csvOutput;
     }
     
     const std::vector<std::string>& getErrors() const {
@@ -296,30 +311,30 @@ public:
     }
     
     size_t getRowCount() const {
-        return m_csvLines.size();
+        return m_rowCount;
     }
 
 private:
-    std::string escapeCsvField(const std::string& field) const {
+    void appendEscapedCsvField(const std::string& field) {
         // Check if field needs quoting
         bool needsQuoting = field.find(m_delimiter) != std::string::npos ||
                            field.find('"') != std::string::npos ||
                            field.find('\n') != std::string::npos ||
                            field.find('\r') != std::string::npos;
-        
+
         if (!needsQuoting) {
-            return field;
+            m_csvOutput.append(field);
+            return;
         }
-        
-        // Escape quotes by doubling them
-        std::string escaped = field;
-        size_t pos = 0;
-        while ((pos = escaped.find('"', pos)) != std::string::npos) {
-            escaped.insert(pos, "\"");
-            pos += 2;
+
+        m_csvOutput.push_back('"');
+        for (char ch : field) {
+            if (ch == '"') {
+                m_csvOutput.push_back('"');
+            }
+            m_csvOutput.push_back(ch);
         }
-        
-        return '"' + escaped + '"';
+        m_csvOutput.push_back('"');
     }
     
     std::string handleMergedCell(const CellCoordinate& coord) {
@@ -355,7 +370,8 @@ private:
     
     WorksheetMetadata m_worksheetMetadata;
     std::unordered_map<std::string, std::string> m_mergedCellValues; // Cache for merged cell values
-    std::vector<std::vector<std::string>> m_csvLines;
+    std::string m_csvOutput;
+    size_t m_rowCount = 0;
     std::vector<std::string> m_errorMessages;
 };
 
