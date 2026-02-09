@@ -193,6 +193,21 @@ jobs:
           $vcpkgRootForward = $env:VCPKG_ROOT -replace '\\', '/'
           "VCPKG_ROOT_FWD=$vcpkgRootForward" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+      - name: Set cibuildwheel cache path
+        shell: pwsh
+        run: |
+          $cibwCacheDir = Join-Path $env:LOCALAPPDATA "pypa\cibuildwheel\Cache"
+          "CIBW_CACHE_DIR=$cibwCacheDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Cache cibuildwheel artifacts
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CIBW_CACHE_DIR }}
+          key: windows-cibw-cache-x64-v1-${{ env.CIBW_BUILD }}-${{ hashFiles('pyproject.toml', '.github/workflows/release.yml') }}
+          restore-keys: |
+            windows-cibw-cache-x64-v1-${{ env.CIBW_BUILD }}-
+            windows-cibw-cache-x64-v1-
+
       - name: Set Windows parallel build level
         shell: pwsh
         run: |
@@ -217,6 +232,7 @@ jobs:
             CMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT_FWD }}/scripts/buildsystems/vcpkg.cmake
             CMAKE_FIND_PACKAGE_PREFER_CONFIG=ON
             CMAKE_ARGS="-DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT_FWD }}/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-static -DVCPKG_BUILD_TYPE=release -DCMAKE_BUILD_TYPE=Release -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON"
+          CIBW_CACHE_PATH: ${{ env.CIBW_CACHE_DIR }}
         run: python -m cibuildwheel --output-dir wheelhouse
 
       - name: Upload Windows wheel artifacts
