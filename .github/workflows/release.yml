@@ -161,6 +161,7 @@ jobs:
     runs-on: windows-latest
     env:
       VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}\\vcpkg-binary-cache,readwrite
+      VCPKG_BUILD_TYPE: release
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -192,10 +193,16 @@ jobs:
           $vcpkgRootForward = $env:VCPKG_ROOT -replace '\\', '/'
           "VCPKG_ROOT_FWD=$vcpkgRootForward" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+      - name: Set Windows parallel build level
+        shell: pwsh
+        run: |
+          "CMAKE_BUILD_PARALLEL_LEVEL_WINDOWS=$env:NUMBER_OF_PROCESSORS" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Install vcpkg dependencies (x64-windows-static)
         run: |
           & "$env:VCPKG_ROOT\vcpkg.exe" install `
-            --triplet x64-windows-static
+            --triplet x64-windows-static `
+            --clean-after-build
 
       - name: Install cibuildwheel
         run: python -m pip install -U pip cibuildwheel
@@ -204,11 +211,12 @@ jobs:
         env:
           CIBW_ARCHS_WINDOWS: AMD64
           CIBW_ENVIRONMENT_WINDOWS: >-
-            CMAKE_BUILD_PARALLEL_LEVEL=4
+            CMAKE_BUILD_PARALLEL_LEVEL=${{ env.CMAKE_BUILD_PARALLEL_LEVEL_WINDOWS }}
             VCPKG_DEFAULT_TRIPLET=x64-windows-static
+            VCPKG_BUILD_TYPE=release
             CMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT_FWD }}/scripts/buildsystems/vcpkg.cmake
             CMAKE_FIND_PACKAGE_PREFER_CONFIG=ON
-            CMAKE_ARGS="-DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT_FWD }}/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-static -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON"
+            CMAKE_ARGS="-DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT_FWD }}/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-static -DVCPKG_BUILD_TYPE=release -DCMAKE_BUILD_TYPE=Release -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON"
         run: python -m cibuildwheel --output-dir wheelhouse
 
       - name: Upload Windows wheel artifacts
