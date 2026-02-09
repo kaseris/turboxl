@@ -161,7 +161,7 @@ jobs:
     runs-on: windows-latest
     env:
       VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}\\vcpkg-binary-cache,readwrite
-      VCPKG_BUILD_TYPE: release
+      VCPKG_DEFAULT_TRIPLET: x64-windows-static-release
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -178,9 +178,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}\vcpkg-binary-cache
-          key: windows-vcpkg-bin-x64-${{ hashFiles('vcpkg.json') }}
+          key: windows-vcpkg-bin-x64-v2-${{ hashFiles('vcpkg.json', '.github/vcpkg-triplets/x64-windows-static-release.cmake') }}
           restore-keys: |
-            windows-vcpkg-bin-x64-
+            windows-vcpkg-bin-x64-v2-
 
       - name: Set up vcpkg
         uses: lukka/run-vcpkg@v11
@@ -216,7 +216,8 @@ jobs:
       - name: Install vcpkg dependencies (x64-windows-static)
         run: |
           & "$env:VCPKG_ROOT\vcpkg.exe" install `
-            --triplet x64-windows-static `
+            --overlay-triplets "${{ github.workspace }}\.github\vcpkg-triplets" `
+            --triplet x64-windows-static-release `
             --clean-after-build
 
       - name: Install cibuildwheel
@@ -227,11 +228,11 @@ jobs:
           CIBW_ARCHS_WINDOWS: AMD64
           CIBW_ENVIRONMENT_WINDOWS: >-
             CMAKE_BUILD_PARALLEL_LEVEL=${{ env.CMAKE_BUILD_PARALLEL_LEVEL_WINDOWS }}
-            VCPKG_DEFAULT_TRIPLET=x64-windows-static
-            VCPKG_BUILD_TYPE=release
+            VCPKG_DEFAULT_TRIPLET=x64-windows-static-release
+            VCPKG_OVERLAY_TRIPLETS=${{ github.workspace }}\\.github\\vcpkg-triplets
             CMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT_FWD }}/scripts/buildsystems/vcpkg.cmake
             CMAKE_FIND_PACKAGE_PREFER_CONFIG=ON
-            CMAKE_ARGS="-DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT_FWD }}/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-static -DVCPKG_BUILD_TYPE=release -DCMAKE_BUILD_TYPE=Release -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON"
+            CMAKE_ARGS="-DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT_FWD }}/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows-static-release -DVCPKG_OVERLAY_TRIPLETS=${{ github.workspace }}\\.github\\vcpkg-triplets -DCMAKE_BUILD_TYPE=Release -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON"
           CIBW_CACHE_PATH: ${{ env.CIBW_CACHE_DIR }}
         run: python -m cibuildwheel --output-dir wheelhouse
 
