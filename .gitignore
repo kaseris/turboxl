@@ -11,6 +11,8 @@ Makefile
 *.cmake
 !CMakeLists.txt
 !cmake/*.cmake.in
+!cmake/triplets/
+!cmake/triplets/*.cmake
 
 # Compiler generated files
 *.o
@@ -56,6 +58,9 @@ parts/
 sdist/
 var/
 wheels/
+!tools/wheels/
+!tools/wheels/*.py
+!tools/wheels/*.sh
 *.egg-info/
 .installed.cfg
 *.egg

@@ -14,6 +14,7 @@ option(TURBOXL_PORTABLE_BUILD "Disable host-specific CPU tuning for portable bin
 option(TURBOXL_CI_FAST_BUILD "Reduce compile-time optimizations for faster CI builds" OFF)
 option(TURBOXL_ENABLE_NATIVE_OPTIMIZATION "Enable host-specific CPU optimization flags where safe" ON)
 option(TURBOXL_ENABLE_IPO "Enable interprocedural optimization (LTO) for Release builds" ON)
+option(TURBOXL_STATIC_WINDOWS_DEPS "Define static-library APIs for Windows dependencies" OFF)
 
 include(CheckIPOSupported)
 
@@ -151,8 +152,8 @@ else()
         set(_ZIP_READY ON)
     endif()
 
-    # Find minizip-ng (prefer CMake package target from /opt/deps install),
-    # then fall back to pkg-config.
+    # Find minizip-ng (prefer a CMake package target), then fall back to
+    # either the minizip-ng or distro-provided minizip pkg-config module.
     if(NOT _ZIP_READY)
         find_package(minizip CONFIG QUIET)
         find_package(minizip-ng CONFIG QUIET)
@@ -163,6 +164,9 @@ else()
             set(_ZIP_READY ON)
         else()
             pkg_check_modules(MINIZIP minizip-ng)
+            if(NOT MINIZIP_FOUND)
+                pkg_check_modules(MINIZIP minizip)
+            endif()
             if(MINIZIP_FOUND)
                 set(ZIP_LIBRARY "minizip-ng")
                 set(ZIP_INCLUDE_DIRS ${MINIZIP_INCLUDE_DIRS})
@@ -233,6 +237,9 @@ target_include_directories(turboxl_core
 # On Windows, when linking against a static libxml2, headers expect LIBXML_STATIC
 if(WIN32)
     set(_LIBXML2_IS_STATIC OFF)
+    if(TURBOXL_STATIC_WINDOWS_DEPS)
+        set(_LIBXML2_IS_STATIC ON)
+    endif()
     foreach(_lib ${LIBXML2_LIBRARIES})
         string(TOLOWER "${_lib}" _lib_lower)
         if(_lib_lower MATCHES "libxml2s\\.lib" OR _lib_lower MATCHES "libxml2\\.a")
@@ -317,6 +324,8 @@ endif()
 
 # Python bindings
 if(BUILD_PYTHON)
+    set(PYBIND11_FINDPYTHON ON)
+    find_package(Python COMPONENTS Interpreter Development.Module REQUIRED)
     find_package(pybind11 CONFIG REQUIRED)
     
     pybind11_add_module(turboxl src/python/module.cpp)

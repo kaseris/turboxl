@@ -1,0 +1,102 @@
+name: Build wheel set
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: GitHub runner label
+        required: true
+        type: string
+      arch:
+        description: cibuildwheel architecture
+        required: true
+        type: string
+      build:
+        description: cibuildwheel build identifiers
+        required: true
+        type: string
+      expected-bits:
+        description: Pointer width asserted by the installed-wheel test
+        required: true
+        type: number
+      artifact-name:
+        description: Uploaded wheel artifact name
+        required: true
+        type: string
+      vcpkg-triplet:
+        description: Windows vcpkg triplet; empty on other platforms
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Activate 32-bit MSVC tools
+        if: runner.os == 'Windows' && inputs.arch == 'x86'
+        uses: bus1/cabuild/action/msdevshell@v1
+        with:
+          architecture: x86
+
+      - name: Cache Windows dependencies
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}\vcpkg-binary-cache
+          key: vcpkg-${{ runner.os }}-${{ inputs.vcpkg-triplet }}-${{ hashFiles('vcpkg.json', 'cmake/triplets/**') }}
+          restore-keys: vcpkg-${{ runner.os }}-${{ inputs.vcpkg-triplet }}-
+
+      - name: Set up vcpkg
+        if: runner.os == 'Windows'
+        uses: lukka/run-vcpkg@v11
+        with:
+          runVcpkgInstall: false
+
+      - name: Install Windows dependencies
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          VCPKG_BINARY_SOURCES: clear;files,${{ runner.temp }}\vcpkg-binary-cache,readwrite
+        run: |
+          & "$env:VCPKG_ROOT\vcpkg.exe" install `
+            --triplet "${{ inputs.vcpkg-triplet }}" `
+            --overlay-triplets "$env:GITHUB_WORKSPACE\cmake\triplets" `
+            --clean-after-build
+          $root = $env:VCPKG_ROOT.Replace('\', '/')
+          $triplets = "$env:GITHUB_WORKSPACE/cmake/triplets".Replace('\', '/')
+          "VCPKG_ROOT_FWD=$root" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "VCPKG_TRIPLETS_FWD=$triplets" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          "BUILD_PARALLEL=$env:NUMBER_OF_PROCESSORS" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build and test wheels
+        uses: pypa/cibuildwheel@v4.1.0
+        with:
+          extras: uv
+        env:
+          CIBW_ARCHS: ${{ inputs.arch }}
+          CIBW_BUILD: ${{ inputs.build }}
+          CIBW_BUILD_VERBOSITY: "1"
+          CIBW_TEST_COMMAND: python {project}/tools/wheels/smoke_test.py ${{ inputs.expected-bits }}
+          CIBW_ENVIRONMENT_WINDOWS: >-
+            CMAKE_BUILD_PARALLEL_LEVEL=${{ env.BUILD_PARALLEL }}
+            CMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT_FWD }}/scripts/buildsystems/vcpkg.cmake
+            VCPKG_DEFAULT_TRIPLET=${{ inputs.vcpkg-triplet }}
+            VCPKG_OVERLAY_TRIPLETS=${{ env.VCPKG_TRIPLETS_FWD }}
+            CMAKE_ARGS="-DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT_FWD }}/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ inputs.vcpkg-triplet }} -DVCPKG_OVERLAY_TRIPLETS=${{ env.VCPKG_TRIPLETS_FWD }} -DTURBOXL_STATIC_WINDOWS_DEPS=ON -DTURBOXL_PORTABLE_BUILD=ON -DTURBOXL_ENABLE_NATIVE_OPTIMIZATION=OFF -DTURBOXL_ENABLE_IPO=ON"
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+          retention-days: 7
