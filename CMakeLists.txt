@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(turboxl LANGUAGES CXX)
+project(turboxl VERSION 0.2.0 LANGUAGES CXX)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
@@ -456,7 +456,7 @@ install(EXPORT turboxlTargets
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/turboxlConfigVersion.cmake"
-    VERSION 0.1.0
+    VERSION ${PROJECT_VERSION}
     COMPATIBILITY AnyNewerVersion
 )
 
