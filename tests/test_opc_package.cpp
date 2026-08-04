@@ -84,6 +84,25 @@ TEST_F(OpcPackageTest, OpenValidXlsxFile) {
     EXPECT_TRUE(package.isOpen());
 }
 
+TEST_F(OpcPackageTest, PropagatesCustomSecurityLimits) {
+    if (!fs::exists(testXlsxPath)) {
+        GTEST_SKIP() << "Test XLSX file could not be created";
+    }
+
+    xlsxcsv::core::ZipSecurityLimits limits;
+    limits.maxEntries = 123;
+    limits.maxEntrySize = 4 * 1024 * 1024;
+    limits.maxTotalUncompressed = 16 * 1024 * 1024;
+
+    xlsxcsv::core::OpcPackage package(limits);
+    package.open(testXlsxPath.string());
+    const auto& actual = package.getZipReader().getSecurityLimits();
+
+    EXPECT_EQ(actual.maxEntries, limits.maxEntries);
+    EXPECT_EQ(actual.maxEntrySize, limits.maxEntrySize);
+    EXPECT_EQ(actual.maxTotalUncompressed, limits.maxTotalUncompressed);
+}
+
 TEST_F(OpcPackageTest, OpenNonExistentFile) {
     xlsxcsv::core::OpcPackage package;
     EXPECT_THROW(package.open("nonexistent.xlsx"), xlsxcsv::core::XlsxError);

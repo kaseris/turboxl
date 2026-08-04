@@ -8,7 +8,7 @@ namespace xlsxcsv::core {
 
 class OpcPackage::Impl {
 public:
-    Impl() = default;
+    explicit Impl(const ZipSecurityLimits& limits) : m_zipReader(limits) {}
     
     ~Impl() {
         close();
@@ -226,7 +226,8 @@ private:
 };
 
 // OpcPackage implementation
-OpcPackage::OpcPackage() : m_impl(std::make_unique<Impl>()) {}
+OpcPackage::OpcPackage(const ZipSecurityLimits& limits)
+    : m_impl(std::make_unique<Impl>(limits)) {}
 
 OpcPackage::~OpcPackage() = default;
 

@@ -38,7 +38,7 @@ std::string readSheetToCsv(
         limits.maxTotalUncompressed = options.maxTotalUncompressed;
         
         // Phase 4 implementation: Shared strings + all previous phases
-        xlsxcsv::core::OpcPackage package;
+        xlsxcsv::core::OpcPackage package(limits);
         auto t = std::chrono::steady_clock::now();
         package.open(xlsxPath);
         t_open = msSince(t);
@@ -200,7 +200,7 @@ std::vector<SheetMetadata> getSheetList(const std::string& xlsxPath) {
         xlsxcsv::core::ZipSecurityLimits limits;
         
         // Open package and workbook (lightweight operations)
-        xlsxcsv::core::OpcPackage package;
+        xlsxcsv::core::OpcPackage package(limits);
         package.open(xlsxPath);
         
         xlsxcsv::core::Workbook workbook;
@@ -269,7 +269,7 @@ std::map<std::string, std::string> readMultipleSheets(
         limits.maxTotalUncompressed = options.maxTotalUncompressed;
         
         // Open package, workbook, styles, and shared strings once (efficient reuse)
-        xlsxcsv::core::OpcPackage package;
+        xlsxcsv::core::OpcPackage package(limits);
         package.open(xlsxPath);
         
         xlsxcsv::core::Workbook workbook;

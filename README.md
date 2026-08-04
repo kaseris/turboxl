@@ -156,7 +156,7 @@ python3 -m build -w
 
 Outputs go to `dist/`, for example:
 
-- `dist/turboxl-0.2.0-<python>-<abi>-<platform>.whl`
+- `dist/turboxl-0.2.1-<python>-<abi>-<platform>.whl`
 
 Install the built wheel locally:
 
