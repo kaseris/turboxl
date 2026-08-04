@@ -66,7 +66,7 @@ private:
 
 class OpcPackage {
 public:
-    OpcPackage();
+    explicit OpcPackage(const ZipSecurityLimits& limits = {});
     ~OpcPackage();
     
     // Non-copyable but movable
