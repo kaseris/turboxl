@@ -52,10 +52,6 @@ jobs:
         with:
           architecture: x86
 
-      - name: Set up Windows compiler cache
-        if: runner.os == 'Windows'
-        uses: mozilla-actions/sccache-action@v0.0.10
-
       - name: Cache Windows dependencies
         if: runner.os == 'Windows'
         uses: actions/cache@v4
@@ -104,14 +100,12 @@ jobs:
           CIBW_BUILD: ${{ inputs.build }}
           CIBW_BUILD_VERBOSITY: "1"
           CIBW_CACHE_PATH: ${{ runner.temp }}/cibuildwheel-cache
-          CIBW_CONFIG_SETTINGS_WINDOWS: cmake.define.TURBOXL_ENABLE_IPO=${{ inputs.cmake-enable-ipo }}
+          CIBW_CONFIG_SETTINGS_WINDOWS: >-
+            cmake.define.TURBOXL_ENABLE_IPO=${{ inputs.cmake-enable-ipo }}
+            wheel.py-api=cp312
           CIBW_TEST_COMMAND: python {project}/tools/wheels/smoke_test.py ${{ inputs.expected-bits }}
           CIBW_ENVIRONMENT_WINDOWS: >-
             CMAKE_BUILD_PARALLEL_LEVEL=4
-            CMAKE_GENERATOR=Ninja
-            CMAKE_CXX_COMPILER_LAUNCHER=sccache
-            SCCACHE_GHA_ENABLED=true
-            SCCACHE_BASEDIRS="${{ github.workspace }}"
             CMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT_FWD }}/scripts/buildsystems/vcpkg.cmake
             VCPKG_DEFAULT_TRIPLET=${{ inputs.vcpkg-triplet }}
             VCPKG_OVERLAY_TRIPLETS=${{ env.VCPKG_TRIPLETS_FWD }}
