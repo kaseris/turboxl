@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(turboxl VERSION 0.2.2 LANGUAGES CXX)
+project(turboxl VERSION 0.2.3 LANGUAGES CXX)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
@@ -299,7 +299,7 @@ endif()
 
 if(MSVC)
     target_compile_options(turboxl_core PRIVATE
-        /W4 /wd4251
+        /W4 /wd4251 /MP4
         $<$<CONFIG:Release>:/O2>
     )
     target_compile_definitions(turboxl_core PRIVATE
@@ -324,11 +324,18 @@ endif()
 
 # Python bindings
 if(BUILD_PYTHON)
-    set(PYBIND11_FINDPYTHON ON)
-    find_package(Python COMPONENTS Interpreter Development.Module REQUIRED)
-    find_package(pybind11 CONFIG REQUIRED)
-    
-    pybind11_add_module(turboxl src/python/module.cpp)
+    find_package(Python REQUIRED COMPONENTS
+        Interpreter
+        Development.Module
+        ${SKBUILD_SABI_COMPONENT}
+    )
+    find_package(nanobind CONFIG REQUIRED)
+
+    if(SKBUILD_SABI_COMPONENT)
+        nanobind_add_module(turboxl STABLE_ABI src/python/module.cpp)
+    else()
+        nanobind_add_module(turboxl src/python/module.cpp)
+    endif()
     target_link_libraries(turboxl PRIVATE turboxl_core)
 
     # Propagate LIBXML_STATIC to the Python extension compile if needed

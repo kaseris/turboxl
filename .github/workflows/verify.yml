@@ -72,3 +72,4 @@ jobs:
       expected-bits: ${{ matrix.bits }}
       artifact-name: ${{ matrix.artifact }}
       vcpkg-triplet: ${{ matrix.vcpkg-triplet }}
+      cmake-enable-ipo: "OFF"

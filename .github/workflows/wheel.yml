@@ -28,6 +28,11 @@ on:
         required: false
         default: ""
         type: string
+      cmake-enable-ipo:
+        description: Enable CMake interprocedural optimization for wheel builds
+        required: false
+        default: "ON"
+        type: string
 
 permissions:
   contents: read
@@ -55,6 +60,16 @@ jobs:
           key: vcpkg-${{ runner.os }}-${{ inputs.vcpkg-triplet }}-${{ hashFiles('vcpkg.json', 'cmake/triplets/**') }}
           restore-keys: vcpkg-${{ runner.os }}-${{ inputs.vcpkg-triplet }}-
 
+      - name: Cache cibuildwheel tools
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/cibuildwheel-cache
+          key: cibuildwheel-${{ runner.os }}-${{ inputs.artifact-name }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            cibuildwheel-${{ runner.os }}-${{ inputs.artifact-name }}-
+            cibuildwheel-${{ runner.os }}-
+
       - name: Set up vcpkg
         if: runner.os == 'Windows'
         uses: lukka/run-vcpkg@v11
@@ -75,7 +90,6 @@ jobs:
           $triplets = "$env:GITHUB_WORKSPACE/cmake/triplets".Replace('\', '/')
           "VCPKG_ROOT_FWD=$root" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           "VCPKG_TRIPLETS_FWD=$triplets" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
-          "BUILD_PARALLEL=$env:NUMBER_OF_PROCESSORS" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Build and test wheels
         uses: pypa/cibuildwheel@v4.1.0
@@ -85,13 +99,17 @@ jobs:
           CIBW_ARCHS: ${{ inputs.arch }}
           CIBW_BUILD: ${{ inputs.build }}
           CIBW_BUILD_VERBOSITY: "1"
+          CIBW_CACHE_PATH: ${{ runner.temp }}/cibuildwheel-cache
+          CIBW_CONFIG_SETTINGS_WINDOWS: >-
+            cmake.define.TURBOXL_ENABLE_IPO=${{ inputs.cmake-enable-ipo }}
+            wheel.py-api=cp312
           CIBW_TEST_COMMAND: python {project}/tools/wheels/smoke_test.py ${{ inputs.expected-bits }}
           CIBW_ENVIRONMENT_WINDOWS: >-
-            CMAKE_BUILD_PARALLEL_LEVEL=${{ env.BUILD_PARALLEL }}
+            CMAKE_BUILD_PARALLEL_LEVEL=4
             CMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT_FWD }}/scripts/buildsystems/vcpkg.cmake
             VCPKG_DEFAULT_TRIPLET=${{ inputs.vcpkg-triplet }}
             VCPKG_OVERLAY_TRIPLETS=${{ env.VCPKG_TRIPLETS_FWD }}
-            CMAKE_ARGS="-DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT_FWD }}/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ inputs.vcpkg-triplet }} -DVCPKG_OVERLAY_TRIPLETS=${{ env.VCPKG_TRIPLETS_FWD }} -DTURBOXL_STATIC_WINDOWS_DEPS=ON -DTURBOXL_PORTABLE_BUILD=ON -DTURBOXL_ENABLE_NATIVE_OPTIMIZATION=OFF -DTURBOXL_ENABLE_IPO=ON"
+            CMAKE_ARGS="-DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT_FWD }}/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ inputs.vcpkg-triplet }} -DVCPKG_OVERLAY_TRIPLETS=${{ env.VCPKG_TRIPLETS_FWD }} -DTURBOXL_STATIC_WINDOWS_DEPS=ON -DTURBOXL_PORTABLE_BUILD=ON -DTURBOXL_ENABLE_NATIVE_OPTIMIZATION=OFF"
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
