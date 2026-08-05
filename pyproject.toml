@@ -62,7 +62,7 @@ CCACHE_DIR = "/tmp/turboxl-ccache"
 CCACHE_MAXSIZE = "1G"
 CCACHE_BASEDIR = "/project"
 CCACHE_COMPILERCHECK = "content"
-CMAKE_ARGS = "-DTURBOXL_PORTABLE_BUILD=ON -DTURBOXL_ENABLE_NATIVE_OPTIMIZATION=OFF -DTURBOXL_ENABLE_IPO=ON"
+CMAKE_ARGS = "-DTURBOXL_PORTABLE_BUILD=ON -DTURBOXL_ENABLE_NATIVE_OPTIMIZATION=OFF"
 
 [tool.cibuildwheel.macos]
 before-all = "brew install ccache libxml2 minizip-ng zlib-ng"
@@ -77,7 +77,7 @@ CCACHE_COMPILERCHECK = "content"
 MACOSX_DEPLOYMENT_TARGET = "15.0"
 PKG_CONFIG_PATH = "/opt/homebrew/opt/libxml2/lib/pkgconfig:/opt/homebrew/opt/minizip-ng/lib/pkgconfig:/opt/homebrew/opt/zlib-ng/lib/pkgconfig:/usr/local/opt/libxml2/lib/pkgconfig:/usr/local/opt/minizip-ng/lib/pkgconfig:/usr/local/opt/zlib-ng/lib/pkgconfig"
 CMAKE_PREFIX_PATH = "/opt/homebrew/opt/libxml2:/opt/homebrew/opt/minizip-ng:/opt/homebrew/opt/zlib-ng:/usr/local/opt/libxml2:/usr/local/opt/minizip-ng:/usr/local/opt/zlib-ng"
-CMAKE_ARGS = "-DTURBOXL_PORTABLE_BUILD=ON -DTURBOXL_ENABLE_NATIVE_OPTIMIZATION=OFF -DTURBOXL_ENABLE_IPO=ON"
+CMAKE_ARGS = "-DTURBOXL_PORTABLE_BUILD=ON -DTURBOXL_ENABLE_NATIVE_OPTIMIZATION=OFF"
 
 [tool.scikit-build.metadata.version]
 provider = "scikit_build_core.metadata.setuptools_scm"
