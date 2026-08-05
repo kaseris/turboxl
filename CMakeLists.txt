@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(turboxl VERSION 0.2.1 LANGUAGES CXX)
+project(turboxl VERSION 0.2.2 LANGUAGES CXX)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
