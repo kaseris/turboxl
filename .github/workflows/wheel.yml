@@ -104,7 +104,7 @@ jobs:
           CIBW_BUILD: ${{ inputs.build }}
           CIBW_BUILD_VERBOSITY: "1"
           CIBW_CACHE_PATH: ${{ runner.temp }}/cibuildwheel-cache
-          CIBW_CONFIG_SETTINGS: cmake.define.TURBOXL_ENABLE_IPO=${{ inputs.cmake-enable-ipo }}
+          CIBW_CONFIG_SETTINGS_WINDOWS: cmake.define.TURBOXL_ENABLE_IPO=${{ inputs.cmake-enable-ipo }}
           CIBW_TEST_COMMAND: python {project}/tools/wheels/smoke_test.py ${{ inputs.expected-bits }}
           CIBW_ENVIRONMENT_WINDOWS: >-
             CMAKE_BUILD_PARALLEL_LEVEL=4
