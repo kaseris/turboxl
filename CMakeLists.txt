@@ -373,6 +373,7 @@ if(BUILD_TESTS)
         --workbook "${CMAKE_CURRENT_BINARY_DIR}/integration.xlsx"
         COMMAND_ERROR_IS_FATAL ANY)
     
+    set(BUILD_GMOCK OFF CACHE BOOL "Only Google Test is needed" FORCE)
     set(gtest_force_shared_crt ON CACHE BOOL "Use CPython-compatible MSVC runtime" FORCE)
     # Find Google Test
     find_package(GTest QUIET)
@@ -407,7 +408,6 @@ if(BUILD_TESTS)
         PRIVATE
             turboxl_core
             GTest::gtest
-            GTest::gtest_main
     )
     
     # Add library search directories for zlib-ng if needed

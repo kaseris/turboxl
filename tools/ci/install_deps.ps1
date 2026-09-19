@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 $revision = (Get-Content "$PSScriptRoot/../../vcpkg.json" | ConvertFrom-Json).'builtin-baseline'
 $env:VCPKG_ROOT = "$env:RUNNER_TEMP/turboxl-vcpkg"
 if (!(Test-Path "$env:VCPKG_ROOT/.git")) {
-    git clone https://github.com/microsoft/vcpkg.git $env:VCPKG_ROOT
+    git clone --filter=blob:none --no-checkout https://github.com/microsoft/vcpkg.git $env:VCPKG_ROOT
     if ($LASTEXITCODE) { throw 'vcpkg clone failed' }
 }
 git -C $env:VCPKG_ROOT checkout --detach $revision
