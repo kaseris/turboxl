@@ -32,9 +32,11 @@ TEST(IntegrationTest, FileOutputMatchesStringOutputAndAtomicallyReplaces) {
     options.newline = xlsxcsv::CsvOptions::Newline::CRLF;
     const auto expected = xlsxcsv::readSheetToCsv(INTEGRATION_XLSX, 0, options);
     xlsxcsv::readSheetToFile(INTEGRATION_XLSX, output, 0, options);
-    std::ifstream file(output, std::ios::binary);
-    const std::string actual((std::istreambuf_iterator<char>(file)), {});
-    EXPECT_EQ(actual, expected);
+    {
+        std::ifstream file(output, std::ios::binary);
+        const std::string actual((std::istreambuf_iterator<char>(file)), {});
+        EXPECT_EQ(actual, expected);
+    }
     fs::remove(output);
 }
 
@@ -46,9 +48,11 @@ TEST(IntegrationTest, FileOutputPreservesDestinationOnFailure) {
         existing << "preserve-me";
     }
     EXPECT_THROW(xlsxcsv::readSheetToFile("missing.xlsx", output), std::runtime_error);
-    std::ifstream file(output, std::ios::binary);
-    const std::string actual((std::istreambuf_iterator<char>(file)), {});
-    EXPECT_EQ(actual, "preserve-me");
+    {
+        std::ifstream file(output, std::ios::binary);
+        const std::string actual((std::istreambuf_iterator<char>(file)), {});
+        EXPECT_EQ(actual, "preserve-me");
+    }
     fs::remove(output);
 }
 
