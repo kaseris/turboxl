@@ -231,13 +231,10 @@ inputs, so builds are not claimed to be bit-for-bit reproducible.
 ### One-time repository setup
 
 1. Make **CI passed** required on `main`.
-2. Create a GitHub environment named `pypi`, allowing only `v*` tags and with no
-   required reviewers (pushing the tag is the publishing decision).
-3. In the existing PyPI `turboxl` project's Publishing settings, add a GitHub
-   Trusted Publisher: owner `kaseris`, repository `turboxl`, workflow `release.yml`,
-   environment `pypi`. No API token is used by the new workflow.
-4. Protect release tags against changes and deletion. After the first successful
-   Trusted Publishing release, revoke the obsolete PyPI API token.
+2. Keep the existing `PYPI_API_TOKEN` repository secret available to the release
+   workflow. The token is used only by the PyPI publication job after all builds
+   and release validation succeed.
+3. Protect release tags against changes and deletion.
 
 ### Rehearse and release
 

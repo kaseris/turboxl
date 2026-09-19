@@ -37,7 +37,6 @@ jobs:
       url: https://pypi.org/p/turboxl
     permissions:
       contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -58,6 +57,8 @@ jobs:
         if: steps.pending.outputs.count != '0'
         with:
           packages-dir: pending/
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
   github-release:
     name: Publish GitHub Release
     needs: publish
