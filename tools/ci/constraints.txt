@@ -8,5 +8,5 @@ abi3audit==0.0.24
 auditwheel==6.7.0
 delocate==0.13.0
 delvewheel==1.13.0
-virtualenv==21.4.2
+virtualenv==21.7.10
 uv==0.8.22
