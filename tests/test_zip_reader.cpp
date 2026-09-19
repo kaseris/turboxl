@@ -29,7 +29,7 @@ protected:
         
         // Create a simple test file to zip
         auto textFile = testDir / "test.txt";
-        std::ofstream file(textFile);
+        std::ofstream file(textFile, std::ios::binary);
         file << "Hello, World!\nThis is a test file.";
         file.close();
         
