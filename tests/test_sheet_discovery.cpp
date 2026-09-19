@@ -58,17 +58,20 @@ TEST_F(SheetDiscoveryTest, ErrorHandlingForInvalidFile) {
 
 TEST_F(SheetDiscoveryTest, MultiSheetFileDiscovery) {
     const auto sheets = xlsxcsv::getSheetList(INTEGRATION_XLSX);
-    ASSERT_EQ(sheets.size(), 2u);
+    ASSERT_EQ(sheets.size(), 3u);
     EXPECT_EQ(sheets[0].name, "Data");
     EXPECT_TRUE(sheets[0].visible);
     EXPECT_EQ(sheets[1].name, "Hidden");
     EXPECT_FALSE(sheets[1].visible);
+    EXPECT_EQ(sheets[2].name, "Sparse");
+    EXPECT_TRUE(sheets[2].visible);
 }
 
 TEST_F(SheetDiscoveryTest, VisibleSheetFiltering) {
     const auto sheets = xlsxcsv::getVisibleSheets(INTEGRATION_XLSX);
-    ASSERT_EQ(sheets.size(), 1u);
+    ASSERT_EQ(sheets.size(), 2u);
     EXPECT_EQ(sheets[0].name, "Data");
+    EXPECT_EQ(sheets[1].name, "Sparse");
 }
 
 TEST_F(SheetDiscoveryTest, SpecificSheetReading) {
