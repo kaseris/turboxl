@@ -99,11 +99,14 @@ turboxl.read_sheet_to_file("data.xlsx", "data.csv")
 csv_data = turboxl.read_sheet_to_csv("data.xlsx", sheet="Sheet2")
 
 # Custom options
+options = turboxl.CsvOptions()
+options.delimiter = ";"
+options.date_mode = turboxl.DateMode.ISO
+
 csv_data = turboxl.read_sheet_to_csv(
     "data.xlsx",
     sheet=0,
-    delimiter=";",
-    date_mode="iso"
+    options=options,
 )
 
 # Save to file
@@ -243,6 +246,11 @@ turboxl.read_sheet_to_file(
     options: turboxl.CsvOptions = turboxl.CsvOptions(),
 ) -> None
 ```
+
+Configure CSV formatting with a `turboxl.CsvOptions` instance. Enum-valued
+fields use the exported enums, such as `turboxl.DateMode.ISO`,
+`turboxl.Newline.CRLF`, and `turboxl.MergedHandling.PROPAGATE`; they do not
+accept string values.
 
 ### C++
 
