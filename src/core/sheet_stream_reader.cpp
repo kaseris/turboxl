@@ -8,6 +8,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <system_error>
+#include <exception>
 
 namespace xlsxcsv::core {
 
@@ -31,8 +32,23 @@ public:
         } else if (fullPath.find("xl/") != 0) {
             fullPath = "xl/" + fullPath;
         }
-        auto xmlData = package.getZipReader().readEntry(fullPath);
-        parseSheetData(xmlData, handler, sharedStrings, styles);
+        auto entry = package.getZipReader().openEntryStream(fullPath);
+        StreamContext context{entry.get(), {}};
+        xmlTextReaderPtr reader = xmlReaderForIO(
+            &readStream, &closeStream, &context, nullptr, nullptr,
+            XML_PARSE_NOENT | XML_PARSE_NOCDATA | XML_PARSE_NONET | XML_PARSE_COMPACT);
+        if (!reader) {
+            throw XlsxError("Failed to create streaming XML reader for worksheet");
+        }
+        try {
+            parseWorksheetXml(reader, handler, sharedStrings, styles);
+        } catch (const std::exception& e) {
+            handler.handleError("Worksheet parsing error: " + std::string(e.what()));
+        }
+        xmlFreeTextReader(reader);
+        if (context.error) {
+            std::rethrow_exception(context.error);
+        }
     }
     
     void parseSheetData(const std::vector<uint8_t>& xmlData,
@@ -49,7 +65,8 @@ public:
         xmlTextReaderPtr reader = xmlReaderForMemory(
             reinterpret_cast<const char*>(xmlData.data()),
             static_cast<int>(xmlData.size()),
-            nullptr, nullptr, XML_PARSE_NOENT | XML_PARSE_NOCDATA);
+            nullptr, nullptr,
+            XML_PARSE_NOENT | XML_PARSE_NOCDATA | XML_PARSE_NONET | XML_PARSE_COMPACT);
         
         if (!reader) {
             handler.handleError("Failed to create XML reader for worksheet");
@@ -67,6 +84,26 @@ public:
     }
 
 private:
+    struct StreamContext {
+        ZipEntryStream* stream;
+        std::exception_ptr error;
+    };
+
+    static int readStream(void* rawContext, char* buffer, int length) noexcept {
+        auto* context = static_cast<StreamContext*>(rawContext);
+        try {
+            return static_cast<int>(context->stream->read(
+                buffer, static_cast<size_t>(length)));
+        } catch (...) {
+            context->error = std::current_exception();
+            return -1;
+        }
+    }
+
+    static int closeStream([[maybe_unused]] void* rawContext) noexcept {
+        return 0;
+    }
+
     static bool parseIntRange(const char* begin, const char* end, int& out) {
         if (!begin || !end || begin >= end) {
             return false;
@@ -195,17 +232,24 @@ private:
             xmlTextReaderMoveToElement(reader);
         }
 
-        RowData rowData;
-        rowData.rowNumber = rowNumber;
-        rowData.hidden = isHidden;
-        if (spanReserveHint > 0) {
-            rowData.cells.reserve(static_cast<size_t>(spanReserveHint));
+        auto* cellHandler = dynamic_cast<SheetCellHandler*>(&handler);
+        const bool streamCells = cellHandler && cellHandler->acceptsStreamingCells();
+        std::optional<RowData> rowData;
+        if (streamCells) {
+            cellHandler->beginRow(rowNumber, isHidden);
+        } else {
+            rowData.emplace();
+            rowData->rowNumber = rowNumber;
+            rowData->hidden = isHidden;
+            if (spanReserveHint > 0) {
+                rowData->cells.reserve(static_cast<size_t>(spanReserveHint));
+            }
         }
         
         // Parse cells in this row
         if (xmlTextReaderIsEmptyElement(reader)) {
-            // Empty row
-            handler.handleRow(rowData);
+            if (streamCells) cellHandler->endRow();
+            else handler.handleRow(*rowData);
             return;
         }
         
@@ -220,7 +264,8 @@ private:
                 // Parse cell
                 auto cell = parseCell(reader, rowNumber, sharedStrings, styles);
                 if (cell.has_value()) {
-                    rowData.cells.push_back(std::move(*cell));
+                    if (streamCells) cellHandler->handleCell(std::move(*cell));
+                    else rowData->cells.push_back(std::move(*cell));
                 }
             } else if (nodeType == XML_READER_TYPE_END_ELEMENT && strcmp(name, "row") == 0) {
                 // End of row
@@ -228,7 +273,8 @@ private:
             }
         }
         
-        handler.handleRow(rowData);
+        if (streamCells) cellHandler->endRow();
+        else handler.handleRow(*rowData);
     }
     
     std::optional<CellData> parseCell(xmlTextReaderPtr reader,

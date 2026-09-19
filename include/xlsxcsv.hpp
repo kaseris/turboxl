@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <vector>
 #include <map>
+#include <filesystem>
 
 namespace xlsxcsv {
 
@@ -77,6 +78,18 @@ std::string readSheetToCsv(
  * @return CSV string
  */
 std::string readSheetToCsv(const std::string& xlsxPath);
+
+/**
+ * @brief Convert a worksheet from XLSX directly to a CSV file.
+ *
+ * The destination is replaced atomically only after conversion succeeds.
+ */
+void readSheetToFile(
+    const std::string& xlsxPath,
+    const std::filesystem::path& outputPath,
+    const std::variant<std::string, int>& sheetSelector = -1,
+    const CsvOptions& options = {}
+);
 
 /**
  * @brief Get metadata for all sheets in an XLSX file without reading sheet content

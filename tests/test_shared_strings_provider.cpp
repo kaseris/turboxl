@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "xlsxcsv/core.hpp"
+#include "fixture_helpers.hpp"
 
 class SharedStringsProviderTest : public ::testing::Test {
 protected:
@@ -69,4 +70,28 @@ TEST_F(SharedStringsProviderTest, ConfigurationPersistence) {
     EXPECT_EQ(storedConfig.memoryThreshold, 1000);
     EXPECT_EQ(storedConfig.maxStringLength, 500);
     EXPECT_FALSE(storedConfig.flattenRichText);
+}
+
+TEST_F(SharedStringsProviderTest, InMemoryLookupReturnsStableView) {
+    xlsxcsv::core::OpcPackage package;
+    package.open(INTEGRATION_XLSX);
+    xlsxcsv::core::SharedStringsConfig config;
+    config.mode = xlsxcsv::core::SharedStringsMode::InMemory;
+    xlsxcsv::core::SharedStringsProvider provider(config);
+    provider.parse(package);
+    const auto view = provider.tryGetStringView(0);
+    ASSERT_TRUE(view.has_value());
+    EXPECT_EQ(*view, "caf\xc3\xa9, \"quoted\"");
+    EXPECT_EQ(provider.tryGetString(0), std::optional<std::string>(std::string(*view)));
+}
+
+TEST_F(SharedStringsProviderTest, ExternalStorageDoesNotExposeView) {
+    xlsxcsv::core::OpcPackage package;
+    package.open(INTEGRATION_XLSX);
+    xlsxcsv::core::SharedStringsConfig config;
+    config.mode = xlsxcsv::core::SharedStringsMode::External;
+    xlsxcsv::core::SharedStringsProvider provider(config);
+    provider.parse(package);
+    EXPECT_FALSE(provider.tryGetStringView(0).has_value());
+    EXPECT_EQ(provider.getString(0), "caf\xc3\xa9, \"quoted\"");
 }

@@ -22,6 +22,7 @@ from typing import Any
 
 
 ENGINES = ("turboxl", "calamine")
+WORKERS = (*ENGINES, "turboxl-file")
 
 
 def format_number_like_turboxl(value: int | float | bool) -> str:
@@ -50,11 +51,11 @@ def normalize_cell(value: Any) -> str:
     if isinstance(value, (int, float, bool)):
         return format_number_like_turboxl(value)
     if isinstance(value, datetime):
-        return value.isoformat(timespec="milliseconds")
+        return value.isoformat(timespec="seconds")
     if isinstance(value, date):
         return value.isoformat()
     if isinstance(value, dt_time):
-        return value.isoformat(timespec="milliseconds")
+        return value.isoformat(timespec="seconds")
     return str(value)
 
 
@@ -107,6 +108,36 @@ def turboxl_to_csv(
 
 def worker(args: argparse.Namespace) -> int:
     # Imports happen before the timer so startup/import cost does not distort parsing.
+    if args.worker == "turboxl-file":
+        import turboxl
+
+        if args.output_csv:
+            output = Path(args.output_csv)
+        else:
+            descriptor, name = tempfile.mkstemp(
+                prefix="turboxl-file-benchmark-", suffix=".csv"
+            )
+            os.close(descriptor)
+            output = Path(name)
+        try:
+            options = turboxl.CsvOptions()
+            options.max_entry_size = args.max_entry_size_mib * 1024 * 1024
+            started = time.perf_counter()
+            turboxl.read_sheet_to_file(args.xlsx, output, args.sheet_index, options)
+            elapsed = time.perf_counter() - started
+            encoded = output.read_bytes()
+        finally:
+            output.unlink(missing_ok=True)
+        print(json.dumps({
+            "engine": args.worker,
+            "version": package_version("turboxl"),
+            "seconds": elapsed,
+            "peak_rss_mib": peak_rss_mib(),
+            "rows": encoded.count(b"\n"),
+            "bytes": len(encoded),
+            "sha256": hashlib.sha256(encoded).hexdigest(),
+        }))
+        return 0
     if args.worker == "turboxl":
         import turboxl  # noqa: F401
 
@@ -335,6 +366,20 @@ def controller(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int
         if turbo_median:
             print(f"speed_ratio_calamine_over_turboxl={calamine_median / turbo_median:.2f}x")
 
+        file_results: list[dict[str, Any]] = []
+        if args.include_file_output:
+            for _ in range(args.rounds):
+                result, _ = run_worker(
+                    python, script, xlsx, args.sheet_index, "turboxl-file",
+                    args.max_entry_size_mib,
+                )
+                file_results.append(result)
+            print(
+                "turboxl-file "
+                + describe([float(result["seconds"]) for result in file_results])
+                + f" version={file_results[0]['version']}"
+            )
+
         for engine in ENGINES:
             memory_values = [
                 float(result["peak_rss_mib"])
@@ -346,6 +391,21 @@ def controller(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int
                     f"{engine}_median_peak_rss_mib="
                     f"{statistics.median(memory_values):.1f}"
                 )
+
+        summary = {
+            "exact_csv_match": parity,
+            "turboxl_median_seconds": turbo_median,
+            "calamine_median_seconds": calamine_median,
+            "turboxl_not_slower": turbo_median <= calamine_median,
+            "turboxl": turbo,
+            "calamine": calamine,
+            "turboxl_file": file_results,
+        }
+        if args.json_output:
+            Path(args.json_output).write_text(json.dumps(summary, indent=2) + "\n")
+        if args.require_turboxl_not_slower and (not parity or turbo_median > calamine_median):
+            print("error: TurboXL performance/parity gate failed", file=sys.stderr)
+            return 3
     except RuntimeError as error:
         print(f"error: {error}", file=sys.stderr)
         if "ModuleNotFoundError" in str(error):
@@ -389,8 +449,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="show TurboXL's internal timing diagnostics when supported",
     )
-    parser.add_argument("--worker", choices=ENGINES, help=argparse.SUPPRESS)
+    parser.add_argument("--worker", choices=WORKERS, help=argparse.SUPPRESS)
     parser.add_argument("--output-csv", help=argparse.SUPPRESS)
+    parser.add_argument("--include-file-output", action="store_true")
+    parser.add_argument("--json-output")
+    parser.add_argument("--require-turboxl-not-slower", action="store_true")
     return parser
 
 

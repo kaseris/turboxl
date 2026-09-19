@@ -49,6 +49,9 @@ import turboxl
 # Convert first sheet
 csv_data = turboxl.read_sheet_to_csv("data.xlsx")
 
+# Stream directly to disk with atomic replacement (accepts pathlib.Path too)
+turboxl.read_sheet_to_file("data.xlsx", "data.csv")
+
 # Convert specific sheet
 csv_data = turboxl.read_sheet_to_csv("data.xlsx", sheet="Sheet2")
 
@@ -74,6 +77,7 @@ with open("output.csv", "w", encoding="utf-8") as f:
 int main() {
     try {
         std::string csv = xlsxcsv::readSheetToCsv("data.xlsx");
+        xlsxcsv::readSheetToFile("data.xlsx", "data.csv");
         std::cout << csv << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
@@ -156,7 +160,7 @@ python3 -m build -w
 
 Outputs go to `dist/`, for example:
 
-- `dist/turboxl-0.2.3-<python>-<abi>-<platform>.whl`
+- `dist/turboxl-0.3.0-<python>-<abi>-<platform>.whl`
 
 Install the built wheel locally:
 
@@ -183,12 +187,16 @@ Tips:
 ```python
 turboxl.read_sheet_to_csv(
     xlsx_path: str,
-    sheet: Union[str, int] = None,  # First sheet if None
-    delimiter: str = ",",
-    newline: Literal["LF", "CRLF"] = "LF",
-    include_bom: bool = False,
-    date_mode: Literal["iso", "rawNumber"] = "iso"
+    sheet: Union[str, int] = -1,
+    options: turboxl.CsvOptions = turboxl.CsvOptions(),
 ) -> str
+
+turboxl.read_sheet_to_file(
+    xlsx_path: str,
+    output_path: Union[str, os.PathLike],
+    sheet: Union[str, int] = -1,
+    options: turboxl.CsvOptions = turboxl.CsvOptions(),
+) -> None
 ```
 
 ### C++
@@ -204,7 +212,15 @@ struct CsvOptions {
 
 std::string readSheetToCsv(
     const std::string& xlsxPath,
-    const CsvOptions& opts = {}
+    const std::variant<std::string, int>& sheetSelector = -1,
+    const CsvOptions& options = {}
+);
+
+void readSheetToFile(
+    const std::string& xlsxPath,
+    const std::filesystem::path& outputPath,
+    const std::variant<std::string, int>& sheetSelector = -1,
+    const CsvOptions& options = {}
 );
 ```
 
@@ -214,8 +230,10 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## CI and releases
 
-CI builds all 12 wheels and runs the native Debug tests on every PR and push to
-`main`. The stable branch-protection check is **CI passed**. The four wheel targets
+CI builds all 12 wheels, runs native Debug tests, and gates Windows releases on
+exact CSV parity and median performance against pinned `python-calamine`. These
+checks run on every PR and push to `main`. The stable branch-protection check is
+**CI passed**. The four wheel targets
 are Linux x64 (glibc 2.28+), Windows x64, and macOS 15+ on Intel and Apple Silicon.
 Each gets CPython 3.10 and 3.11 wheels plus a CPython 3.12 ABI3 wheel, tested on
 3.12, 3.13, and 3.14. Windows 32-bit is no longer supported.

@@ -6,8 +6,62 @@
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <filesystem>
+#include <fstream>
+#include <random>
+#include <system_error>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 namespace xlsxcsv {
+
+namespace {
+
+std::filesystem::path normalizedPath(const std::filesystem::path& path) {
+    std::error_code error;
+    auto normalized = std::filesystem::weakly_canonical(path, error);
+    return error ? std::filesystem::absolute(path).lexically_normal() : normalized;
+}
+
+std::filesystem::path temporaryOutputPath(const std::filesystem::path& outputPath) {
+    std::random_device random;
+    for (int attempt = 0; attempt < 32; ++attempt) {
+        const auto suffix = std::to_string(random()) + "-" + std::to_string(attempt);
+        auto temporaryName = outputPath.filename();
+        temporaryName += std::filesystem::path(".turboxl-" + suffix + ".tmp");
+        auto candidate = outputPath.parent_path() / temporaryName;
+        if (!std::filesystem::exists(candidate)) return candidate;
+    }
+    throw std::runtime_error("Unable to allocate a temporary CSV output path");
+}
+
+void atomicReplace(const std::filesystem::path& source,
+                   const std::filesystem::path& destination) {
+#ifdef _WIN32
+    if (!MoveFileExW(source.c_str(), destination.c_str(),
+                     MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+        throw std::system_error(static_cast<int>(GetLastError()),
+            std::system_category(), "Failed to replace CSV output");
+    }
+#else
+    std::error_code error;
+    std::filesystem::rename(source, destination, error);
+    if (error) throw std::system_error(error, "Failed to replace CSV output");
+#endif
+}
+
+std::optional<xlsxcsv::core::SheetInfo> selectSheet(
+    const xlsxcsv::core::Workbook& workbook,
+    const std::variant<std::string, int>& selector) {
+    if (std::holds_alternative<std::string>(selector)) {
+        return workbook.findSheet(std::get<std::string>(selector));
+    }
+    const int index = std::get<int>(selector);
+    return workbook.findSheet(index == -1 ? 0 : index);
+}
+
+} // namespace
 
 std::string readSheetToCsv(
     const std::string& xlsxPath,
@@ -53,7 +107,7 @@ std::string readSheetToCsv(
         xlsxcsv::core::StylesRegistry styles;
         t = std::chrono::steady_clock::now();
         try {
-            styles.parse(package);
+            styles.parse(package, xlsxcsv::core::StylesRegistry::ParseMode::CsvOnly);
         } catch (const xlsxcsv::core::XlsxError& e) {
             // Some XLSX files might not have styles.xml, continue without styles
         }
@@ -140,29 +194,9 @@ std::string readSheetToCsv(
         
         // Return CSV string
         t = std::chrono::steady_clock::now();
-        std::string csvResult = csvCollector.getCsvString();
+        std::string csvResult = csvCollector.takeCsvString();
         t_csv = msSince(t);
-        
-        // Handle BOM if requested
-        if (options.includeBom) {
-            csvResult = "\xEF\xBB\xBF" + csvResult;
-        }
-        
-        // Handle newline conversion if needed
-        if (options.newline == CsvOptions::Newline::CRLF) {
-            // Convert LF to CRLF
-            std::string result;
-            result.reserve(csvResult.size() * 1.1); // Reserve some extra space
-            for (char c : csvResult) {
-                if (c == '\n') {
-                    result += "\r\n";
-                } else {
-                    result += c;
-                }
-            }
-            csvResult = std::move(result);
-        }
-        t_post = msSince(t);
+        t_post = 0.0;
 
         if (profileTimings) {
             const double totalMs = msSince(t0);
@@ -192,6 +226,83 @@ std::string readSheetToCsv(
 
 std::string readSheetToCsv(const std::string& xlsxPath) {
     return readSheetToCsv(xlsxPath, -1, CsvOptions{});
+}
+
+void readSheetToFile(
+    const std::string& xlsxPath,
+    const std::filesystem::path& outputPath,
+    const std::variant<std::string, int>& sheetSelector,
+    const CsvOptions& options) {
+    if (outputPath.empty()) throw std::runtime_error("CSV output path is empty");
+    if (normalizedPath(xlsxPath) == normalizedPath(outputPath)) {
+        throw std::runtime_error("Input workbook and CSV output paths must differ");
+    }
+    const auto parent = outputPath.has_parent_path()
+        ? outputPath.parent_path() : std::filesystem::current_path();
+    if (!std::filesystem::is_directory(parent)) {
+        throw std::runtime_error("CSV output directory does not exist: " + parent.string());
+    }
+
+    const auto temporaryPath = temporaryOutputPath(outputPath);
+    bool committed = false;
+    try {
+        xlsxcsv::core::ZipSecurityLimits limits;
+        limits.maxEntries = options.maxEntries;
+        limits.maxEntrySize = options.maxEntrySize;
+        limits.maxTotalUncompressed = options.maxTotalUncompressed;
+
+        xlsxcsv::core::OpcPackage package(limits);
+        package.open(xlsxPath);
+        xlsxcsv::core::Workbook workbook;
+        workbook.open(package);
+        const auto targetSheet = selectSheet(workbook, sheetSelector);
+        if (!targetSheet) throw std::runtime_error("Sheet not found");
+
+        xlsxcsv::core::StylesRegistry styles;
+        try {
+            styles.parse(package, xlsxcsv::core::StylesRegistry::ParseMode::CsvOnly);
+        } catch (const xlsxcsv::core::XlsxError&) {
+        }
+
+        xlsxcsv::core::SharedStringsConfig sharedConfig;
+        sharedConfig.mode = options.sharedStringsMode == CsvOptions::SharedStringsMode::AUTO
+            ? xlsxcsv::core::SharedStringsMode::Auto
+            : options.sharedStringsMode == CsvOptions::SharedStringsMode::IN_MEMORY
+                ? xlsxcsv::core::SharedStringsMode::InMemory
+                : xlsxcsv::core::SharedStringsMode::External;
+        xlsxcsv::core::SharedStringsProvider sharedStrings(sharedConfig);
+        try {
+            sharedStrings.parse(package);
+        } catch (const xlsxcsv::core::XlsxError&) {
+        }
+
+        std::ofstream output(temporaryPath, std::ios::binary | std::ios::trunc);
+        if (!output) throw std::runtime_error("Unable to create temporary CSV output");
+        xlsxcsv::core::CsvRowCollector collector(
+            sharedStrings.isOpen() ? &sharedStrings : nullptr,
+            styles.isOpen() ? &styles : nullptr,
+            workbook.getDateSystem(), &options, &output);
+        xlsxcsv::core::SheetStreamReader reader;
+        reader.parseSheet(package, targetSheet->target, collector,
+            sharedStrings.isOpen() ? &sharedStrings : nullptr,
+            styles.isOpen() ? &styles : nullptr);
+        if (!collector.getErrors().empty()) {
+            throw std::runtime_error("Sheet parsing failed: " + collector.getErrors().front());
+        }
+        collector.finalize();
+        output.close();
+        if (!output) throw std::runtime_error("Failed to close CSV output");
+        atomicReplace(temporaryPath, outputPath);
+        committed = true;
+    } catch (const xlsxcsv::core::XlsxError& error) {
+        std::error_code ignored;
+        if (!committed) std::filesystem::remove(temporaryPath, ignored);
+        throw std::runtime_error("XLSX parsing error: " + std::string(error.what()));
+    } catch (...) {
+        std::error_code ignored;
+        if (!committed) std::filesystem::remove(temporaryPath, ignored);
+        throw;
+    }
 }
 
 std::vector<SheetMetadata> getSheetList(const std::string& xlsxPath) {
@@ -277,7 +388,7 @@ std::map<std::string, std::string> readMultipleSheets(
         
         xlsxcsv::core::StylesRegistry styles;
         try {
-            styles.parse(package);
+            styles.parse(package, xlsxcsv::core::StylesRegistry::ParseMode::CsvOnly);
         } catch (const xlsxcsv::core::XlsxError& e) {
             // Some XLSX files might not have styles.xml, continue without styles
         }
@@ -333,27 +444,7 @@ std::map<std::string, std::string> readMultipleSheets(
             }
             
             // Get CSV result
-            std::string csvResult = csvCollector.getCsvString();
-            
-            // Handle BOM if requested
-            if (options.includeBom) {
-                csvResult = "\xEF\xBB\xBF" + csvResult;
-            }
-            
-            // Handle newline conversion if needed
-            if (options.newline == CsvOptions::Newline::CRLF) {
-                // Convert LF to CRLF
-                std::string result;
-                result.reserve(csvResult.size() * 1.1);
-                for (char c : csvResult) {
-                    if (c == '\n') {
-                        result += "\r\n";
-                    } else {
-                        result += c;
-                    }
-                }
-                csvResult = std::move(result);
-            }
+            std::string csvResult = csvCollector.takeCsvString();
             
             results[sheetName] = csvResult;
         }

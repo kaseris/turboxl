@@ -9,10 +9,83 @@
 #include <algorithm>
 #include <filesystem>
 #include <regex>
+#include <unordered_map>
+#include <limits>
 
 namespace fs = std::filesystem;
 
 namespace xlsxcsv::core {
+
+class ZipEntryStream::Impl {
+public:
+    Impl(const std::string& archivePath,
+         const unz64_file_pos& position,
+         size_t expectedSize)
+        : m_expectedSize(expectedSize) {
+        m_file = unzOpen64(archivePath.c_str());
+        if (!m_file) {
+            throw XlsxError("Failed to reopen ZIP file for streaming: " + archivePath);
+        }
+        if (unzGoToFilePos64(m_file, &position) != UNZ_OK ||
+            unzOpenCurrentFile(m_file) != UNZ_OK) {
+            unzClose(m_file);
+            m_file = nullptr;
+            throw XlsxError("Failed to open indexed ZIP entry for streaming");
+        }
+        m_currentOpen = true;
+    }
+
+    ~Impl() { close(); }
+
+    size_t read(void* buffer, size_t size) {
+        if (!m_currentOpen || size == 0) return 0;
+        const size_t remaining = m_expectedSize - m_bytesRead;
+        if (remaining == 0) {
+            unsigned char extra = 0;
+            const int result = unzReadCurrentFile(m_file, &extra, 1);
+            if (result < 0) throw XlsxError("Failed while streaming ZIP entry");
+            if (result > 0) throw XlsxError("ZIP entry exceeds its declared size");
+            return 0;
+        }
+        const size_t requested = std::min({size, remaining,
+            static_cast<size_t>(std::numeric_limits<int>::max())});
+        const int result = unzReadCurrentFile(m_file, buffer, static_cast<uint32_t>(requested));
+        if (result < 0) throw XlsxError("Failed while streaming ZIP entry");
+        if (result == 0 && m_bytesRead != m_expectedSize) {
+            throw XlsxError("ZIP entry ended before its declared size");
+        }
+        m_bytesRead += static_cast<size_t>(result);
+        return static_cast<size_t>(result);
+    }
+
+    size_t size() const { return m_expectedSize; }
+    size_t bytesRead() const { return m_bytesRead; }
+
+private:
+    void close() noexcept {
+        if (m_currentOpen) {
+            unzCloseCurrentFile(m_file);
+            m_currentOpen = false;
+        }
+        if (m_file) {
+            unzClose(m_file);
+            m_file = nullptr;
+        }
+    }
+
+    unzFile m_file = nullptr;
+    size_t m_expectedSize = 0;
+    size_t m_bytesRead = 0;
+    bool m_currentOpen = false;
+};
+
+ZipEntryStream::ZipEntryStream(std::unique_ptr<Impl> impl) : m_impl(std::move(impl)) {}
+ZipEntryStream::~ZipEntryStream() = default;
+ZipEntryStream::ZipEntryStream(ZipEntryStream&&) noexcept = default;
+ZipEntryStream& ZipEntryStream::operator=(ZipEntryStream&&) noexcept = default;
+size_t ZipEntryStream::read(void* buffer, size_t size) { return m_impl->read(buffer, size); }
+size_t ZipEntryStream::size() const { return m_impl->size(); }
+size_t ZipEntryStream::bytesRead() const { return m_impl->bytesRead(); }
 
 class ZipReader::Impl {
 public:
@@ -37,7 +110,8 @@ public:
             throw XlsxError("Failed to open ZIP file: " + path);
         }
         
-        validateZipSecurity();
+        m_archivePath = path;
+        validateAndIndex();
         m_isOpen = true;
     }
     
@@ -48,6 +122,9 @@ public:
         }
         m_isOpen = false;
         m_entries.clear();
+        m_records.clear();
+        m_entryIndex.clear();
+        m_archivePath.clear();
     }
     
     bool isOpen() const {
@@ -59,55 +136,6 @@ public:
             throw XlsxError("ZIP file is not open");
         }
         
-        if (!m_entries.empty()) {
-            return m_entries; // Return cached entries
-        }
-        
-        int result = unzGoToFirstFile(m_unzFile);
-        if (result != UNZ_OK && result != UNZ_END_OF_LIST_OF_FILE) {
-            throw XlsxError("Failed to navigate to first ZIP entry");
-        }
-        
-        while (result == UNZ_OK) {
-            unz_file_info64 fileInfo;
-            char filename[1024] = {0};
-            
-            result = unzGetCurrentFileInfo64(m_unzFile, &fileInfo, filename, sizeof(filename), nullptr, 0, nullptr, 0);
-            if (result != UNZ_OK) {
-                break;
-            }
-            
-            ZipEntry entry;
-            entry.path = sanitizePath(filename);
-            entry.compressedSize = fileInfo.compressed_size;
-            entry.uncompressedSize = fileInfo.uncompressed_size;
-            entry.isEncrypted = (fileInfo.flag & 1) != 0; // UNZ_FLAG_ENCRYPTED
-            
-            // Skip entries with suspicious paths
-            if (entry.path.empty() || isPathSuspicious(entry.path)) {
-                result = unzGoToNextFile(m_unzFile);
-                continue;
-            }
-            
-            // Check security limits
-            if (entry.uncompressedSize > m_limits.maxEntrySize) {
-                throw XlsxError("ZIP entry exceeds size limit: " + entry.path);
-            }
-            
-            if (entry.isEncrypted) {
-                throw XlsxError("Encrypted ZIP entries are not supported: " + entry.path);
-            }
-            
-            m_entries.push_back(entry);
-            result = unzGoToNextFile(m_unzFile);
-        }
-        
-        if (m_entries.size() > m_limits.maxEntries) {
-            throw XlsxError("ZIP file contains too many entries: " + 
-                          std::to_string(m_entries.size()) + " > " + 
-                          std::to_string(m_limits.maxEntries));
-        }
-        
         return m_entries;
     }
     
@@ -116,11 +144,7 @@ public:
             throw XlsxError("ZIP file is not open");
         }
         
-        auto entries = listEntries();
-        return std::find_if(entries.begin(), entries.end(),
-                           [&path](const ZipEntry& entry) {
-                               return entry.path == path;
-                           }) != entries.end();
+        return m_entryIndex.find(path) != m_entryIndex.end();
     }
     
     ByteVector readEntry(const std::string& path) {
@@ -132,7 +156,8 @@ public:
             throw XlsxError("Suspicious path rejected: " + path);
         }
         
-        int result = unzLocateFile(m_unzFile, path.c_str(), 0);
+        auto record = findRecord(path);
+        int result = unzGoToFilePos64(m_unzFile, &record.position);
         if (result != UNZ_OK) {
             throw XlsxError("ZIP entry not found: " + path);
         }
@@ -156,30 +181,46 @@ public:
             throw XlsxError("Failed to open ZIP entry: " + path);
         }
         
-        // Use chunked reading with 512 KiB buffers for better I/O efficiency
-        static constexpr size_t BUFFER_SIZE = 512 * 1024; // 512 KiB chunks
-        ByteVector data;
-        data.reserve(fileInfo.uncompressed_size);
-        
-        ByteVector buffer(BUFFER_SIZE);
-        
-        while (true) {
-            int bytesRead = unzReadCurrentFile(m_unzFile, buffer.data(), buffer.size());
+        ByteVector data(static_cast<size_t>(fileInfo.uncompressed_size));
+        size_t offset = 0;
+        while (offset < data.size()) {
+            const size_t request = std::min(data.size() - offset,
+                static_cast<size_t>(std::numeric_limits<int>::max()));
+            int bytesRead = unzReadCurrentFile(m_unzFile, data.data() + offset,
+                                               static_cast<uint32_t>(request));
             if (bytesRead < 0) {
                 unzCloseCurrentFile(m_unzFile);
                 throw XlsxError("Failed to read ZIP entry: " + path);
             }
-            
             if (bytesRead == 0) {
-                break; // End of file
+                unzCloseCurrentFile(m_unzFile);
+                throw XlsxError("ZIP entry ended before its declared size: " + path);
             }
-            
-            // Append the chunk to our data
-            data.insert(data.end(), buffer.begin(), buffer.begin() + bytesRead);
+            offset += static_cast<size_t>(bytesRead);
         }
-        
+        unsigned char extra = 0;
+        const int trailingRead = unzReadCurrentFile(m_unzFile, &extra, 1);
+        if (trailingRead < 0) {
+            unzCloseCurrentFile(m_unzFile);
+            throw XlsxError("Failed to finish reading ZIP entry: " + path);
+        }
+        if (trailingRead > 0) {
+            unzCloseCurrentFile(m_unzFile);
+            throw XlsxError("ZIP entry exceeds its declared size: " + path);
+        }
         unzCloseCurrentFile(m_unzFile);
         return data;
+    }
+
+    struct StreamSpec {
+        std::string archivePath;
+        unz64_file_pos position;
+        size_t uncompressedSize;
+    };
+
+    StreamSpec streamSpec(const std::string& path) const {
+        const auto& record = findRecord(path);
+        return {m_archivePath, record.position, record.entry.uncompressedSize};
     }
     
     std::string readEntryAsString(const std::string& path) {
@@ -192,31 +233,67 @@ public:
     }
 
 private:
-    void validateZipSecurity() {
-        // Get total uncompressed size to check against limit
+    struct EntryRecord {
+        ZipEntry entry;
+        unz64_file_pos position{};
+    };
+
+    const EntryRecord& findRecord(const std::string& path) const {
+        const auto it = m_entryIndex.find(path);
+        if (it == m_entryIndex.end()) throw XlsxError("ZIP entry not found: " + path);
+        return m_records[it->second];
+    }
+
+    void validateAndIndex() {
         size_t totalUncompressed = 0;
         size_t entryCount = 0;
-        
+        m_entries.clear();
+        m_records.clear();
+        m_entryIndex.clear();
         int result = unzGoToFirstFile(m_unzFile);
         while (result == UNZ_OK) {
             unz_file_info64 fileInfo;
-            result = unzGetCurrentFileInfo64(m_unzFile, &fileInfo, nullptr, 0, nullptr, 0, nullptr, 0);
+            char filename[1024] = {0};
+            result = unzGetCurrentFileInfo64(m_unzFile, &fileInfo, filename,
+                sizeof(filename), nullptr, 0, nullptr, 0);
             if (result != UNZ_OK) {
-                break;
+                throw XlsxError("Failed to inspect ZIP entry");
             }
-            
-            totalUncompressed += fileInfo.uncompressed_size;
+            EntryRecord record;
+            record.entry.path = sanitizePath(filename);
+            record.entry.compressedSize = static_cast<size_t>(fileInfo.compressed_size);
+            record.entry.uncompressedSize = static_cast<size_t>(fileInfo.uncompressed_size);
+            record.entry.isEncrypted = (fileInfo.flag & 1) != 0;
+            if (record.entry.path.empty() || isPathSuspicious(record.entry.path)) {
+                throw XlsxError("Suspicious ZIP entry path rejected: " + std::string(filename));
+            }
+            if (record.entry.uncompressedSize > m_limits.maxEntrySize) {
+                throw XlsxError("ZIP entry exceeds size limit: " + record.entry.path);
+            }
+            if (record.entry.isEncrypted) {
+                throw XlsxError("Encrypted ZIP entries are not supported: " + record.entry.path);
+            }
+            if (unzGetFilePos64(m_unzFile, &record.position) != UNZ_OK) {
+                throw XlsxError("Failed to index ZIP entry: " + record.entry.path);
+            }
+            if (record.entry.uncompressedSize > m_limits.maxTotalUncompressed ||
+                totalUncompressed > m_limits.maxTotalUncompressed - record.entry.uncompressedSize) {
+                throw XlsxError("ZIP file total uncompressed size exceeds limit");
+            }
+            totalUncompressed += record.entry.uncompressedSize;
             entryCount++;
-            
             if (entryCount > m_limits.maxEntries) {
                 throw XlsxError("ZIP file contains too many entries");
             }
-            
-            if (totalUncompressed > m_limits.maxTotalUncompressed) {
-                throw XlsxError("ZIP file total uncompressed size exceeds limit");
+            if (!m_entryIndex.emplace(record.entry.path, m_records.size()).second) {
+                throw XlsxError("Duplicate ZIP entry: " + record.entry.path);
             }
-            
+            m_entries.push_back(record.entry);
+            m_records.push_back(std::move(record));
             result = unzGoToNextFile(m_unzFile);
+        }
+        if (result != UNZ_END_OF_LIST_OF_FILE) {
+            throw XlsxError("Failed while indexing ZIP archive");
         }
     }
     
@@ -262,7 +339,10 @@ private:
     ZipSecurityLimits m_limits;
     unzFile m_unzFile;
     bool m_isOpen = false;
-    std::vector<ZipEntry> m_entries; // Cache entries after first list
+    std::string m_archivePath;
+    std::vector<ZipEntry> m_entries;
+    std::vector<EntryRecord> m_records;
+    std::unordered_map<std::string, size_t> m_entryIndex;
 };
 
 // ZipReader implementation
@@ -300,6 +380,13 @@ ByteVector ZipReader::readEntry(const std::string& path) const {
 
 std::string ZipReader::readEntryAsString(const std::string& path) const {
     return m_impl->readEntryAsString(path);
+}
+
+std::unique_ptr<ZipEntryStream> ZipReader::openEntryStream(const std::string& path) const {
+    auto spec = m_impl->streamSpec(path);
+    auto impl = std::make_unique<ZipEntryStream::Impl>(
+        spec.archivePath, spec.position, spec.uncompressedSize);
+    return std::unique_ptr<ZipEntryStream>(new ZipEntryStream(std::move(impl)));
 }
 
 const ZipSecurityLimits& ZipReader::getSecurityLimits() const {
