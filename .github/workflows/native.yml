@@ -35,6 +35,7 @@ jobs:
           -DTURBOXL_PORTABLE_BUILD=ON -DTURBOXL_STATIC_WINDOWS_DEPS=ON
           "-DCMAKE_TOOLCHAIN_FILE=$env:CMAKE_TOOLCHAIN_FILE"
           -DVCPKG_TARGET_TRIPLET=x64-windows-static-md
+          "-DVCPKG_INSTALLED_DIR=$env:VCPKG_INSTALLED_DIR" -DVCPKG_MANIFEST_INSTALL=OFF
       - run: cmake --build out/native --config Debug --parallel 4
       - run: ctest --test-dir out/native -C Debug --output-on-failure --no-tests=error
       - name: Compiler cache statistics

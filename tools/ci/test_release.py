@@ -1,4 +1,7 @@
 import hashlib
+import io
+import tarfile
+import zipfile
 from pathlib import Path
 import subprocess
 import tempfile
@@ -34,6 +37,39 @@ class ReleaseTests(unittest.TestCase):
         for platform in ['win32', 'macosx_16_0_arm64', 'linux_x86_64']:
             with self.assertRaises(ValueError):
                 platform_id({Tag('cp312', 'abi3', platform)})
+
+    def test_complete_inventory_and_corrupt_metadata(self):
+        version = '1.2.3'
+        meta = b'Name: turboxl\nVersion: 1.2.3\nRequires-Python: >=3.10\n'
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            wheels = []
+            for platform in ['manylinux_2_28_x86_64', 'win_amd64', 'macosx_15_0_arm64', 'macosx_15_0_x86_64']:
+                for python, abi in [('cp310', 'cp310'), ('cp311', 'cp311'), ('cp312', 'abi3')]:
+                    path = directory / f'turboxl-{version}-{python}-{abi}-{platform}.whl'
+                    with zipfile.ZipFile(path, 'w') as wheel:
+                        wheel.writestr('turboxl.pyd' if platform == 'win_amd64' else 'turboxl.so', b'fixture')
+                        wheel.writestr(f'turboxl-{version}.dist-info/METADATA', meta)
+                        wheel.writestr(f'turboxl-{version}.dist-info/licenses/LICENSE', b'MIT')
+                    wheels.append(path)
+            required = ['CMakeLists.txt', 'pyproject.toml', 'README.md', 'LICENSE', 'PKG-INFO',
+                        'src/python/module.cpp', 'include/xlsxcsv.hpp', 'cmake/turboxlConfig.cmake.in',
+                        'tools/wheels/fixtures.py', 'tools/wheels/smoke_test.py', 'tools/ci/constraints.txt',
+                        'tools/ci/install_deps.sh', 'tests/fixture_config.hpp.in', 'tests/fixture_helpers.hpp']
+            with tarfile.open(directory / f'turboxl-{version}.tar.gz', 'w:gz') as archive:
+                for name in required:
+                    data = meta if name == 'PKG-INFO' else b'fixture'
+                    entry = tarfile.TarInfo(f'turboxl-{version}/{name}')
+                    entry.size = len(data)
+                    archive.addfile(entry, io.BytesIO(data))
+            validate(directory, version)
+            with zipfile.ZipFile(wheels[0], 'a') as wheel:
+                wheel.writestr('include/native.hpp', b'not a runtime dependency')
+            with self.assertRaisesRegex(ValueError, 'development files'):
+                validate(directory, version)
+            wheels[0].unlink()
+            with self.assertRaisesRegex(ValueError, 'inventory'):
+                validate(directory, version)
 
     def test_publish_recovery(self):
         with tempfile.TemporaryDirectory() as tmp:

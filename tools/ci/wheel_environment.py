@@ -14,8 +14,9 @@ if platform == 'macos':
     environment['CCACHE_BASEDIR'] = project
 if platform == 'windows':
     toolchain = os.environ['CMAKE_TOOLCHAIN_FILE'].replace('\\', '/')
+    installed = os.environ['VCPKG_INSTALLED_DIR']
     environment.update(CMAKE_BUILD_PARALLEL_LEVEL='4', CMAKE_TOOLCHAIN_FILE=toolchain,
-                       CMAKE_ARGS=f'-DCMAKE_TOOLCHAIN_FILE={toolchain} -DVCPKG_TARGET_TRIPLET=x64-windows-static-md -DTURBOXL_STATIC_WINDOWS_DEPS=ON')
+                       CMAKE_ARGS=f'-DCMAKE_TOOLCHAIN_FILE={toolchain} -DVCPKG_TARGET_TRIPLET=x64-windows-static-md -DVCPKG_INSTALLED_DIR={installed} -DVCPKG_MANIFEST_INSTALL=OFF -DTURBOXL_STATIC_WINDOWS_DEPS=ON')
 with open(os.environ['GITHUB_ENV'], 'a') as output:
     values = ' '.join(f'{key}="{value}"' for key, value in environment.items())
     print(f'CIBW_ENVIRONMENT_{platform.upper()}={values}', file=output)

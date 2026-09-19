@@ -13,9 +13,10 @@ runs:
           /tmp/turboxl-ccache
           ${{ runner.temp }}/cibuildwheel-cache
           ${{ runner.temp }}/vcpkg-binary-cache
-        key: build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'tools/ci/*', 'pyproject.toml', '.github/actions/setup-build/action.yml') }}-${{ github.sha }}
+        key: build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'tools/ci/constraints.txt', 'tools/ci/install_deps.*', 'pyproject.toml', '.github/actions/setup-build/action.yml') }}-${{ github.sha }}
         restore-keys: |
-          build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'tools/ci/*', 'pyproject.toml', '.github/actions/setup-build/action.yml') }}-
+          build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'tools/ci/constraints.txt', 'tools/ci/install_deps.*', 'pyproject.toml', '.github/actions/setup-build/action.yml') }}-
+          build-${{ runner.os }}-${{ runner.arch }}-
     - name: Configure cache and build environment
       shell: bash
       run: |

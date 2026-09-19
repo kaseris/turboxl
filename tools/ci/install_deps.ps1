@@ -14,5 +14,8 @@ if ($LASTEXITCODE) { throw 'vcpkg bootstrap failed' }
 if ($LASTEXITCODE) { throw 'vcpkg install failed' }
 $root = $env:VCPKG_ROOT.Replace('\', '/')
 "VCPKG_ROOT=$root" >> $env:GITHUB_ENV
+$installed = "$env:GITHUB_WORKSPACE/vcpkg_installed".Replace('\', '/')
+"VCPKG_INSTALLED_DIR=$installed" >> $env:GITHUB_ENV
+"VCPKG_BINARY_SOURCES=$env:VCPKG_BINARY_SOURCES" >> $env:GITHUB_ENV
 "CMAKE_TOOLCHAIN_FILE=$root/scripts/buildsystems/vcpkg.cmake" >> $env:GITHUB_ENV
 & "$env:VCPKG_ROOT/vcpkg.exe" list

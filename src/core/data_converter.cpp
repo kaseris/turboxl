@@ -38,7 +38,8 @@ public:
         }
         
         // Convert to days since Unix epoch (January 1, 1970)
-        // Excel epoch 1900 = December 30, 1899 (not January 1, 1900 due to the bug)
+        // Before the leap-day correction, modern Excel serials use Dec 30, 1899.
+        // The adjusted 1900 serial above instead uses Dec 31, 1899.
         const double DAYS_BETWEEN_1899_AND_1970 =
             dateSystem == DateSystem::Date1904 ? 25569.0 : 25568.0;
         double daysSinceUnixEpoch = adjustedSerial - DAYS_BETWEEN_1899_AND_1970;
