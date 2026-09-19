@@ -36,9 +36,9 @@ def workbook(output):
         # Exercise both OPC target forms: openpyxl commonly writes package-absolute
         # worksheet targets, while other producers use workbook-relative targets.
         'xl/_rels/workbook.xml.rels': f'<Relationships xmlns="{pkg}"><Relationship Id="rId1" Type="{rel}/worksheet" Target="/xl/worksheets/sheet1.xml"/><Relationship Id="rId2" Type="{rel}/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="{rel}/styles" Target="styles.xml"/><Relationship Id="rId4" Type="{rel}/sharedStrings" Target="sharedStrings.xml"/></Relationships>',
-        'xl/styles.xml': f'<styleSheet xmlns="{main}"><cellXfs count="2"><xf numFmtId="0"/><xf numFmtId="14"/></cellXfs></styleSheet>',
+        'xl/styles.xml': f'<styleSheet xmlns="{main}"><numFmts count="1"><numFmt numFmtId="164" formatCode="yyyy-mm-dd hh:mm:ss"/></numFmts><cellXfs count="3"><xf numFmtId="0"/><xf numFmtId="14"/><xf numFmtId="164"/></cellXfs></styleSheet>',
         'xl/sharedStrings.xml': f'<sst xmlns="{main}" count="1" uniqueCount="1"><si><t>café, "quoted"</t></si></sst>',
-        'xl/worksheets/sheet1.xml': f'<worksheet xmlns="{main}"><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1"><v>42</v></c><c r="C1" s="1"><v>45292</v></c></row></sheetData></worksheet>',
+        'xl/worksheets/sheet1.xml': f'<worksheet xmlns="{main}"><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1"><v>42</v></c><c r="C1" s="1"><v>45306</v></c><c r="D1" s="2"><v>45306.57326388889</v></c></row></sheetData></worksheet>',
         'xl/worksheets/sheet2.xml': f'<worksheet xmlns="{main}"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>secret</t></is></c></row></sheetData></worksheet>',
     }
     with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as z:

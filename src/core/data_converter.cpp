@@ -8,82 +8,64 @@
 
 namespace xlsxcsv::core {
 
-// Excel date constants
-[[maybe_unused]] constexpr double EXCEL_EPOCH_1900 = 1.0;    // January 1, 1900 (Excel day 1)
-constexpr double EXCEL_EPOCH_1904 = 1462.0; // January 1, 1904 (Mac Excel)
-constexpr double SECONDS_PER_DAY = 86400.0;
+constexpr int64_t SECONDS_PER_DAY = 86400;
 
 // Date conversion class
 class DateConverter {
 public:
     static std::string convertExcelSerial(double serialDate, 
                                          DateSystem dateSystem,
-                                         [[maybe_unused]] const std::string& formatCode = "") {
-        
-        // Handle zero and negative values
-        if (serialDate <= 0.0) {
-            return "1900-01-01";
+                                         NumberFormatType formatType) {
+        // Round once at second precision. Repeated floating-point truncation of the
+        // hour, minute, and second components turns values such as 13:45:30 into
+        // 13:45:29 and fails to carry values that round across midnight.
+        int64_t serialSeconds = std::llround(serialDate * SECONDS_PER_DAY);
+        int64_t serialDay = serialSeconds / SECONDS_PER_DAY;
+        int64_t secondsOfDay = serialSeconds % SECONDS_PER_DAY;
+        if (secondsOfDay < 0) {
+            secondsOfDay += SECONDS_PER_DAY;
+            --serialDay;
         }
-        
-        // Adjust for date system
-        double adjustedSerial = serialDate;
-        if (dateSystem == DateSystem::Date1904) {
-            adjustedSerial += EXCEL_EPOCH_1904;
-        }
-        
-        // Excel 1900 date system has a bug - it considers 1900 a leap year
-        // We need to account for this when converting
-        if (dateSystem == DateSystem::Date1900 && serialDate >= 60.0) {
-            adjustedSerial -= 1.0; // Account for the phantom Feb 29, 1900
-        }
-        
-        // Convert to days since Unix epoch (January 1, 1970)
-        // Before the leap-day correction, modern Excel serials use Dec 30, 1899.
-        // The adjusted 1900 serial above instead uses Dec 31, 1899.
-        const double DAYS_BETWEEN_1899_AND_1970 =
-            dateSystem == DateSystem::Date1904 ? 25569.0 : 25568.0;
-        double daysSinceUnixEpoch = adjustedSerial - DAYS_BETWEEN_1899_AND_1970;
-        
-        // Convert to seconds and create time_point
-        int64_t secondsSinceEpoch = static_cast<int64_t>(daysSinceUnixEpoch * SECONDS_PER_DAY);
-        auto timePoint = std::chrono::system_clock::from_time_t(secondsSinceEpoch);
-        
-        // Get fractional part for time
-        double fractionalPart = adjustedSerial - std::floor(adjustedSerial);
-        int hours = static_cast<int>(fractionalPart * 24.0);
-        int minutes = static_cast<int>((fractionalPart * 24.0 - hours) * 60.0);
-        int seconds = static_cast<int>(((fractionalPart * 24.0 - hours) * 60.0 - minutes) * 60.0);
-        
-        // Convert to tm structure for formatting
-        time_t timeT = std::chrono::system_clock::to_time_t(timePoint);
-        std::tm* tm = std::gmtime(&timeT);
-        
-        if (!tm) {
-            return "1900-01-01";
-        }
-        
-        // Override time components with calculated values
-        tm->tm_hour = hours;
-        tm->tm_min = minutes;
-        tm->tm_sec = seconds;
-        
-        // Determine output format based on format code analysis
-        bool hasDatePart = fractionalPart < 0.999;  // Has date if not purely time
-        bool hasTimePart = fractionalPart > 0.001;  // Has time if significant fractional part
-        
-        std::ostringstream oss;
-        
-        if (hasDatePart && hasTimePart) {
-            // Date and time
-            oss << std::put_time(tm, "%Y-%m-%dT%H:%M:%S");
-        } else if (hasTimePart) {
-            // Time only
-            oss << std::put_time(tm, "%H:%M:%S");
+
+        std::string date;
+        if (dateSystem == DateSystem::Date1900 && serialDay == 60) {
+            // Excel intentionally preserves Lotus 1-2-3's fictional leap day.
+            date = "1900-02-29";
         } else {
-            // Date only
-            oss << std::put_time(tm, "%Y-%m-%d");
+            const auto epoch = dateSystem == DateSystem::Date1904
+                ? std::chrono::sys_days{std::chrono::year{1904}/1/1}
+                : std::chrono::sys_days{std::chrono::year{1899}/12/31};
+            const int64_t leapDayAdjustment =
+                dateSystem == DateSystem::Date1900 && serialDay > 60 ? 1 : 0;
+            const std::chrono::year_month_day civilDate{
+                epoch + std::chrono::days{serialDay - leapDayAdjustment}};
+
+            std::ostringstream dateStream;
+            dateStream << std::setfill('0')
+                       << std::setw(4) << static_cast<int>(civilDate.year()) << '-'
+                       << std::setw(2) << static_cast<unsigned>(civilDate.month()) << '-'
+                       << std::setw(2) << static_cast<unsigned>(civilDate.day());
+            date = dateStream.str();
         }
-        
+
+        const int hours = static_cast<int>(secondsOfDay / 3600);
+        const int minutes = static_cast<int>((secondsOfDay % 3600) / 60);
+        const int seconds = static_cast<int>(secondsOfDay % 60);
+
+        std::ostringstream timeStream;
+        timeStream << std::setfill('0')
+                   << std::setw(2) << hours << ':'
+                   << std::setw(2) << minutes << ':'
+                   << std::setw(2) << seconds;
+
+        std::ostringstream oss;
+        if (formatType == NumberFormatType::Time) {
+            oss << timeStream.str();
+        } else if (formatType == NumberFormatType::DateTime) {
+            oss << date << 'T' << timeStream.str();
+        } else {
+            oss << date;
+        }
         return oss.str();
     }
     
@@ -143,8 +125,18 @@ private:
                                          DateSystem dateSystem) {
         
         // Check if this should be formatted as a date/time
+        if (!std::isfinite(value)) {
+            return formatNumericValue(value);
+        }
+
         if (styles && styleIndex > 0 && styles->isDateTimeStyle(styleIndex)) {
-            return DateConverter::convertExcelSerial(value, dateSystem);
+            const auto style = styles->getCellStyle(styleIndex);
+            if (style && (style->numberFormat.type == NumberFormatType::Date ||
+                          style->numberFormat.type == NumberFormatType::Time ||
+                          style->numberFormat.type == NumberFormatType::DateTime)) {
+                return DateConverter::convertExcelSerial(
+                    value, dateSystem, style->numberFormat.type);
+            }
         }
         
         // Format as regular number
