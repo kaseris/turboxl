@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include "fixture_helpers.hpp"
 #include "xlsxcsv/core.hpp"
 #include <fstream>
 #include <filesystem>
@@ -61,8 +62,7 @@ protected:
         workbook.close();
         
         // Create ZIP file
-        std::string cmd = "cd " + tempXlsxDir.string() + " && zip -r ../test.xlsx . > /dev/null 2>&1";
-        system(cmd.c_str());
+        createArchive(tempXlsxDir, testXlsxPath);
     }
     
     fs::path testDir;
@@ -76,7 +76,7 @@ TEST_F(OpcPackageTest, DefaultConstruction) {
 
 TEST_F(OpcPackageTest, OpenValidXlsxFile) {
     if (!fs::exists(testXlsxPath)) {
-        GTEST_SKIP() << "Test XLSX file could not be created";
+        FAIL() << "Test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -86,7 +86,7 @@ TEST_F(OpcPackageTest, OpenValidXlsxFile) {
 
 TEST_F(OpcPackageTest, PropagatesCustomSecurityLimits) {
     if (!fs::exists(testXlsxPath)) {
-        GTEST_SKIP() << "Test XLSX file could not be created";
+        FAIL() << "Test XLSX file could not be created";
     }
 
     xlsxcsv::core::ZipSecurityLimits limits;
@@ -123,7 +123,7 @@ TEST_F(OpcPackageTest, OpenInvalidFile) {
 
 TEST_F(OpcPackageTest, FindWorkbookPath) {
     if (!fs::exists(testXlsxPath)) {
-        GTEST_SKIP() << "Test XLSX file could not be created";
+        FAIL() << "Test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -135,7 +135,7 @@ TEST_F(OpcPackageTest, FindWorkbookPath) {
 
 TEST_F(OpcPackageTest, GetContentTypes) {
     if (!fs::exists(testXlsxPath)) {
-        GTEST_SKIP() << "Test XLSX file could not be created";
+        FAIL() << "Test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -157,7 +157,7 @@ TEST_F(OpcPackageTest, GetContentTypes) {
 
 TEST_F(OpcPackageTest, CloseFile) {
     if (!fs::exists(testXlsxPath)) {
-        GTEST_SKIP() << "Test XLSX file could not be created";
+        FAIL() << "Test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -174,7 +174,7 @@ TEST_F(OpcPackageTest, CloseFile) {
 
 TEST_F(OpcPackageTest, MoveConstruction) {
     if (!fs::exists(testXlsxPath)) {
-        GTEST_SKIP() << "Test XLSX file could not be created";
+        FAIL() << "Test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package1;
@@ -188,7 +188,7 @@ TEST_F(OpcPackageTest, MoveConstruction) {
 
 TEST_F(OpcPackageTest, MoveAssignment) {
     if (!fs::exists(testXlsxPath)) {
-        GTEST_SKIP() << "Test XLSX file could not be created";
+        FAIL() << "Test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package1;
@@ -212,8 +212,7 @@ TEST_F(OpcPackageTest, MissingContentTypesFile) {
     dummy << "dummy content";
     dummy.close();
     
-    std::string cmd = "cd " + tempDir.string() + " && zip ../malformed.xlsx dummy.txt > /dev/null 2>&1";
-    system(cmd.c_str());
+    createArchive(tempDir, malformedXlsxPath);
     
     if (fs::exists(malformedXlsxPath)) {
         xlsxcsv::core::OpcPackage package;
@@ -235,8 +234,7 @@ TEST_F(OpcPackageTest, MissingMainRelationshipsFile) {
 </Types>)";
     contentTypes.close();
     
-    std::string cmd = "cd " + tempDir.string() + " && zip ../malformed2.xlsx [Content_Types].xml > /dev/null 2>&1";
-    system(cmd.c_str());
+    createArchive(tempDir, malformedXlsxPath);
     
     if (fs::exists(malformedXlsxPath)) {
         xlsxcsv::core::OpcPackage package;

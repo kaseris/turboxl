@@ -90,7 +90,7 @@ Install system dependencies (used via pkg-config/CMake):
 
 ```bash
 # macOS (Recommended for best performance)
-brew install libxml2 minizip-ng zlib-ng cmake pybind11 pkg-config
+brew install libxml2 minizip-ng zlib-ng cmake pkg-config
 
 # Ubuntu/Debian (Recommended for best performance)
 sudo apt-get install -y libxml2-dev libminizip-dev cmake build-essential pkg-config
@@ -99,14 +99,14 @@ sudo apt-get install -y libxml2-dev libminizip-dev cmake build-essential pkg-con
 # cd zlib-ng && cmake -B build && cmake --build build -j && sudo cmake --install build
 
 # Windows (vcpkg)
-vcpkg install libxml2 minizip-ng zlib-ng
+vcpkg install --triplet x64-windows-static-md
 ```
 
 **Performance Note:** Installing `zlib-ng` provides significant performance improvements (up to 2.5x faster decompression). The build system automatically detects and uses zlib-ng if available, falling back to standard zlib otherwise.
 
 ### Build C++ Core (library only)
 
-Build the C++ core without Python bindings (no Python/pybind11 required):
+Build the C++ core without Python bindings (no Python/nanobind required):
 
 ```bash
 # From repo root
@@ -142,7 +142,7 @@ TurboXL ships a PEP 517/518 build powered by scikit-build-core. The wheel builds
 ### Python prerequisites
 
 ```bash
-python3 -m pip install -U pip build scikit-build-core pybind11
+python3 -m pip install -U pip build scikit-build-core nanobind
 ```
 
 System dependencies listed above (libxml2, minizip-ng, zlib-ng, cmake, compiler) must be installed and discoverable by CMake/pkg-config.
@@ -156,25 +156,25 @@ python3 -m build -w
 
 Outputs go to `dist/`, for example:
 
-- `dist/turboxl-0.2.1-<python>-<abi>-<platform>.whl`
+- `dist/turboxl-0.2.3-<python>-<abi>-<platform>.whl`
 
 Install the built wheel locally:
 
 ```bash
-pip install python/dist/turboxl-*.whl
+pip install dist/turboxl-*.whl
 ```
 
 Tips:
 
 - Parallel CMake build: `CMAKE_BUILD_PARALLEL_LEVEL=4 python3 -m build -w`
-- macOS arch (defaults to arm64 via `pyproject.toml`): to override, you can pass
+- macOS arch (defaults to the host architecture): to override, you can pass
   `--config-setting=cmake.define.CMAKE_OSX_ARCHITECTURES="arm64;x86_64"` to `python -m build`.
 
 ## Requirements
 
 - **C++**: C++20 compiler (GCC 10+, Clang 12+, MSVC 2019+)
 - **Build**: CMake 3.20+
-- **Python**: 3.8-3.12 (for Python bindings)
+- **Python**: 3.10+ (CPython; free-threaded builds are not supported)
 
 ## API Reference
 
@@ -211,3 +211,68 @@ std::string readSheetToCsv(
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
+
+## CI and releases
+
+CI builds all 12 wheels and runs the native Debug tests on every PR and push to
+`main`. The stable branch-protection check is **CI passed**. The four wheel targets
+are Linux x64 (glibc 2.28+), Windows x64, and macOS 15+ on Intel and Apple Silicon.
+Each gets CPython 3.10 and 3.11 wheels plus a CPython 3.12 ABI3 wheel, tested on
+3.12, 3.13, and 3.14. Windows 32-bit is no longer supported.
+
+Python package versions come from the CMake `project()` version, including in
+source archives without Git metadata. Wheels use portable CPU flags and Release
+IPO; native Debug tests do not. Python wheels contain the extension and runtime
+libraries; a normal CMake install still supplies native development files.
+The platform dependency scripts live in `tools/ci/`. CI pins Python build tools
+using `tools/ci/constraints.txt`; Homebrew and distro packages remain rolling
+inputs, so builds are not claimed to be bit-for-bit reproducible.
+
+### One-time repository setup
+
+1. Make **CI passed** required on `main`.
+2. Keep the existing `PYPI_API_TOKEN` repository secret available to the release
+   workflow. The token is used only by the PyPI publication job after all builds
+   and release validation succeed.
+3. Protect release tags against changes and deletion.
+
+### Rehearse and release
+
+Run **CI → Run workflow** on the intended branch first. This builds and tests the
+complete distribution set without publishing. Merge a reviewed CMake version bump
+and wait for CI, then tag that exact commit:
+
+```bash
+git switch main
+git pull --ff-only
+# Replace X.Y.Z with the version already recorded in CMakeLists.txt.
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
+git push origin refs/tags/vX.Y.Z
+```
+
+Only the tag push triggers publication. The tag must match CMake and point to a
+commit in `main` history. A release publishes the validated source archive and
+12 wheels to PyPI, then attaches those same files and SHA256SUMS to a GitHub
+Release with generated notes. No workflow automatically creates a tag.
+
+If publication fails, use **Re-run failed jobs**, preserving the successful build
+artifacts (retained for 30 days). Existing PyPI files are skipped only after their
+SHA256 hashes match the retained artifacts. Differences fail closed; never move a
+released tag or overwrite a version. If build artifacts have expired and cannot
+be recovered, fix the problem and release a new version. Re-running only the
+GitHub Release job is safe after a successful PyPI upload.
+
+### Local checks
+
+```bash
+python -m pip install -c tools/ci/constraints.txt build scikit-build-core nanobind packaging
+python -m unittest discover -s tools/ci -v
+cmake -S . -B out/native -DBUILD_PYTHON=OFF -DBUILD_TESTS=ON \
+  -DCMAKE_BUILD_TYPE=Debug -DTURBOXL_ENABLE_IPO=OFF -DTURBOXL_PORTABLE_BUILD=ON
+cmake --build out/native --config Debug --parallel 4
+ctest --test-dir out/native -C Debug --output-on-failure
+python -m build --sdist --no-isolation
+```
+
+Native tests use Python's standard-library `zipfile` to create fixtures; no Unix
+`zip` executable is required. Fixture creation errors fail the tests.

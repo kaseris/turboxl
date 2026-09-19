@@ -1,0 +1,13 @@
+# Expose the shared constraints to Dependabot; jobs install only needed tools.
+-c constraints.txt
+build
+scikit-build-core
+nanobind
+packaging
+twine
+abi3audit
+auditwheel
+delocate
+delvewheel
+virtualenv
+uv

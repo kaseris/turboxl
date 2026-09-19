@@ -1,0 +1,4 @@
+#pragma once
+#define FIXTURE_PYTHON R"(@Python_EXECUTABLE@)"
+#define FIXTURE_SCRIPT R"(@CMAKE_CURRENT_SOURCE_DIR@/tools/wheels/fixtures.py)"
+#define INTEGRATION_XLSX R"(@CMAKE_CURRENT_BINARY_DIR@/integration.xlsx)"

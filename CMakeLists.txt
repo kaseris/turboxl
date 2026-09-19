@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(turboxl VERSION 0.2.3 LANGUAGES CXX)
+project(turboxl VERSION 0.2.4 LANGUAGES CXX)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
@@ -197,14 +197,7 @@ else()
     endif()
 
     if(NOT _ZIP_READY)
-        pkg_check_modules(LIBZIP libzip)
-        if(LIBZIP_FOUND)
-            set(ZIP_LIBRARY "libzip")
-            set(ZIP_INCLUDE_DIRS ${LIBZIP_INCLUDE_DIRS})
-            set(ZIP_LIBRARIES ${LIBZIP_LIBRARIES})
-        else()
-            message(FATAL_ERROR "Neither minizip-ng nor libzip found. Please install one of them.")
-        endif()
+        message(FATAL_ERROR "minizip with the unzip compatibility API is required")
     endif()
 endif()
 
@@ -272,6 +265,8 @@ if(LIBZIP_FOUND AND LIBZIP_LIBRARY_DIRS)
 endif()
 
 target_compile_features(turboxl_core PUBLIC cxx_std_20)
+
+set_target_properties(turboxl_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Compiler-specific settings
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
@@ -363,16 +358,23 @@ if(BUILD_PYTHON)
 
     # Install the Python extension into the wheel's platlib root
     install(TARGETS turboxl
-        LIBRARY DESTINATION .
-        RUNTIME DESTINATION .
-        ARCHIVE DESTINATION .
+        LIBRARY DESTINATION . COMPONENT python
+        RUNTIME DESTINATION . COMPONENT python
+        ARCHIVE DESTINATION . COMPONENT python
     )
 endif()
 
 # Tests
 if(BUILD_TESTS)
     enable_testing()
+    find_package(Python REQUIRED COMPONENTS Interpreter)
+    configure_file(tests/fixture_config.hpp.in fixture_config.hpp @ONLY)
+    execute_process(COMMAND "${Python_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/wheels/fixtures.py"
+        --workbook "${CMAKE_CURRENT_BINARY_DIR}/integration.xlsx"
+        COMMAND_ERROR_IS_FATAL ANY)
     
+    set(BUILD_GMOCK OFF CACHE BOOL "Only Google Test is needed" FORCE)
+    set(gtest_force_shared_crt ON CACHE BOOL "Use CPython-compatible MSVC runtime" FORCE)
     # Find Google Test
     find_package(GTest QUIET)
     if(NOT GTest_FOUND)
@@ -381,7 +383,7 @@ if(BUILD_TESTS)
         FetchContent_Declare(
             googletest
             GIT_REPOSITORY https://github.com/google/googletest.git
-            GIT_TAG release-1.12.1
+            GIT_TAG 58d77fa8070e8cec2dc1ed015d66b454c8d78850 # release-1.12.1
         )
         FetchContent_MakeAvailable(googletest)
     endif()
@@ -400,11 +402,12 @@ if(BUILD_TESTS)
         tests/test_integration.cpp
     )
     
+    target_include_directories(turboxl_tests PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+
     target_link_libraries(turboxl_tests
         PRIVATE
             turboxl_core
             GTest::gtest
-            GTest::gtest_main
     )
     
     # Add library search directories for zlib-ng if needed

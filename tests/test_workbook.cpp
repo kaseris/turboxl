@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include "fixture_helpers.hpp"
 #include "xlsxcsv/core.hpp"
 #include <fstream>
 #include <filesystem>
@@ -81,8 +82,7 @@ protected:
         sheet1.close();
         
         // Create ZIP file
-        std::string cmd = "cd " + tempDir.string() + " && zip -r ../basic.xlsx . > /dev/null 2>&1";
-        system(cmd.c_str());
+        createArchive(tempDir, testDir / "basic.xlsx");
     }
     
     void createDate1904XlsxFile() {
@@ -132,8 +132,7 @@ protected:
         workbookRels.close();
         
         // Create ZIP file
-        std::string cmd = "cd " + tempDir.string() + " && zip -r ../date1904.xlsx . > /dev/null 2>&1";
-        system(cmd.c_str());
+        createArchive(tempDir, testDir / "date1904.xlsx");
     }
     
     void createMultiSheetXlsxFile() {
@@ -186,8 +185,7 @@ protected:
         workbookRels.close();
         
         // Create ZIP file
-        std::string cmd = "cd " + tempDir.string() + " && zip -r ../multisheet.xlsx . > /dev/null 2>&1";
-        system(cmd.c_str());
+        createArchive(tempDir, testDir / "multisheet.xlsx");
     }
     
     fs::path testDir;
@@ -204,7 +202,7 @@ TEST_F(WorkbookTest, DefaultConstruction) {
 
 TEST_F(WorkbookTest, OpenBasicWorkbook) {
     if (!fs::exists(basicXlsxPath)) {
-        GTEST_SKIP() << "Basic test XLSX file could not be created";
+        FAIL() << "Basic test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -217,7 +215,7 @@ TEST_F(WorkbookTest, OpenBasicWorkbook) {
 
 TEST_F(WorkbookTest, DateSystemDetection1900) {
     if (!fs::exists(basicXlsxPath)) {
-        GTEST_SKIP() << "Basic test XLSX file could not be created";
+        FAIL() << "Basic test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -232,7 +230,7 @@ TEST_F(WorkbookTest, DateSystemDetection1900) {
 
 TEST_F(WorkbookTest, DateSystemDetection1904) {
     if (!fs::exists(date1904XlsxPath)) {
-        GTEST_SKIP() << "Date1904 test XLSX file could not be created";
+        FAIL() << "Date1904 test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -247,7 +245,7 @@ TEST_F(WorkbookTest, DateSystemDetection1904) {
 
 TEST_F(WorkbookTest, SingleSheetInfo) {
     if (!fs::exists(basicXlsxPath)) {
-        GTEST_SKIP() << "Basic test XLSX file could not be created";
+        FAIL() << "Basic test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -271,7 +269,7 @@ TEST_F(WorkbookTest, SingleSheetInfo) {
 
 TEST_F(WorkbookTest, MultiSheetInfo) {
     if (!fs::exists(multiSheetXlsxPath)) {
-        GTEST_SKIP() << "Multi-sheet test XLSX file could not be created";
+        FAIL() << "Multi-sheet test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -306,7 +304,7 @@ TEST_F(WorkbookTest, MultiSheetInfo) {
 
 TEST_F(WorkbookTest, FindSheetByName) {
     if (!fs::exists(multiSheetXlsxPath)) {
-        GTEST_SKIP() << "Multi-sheet test XLSX file could not be created";
+        FAIL() << "Multi-sheet test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -336,7 +334,7 @@ TEST_F(WorkbookTest, FindSheetByName) {
 
 TEST_F(WorkbookTest, FindSheetByIndex) {
     if (!fs::exists(multiSheetXlsxPath)) {
-        GTEST_SKIP() << "Multi-sheet test XLSX file could not be created";
+        FAIL() << "Multi-sheet test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -366,7 +364,7 @@ TEST_F(WorkbookTest, FindSheetByIndex) {
 
 TEST_F(WorkbookTest, RelationshipMapping) {
     if (!fs::exists(multiSheetXlsxPath)) {
-        GTEST_SKIP() << "Multi-sheet test XLSX file could not be created";
+        FAIL() << "Multi-sheet test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -384,7 +382,7 @@ TEST_F(WorkbookTest, RelationshipMapping) {
 
 TEST_F(WorkbookTest, CloseWorkbook) {
     if (!fs::exists(basicXlsxPath)) {
-        GTEST_SKIP() << "Basic test XLSX file could not be created";
+        FAIL() << "Basic test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -405,7 +403,7 @@ TEST_F(WorkbookTest, CloseWorkbook) {
 
 TEST_F(WorkbookTest, MoveConstruction) {
     if (!fs::exists(basicXlsxPath)) {
-        GTEST_SKIP() << "Basic test XLSX file could not be created";
+        FAIL() << "Basic test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -422,7 +420,7 @@ TEST_F(WorkbookTest, MoveConstruction) {
 
 TEST_F(WorkbookTest, MoveAssignment) {
     if (!fs::exists(basicXlsxPath)) {
-        GTEST_SKIP() << "Basic test XLSX file could not be created";
+        FAIL() << "Basic test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;

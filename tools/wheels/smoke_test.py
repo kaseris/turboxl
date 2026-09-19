@@ -1,27 +1,40 @@
-"""Minimal installed-wheel and architecture smoke test for cibuildwheel."""
-
-from __future__ import annotations
-
+"""Exercise the installed extension, never a module from the source tree."""
+from pathlib import Path
 import struct
 import sys
-
+import tempfile
 import turboxl
+from fixtures import workbook
 
 
-def main() -> None:
-    expected_bits = int(sys.argv[1]) if len(sys.argv) > 1 else None
-    actual_bits = struct.calcsize("P") * 8
+def main():
+    expected_bits = int(sys.argv[1]) if len(sys.argv) > 1 else 64
+    assert struct.calcsize('P') * 8 == expected_bits
+    assert Path(turboxl.__file__).resolve().parent != Path(__file__).resolve().parents[2]
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / 'conversion.xlsx'
+        workbook(path)
+        filename = str(path)
+        assert turboxl.read_sheet_to_csv(filename) == '"café, ""quoted""",42,2024-01-01\n'
+        assert turboxl.read_sheet_to_csv(filename, 1) == 'secret\n'
+        assert turboxl.read_specific_sheet(filename, 'Hidden') == 'secret\n'
+        sheets = turboxl.get_sheet_list(filename)
+        assert [(s.name, s.visible) for s in sheets] == [('Data', True), ('Hidden', False)]
+        assert [s.name for s in turboxl.get_visible_sheets(filename)] == ['Data']
+        options = turboxl.CsvOptions()
+        options.date_mode = turboxl.DateMode.RAW
+        assert turboxl.read_sheet_to_csv(filename, 0, options) == '"café, ""quoted""",42,45292\n'
+        for bad in [Path(tmp) / 'missing.xlsx', Path(tmp) / 'invalid.xlsx']:
+            if bad.name == 'invalid.xlsx':
+                bad.write_text('not a ZIP archive')
+            try:
+                turboxl.read_sheet_to_csv(str(bad))
+            except RuntimeError:
+                pass
+            else:
+                raise AssertionError(f'Accepted invalid input: {bad}')
+    print(f'Installed-wheel conversion tests passed: {sys.version}, {turboxl.__file__}')
 
-    if expected_bits is not None and actual_bits != expected_bits:
-        raise RuntimeError(
-            f"wheel architecture mismatch: expected {expected_bits}-bit Python, "
-            f"got {actual_bits}-bit"
-        )
-    if not callable(turboxl.read_sheet_to_csv):
-        raise RuntimeError("turboxl.read_sheet_to_csv is missing or not callable")
 
-    print(f"turboxl import OK on {actual_bits}-bit {sys.platform}")
-
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

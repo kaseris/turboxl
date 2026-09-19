@@ -1,0 +1,12 @@
+# Shared by CI setup and isolated PEP 517 builds. Updated through Dependabot.
+build==1.3.0
+scikit-build-core==0.11.6
+nanobind==2.12.0
+packaging==25.0
+twine==6.2.0
+abi3audit==0.0.24
+auditwheel==6.7.0
+delocate==0.13.0
+delvewheel==1.13.0
+virtualenv==21.4.2
+uv==0.8.22

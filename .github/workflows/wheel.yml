@@ -1,120 +1,129 @@
-name: Build wheel set
-
+name: Distributions
 on:
   workflow_call:
-    inputs:
-      runner:
-        description: GitHub runner label
-        required: true
-        type: string
-      arch:
-        description: cibuildwheel architecture
-        required: true
-        type: string
-      build:
-        description: cibuildwheel build identifiers
-        required: true
-        type: string
-      expected-bits:
-        description: Pointer width asserted by the installed-wheel test
-        required: true
-        type: number
-      artifact-name:
-        description: Uploaded wheel artifact name
-        required: true
-        type: string
-      vcpkg-triplet:
-        description: Windows vcpkg triplet; empty on other platforms
-        required: false
-        default: ""
-        type: string
-      cmake-enable-ipo:
-        description: Enable CMake interprocedural optimization for wheel builds
-        required: false
-        default: "ON"
-        type: string
-
 permissions:
   contents: read
-
 jobs:
-  build:
-    runs-on: ${{ inputs.runner }}
+  sdist:
+    runs-on: ubuntu-24.04
     steps:
-      - name: Check out source
-        uses: actions/checkout@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-
-      - name: Activate 32-bit MSVC tools
-        if: runner.os == 'Windows' && inputs.arch == 'x86'
-        uses: bus1/cabuild/action/msdevshell@v1
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
-          architecture: x86
-
-      - name: Cache Windows dependencies
-        if: runner.os == 'Windows'
-        uses: actions/cache@v4
+          python-version: '3.12'
+      - run: python -m pip install -c tools/ci/constraints.txt build scikit-build-core nanobind twine
+      - run: python -m build --sdist --no-isolation
+      - run: python -m twine check --strict dist/*
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          path: ${{ runner.temp }}\vcpkg-binary-cache
-          key: vcpkg-${{ runner.os }}-${{ inputs.vcpkg-triplet }}-${{ hashFiles('vcpkg.json', 'cmake/triplets/**') }}
-          restore-keys: vcpkg-${{ runner.os }}-${{ inputs.vcpkg-triplet }}-
-
-      - name: Cache cibuildwheel tools
-        if: runner.os == 'Windows'
-        uses: actions/cache@v4
+          name: sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 30
+  wheels:
+    needs: sdist
+    name: Wheels / ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x64
+            runner: ubuntu-24.04
+            arch: x86_64
+          - platform: windows-x64
+            runner: windows-2022
+            arch: AMD64
+          - platform: macos-arm64
+            runner: macos-15
+            arch: arm64
+          - platform: macos-x64
+            runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          path: ${{ runner.temp }}/cibuildwheel-cache
-          key: cibuildwheel-${{ runner.os }}-${{ inputs.artifact-name }}-${{ hashFiles('pyproject.toml') }}
-          restore-keys: |
-            cibuildwheel-${{ runner.os }}-${{ inputs.artifact-name }}-
-            cibuildwheel-${{ runner.os }}-
-
-      - name: Set up vcpkg
-        if: runner.os == 'Windows'
-        uses: lukka/run-vcpkg@v11
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
-          runVcpkgInstall: false
-
-      - name: Install Windows dependencies
-        if: runner.os == 'Windows'
-        shell: pwsh
-        env:
-          VCPKG_BINARY_SOURCES: clear;files,${{ runner.temp }}\vcpkg-binary-cache,readwrite
+          python-version: '3.12'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: sdist
+          path: sdist
+      - name: Unpack source archive without Git metadata
+        shell: bash
         run: |
-          & "$env:VCPKG_ROOT\vcpkg.exe" install `
-            --triplet "${{ inputs.vcpkg-triplet }}" `
-            --overlay-triplets "$env:GITHUB_WORKSPACE\cmake\triplets" `
-            --clean-after-build
-          $root = $env:VCPKG_ROOT.Replace('\', '/')
-          $triplets = "$env:GITHUB_WORKSPACE/cmake/triplets".Replace('\', '/')
-          "VCPKG_ROOT_FWD=$root" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
-          "VCPKG_TRIPLETS_FWD=$triplets" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Build and test wheels
-        uses: pypa/cibuildwheel@v4.1.0
+          mkdir source
+          tar -xzf sdist/*.tar.gz -C source --strip-components=1
+      - uses: ./.github/actions/setup-build
         with:
+          linux-container: 'true'
+      - name: Configure isolated build constraints
+        shell: bash
+        run: python tools/ci/wheel_environment.py
+      - name: Build, repair, and test all supported interpreters
+        uses: pypa/cibuildwheel@294735312765b09d24a2fbec22660ce817587d55 # v4.1.0
+        with:
+          package-dir: source
+          config-file: source/pyproject.toml
           extras: uv
         env:
-          CIBW_ARCHS: ${{ inputs.arch }}
-          CIBW_BUILD: ${{ inputs.build }}
-          CIBW_BUILD_VERBOSITY: "1"
+          CIBW_ARCHS: ${{ matrix.arch }}
           CIBW_CACHE_PATH: ${{ runner.temp }}/cibuildwheel-cache
-          CIBW_CONFIG_SETTINGS_WINDOWS: >-
-            cmake.define.TURBOXL_ENABLE_IPO=${{ inputs.cmake-enable-ipo }}
-            wheel.py-api=cp312
-          CIBW_TEST_COMMAND: python {project}/tools/wheels/smoke_test.py ${{ inputs.expected-bits }}
-          CIBW_ENVIRONMENT_WINDOWS: >-
-            CMAKE_BUILD_PARALLEL_LEVEL=4
-            CMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT_FWD }}/scripts/buildsystems/vcpkg.cmake
-            VCPKG_DEFAULT_TRIPLET=${{ inputs.vcpkg-triplet }}
-            VCPKG_OVERLAY_TRIPLETS=${{ env.VCPKG_TRIPLETS_FWD }}
-            CMAKE_ARGS="-DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT_FWD }}/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=${{ inputs.vcpkg-triplet }} -DVCPKG_OVERLAY_TRIPLETS=${{ env.VCPKG_TRIPLETS_FWD }} -DTURBOXL_STATIC_WINDOWS_DEPS=ON -DTURBOXL_PORTABLE_BUILD=ON -DTURBOXL_ENABLE_NATIVE_OPTIMIZATION=OFF"
-
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
+          CIBW_BUILD_VERBOSITY: '1'
+          PIP_CONSTRAINT: ${{ github.workspace }}/tools/ci/constraints.txt
+      - name: Validate wheel inventory and stable ABI
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          python -m pip install -c tools/ci/constraints.txt packaging twine abi3audit
+          python tools/ci/validate_dist.py wheelhouse --platform "$PLATFORM"
+          python -m twine check --strict wheelhouse/*.whl
+          python -m abi3audit --strict wheelhouse/*-abi3-*.whl
+      - name: Compiler cache statistics
+        if: always() && runner.os != 'Windows'
+        shell: bash
+        run: |
+          if command -v ccache >/dev/null; then
+            ccache --show-stats | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            cat /tmp/turboxl-ccache/dependencies.txt /tmp/turboxl-ccache/statistics.txt >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: ${{ inputs.artifact-name }}
+          name: wheels-${{ matrix.platform }}
           path: wheelhouse/*.whl
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 30
+  validate:
+    needs: [sdist, wheels]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: wheels-*
+          path: dist
+          merge-multiple: true
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: sdist
+          path: dist
+      - run: python -m pip install -c tools/ci/constraints.txt packaging twine
+      - run: python tools/ci/validate_dist.py dist
+      - run: python -m twine check --strict dist/*.whl dist/*.tar.gz
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-dist
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
