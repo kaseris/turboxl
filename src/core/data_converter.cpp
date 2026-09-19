@@ -188,6 +188,15 @@ public:
     }
     
     void handleRow(const RowData& row) {
+        // Worksheet XML is sparse: rows with no cells are commonly omitted
+        // entirely. Preserve their physical positions as blank CSV records.
+        if (row.rowNumber > m_lastPhysicalRow + 1) {
+            const size_t missingRows = static_cast<size_t>(row.rowNumber - m_lastPhysicalRow - 1);
+            m_csvOutput.append(missingRows, '\n');
+            m_rowCount += missingRows;
+        }
+        m_lastPhysicalRow = std::max(m_lastPhysicalRow, row.rowNumber);
+
         // Check if row should be skipped due to hidden row filtering
         if (row.hidden && m_options && !m_options->includeHiddenRows) {
             return; // Skip hidden row
@@ -337,6 +346,7 @@ private:
     std::unordered_map<std::string, std::string> m_mergedCellValues; // Cache for merged cell values
     std::string m_csvOutput;
     size_t m_rowCount = 0;
+    int m_lastPhysicalRow = 0;
     std::vector<std::string> m_errorMessages;
 };
 
