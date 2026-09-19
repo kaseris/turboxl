@@ -44,6 +44,18 @@ public:
     }
     
     void close() {
+        if (m_diskFile.is_open()) {
+            m_diskFile.flush();
+            m_diskFile.close();
+        }
+        m_diskFile.clear();
+
+        if (!m_diskFilePath.empty()) {
+            std::error_code removeError;
+            std::filesystem::remove(m_diskFilePath, removeError);
+            m_diskFilePath.clear();
+        }
+
         m_isOpen = false;
         m_arena.clear();
         m_offsets.clear();
@@ -53,10 +65,6 @@ public:
         m_stringCount = 0;
         m_memoryUsage = 0;
         
-        if (m_isUsingDisk && !m_diskFilePath.empty()) {
-            std::filesystem::remove(m_diskFilePath);
-            m_diskFilePath.clear();
-        }
         m_isUsingDisk = false;
         m_activeMode = m_config.mode;
     }
@@ -205,9 +213,22 @@ private:
         auto tempDir = std::filesystem::temp_directory_path();
         m_diskFilePath = tempDir / ("turboxl_strings_" + std::to_string(reinterpret_cast<uintptr_t>(this)) + ".tmp");
         
-        m_diskFile.open(m_diskFilePath, std::ios::binary | std::ios::out | std::ios::in | std::ios::trunc);
+        // MSVC's fstream does not reliably create a missing file when it is
+        // opened for both input and output. Create it first, then reopen it
+        // for random-access reads and writes.
+        m_diskFile.open(m_diskFilePath, std::ios::binary | std::ios::out | std::ios::trunc);
         if (!m_diskFile.is_open()) {
             throw XlsxError("Failed to create temporary file for shared strings storage");
+        }
+        m_diskFile.close();
+        m_diskFile.clear();
+        m_diskFile.open(m_diskFilePath, std::ios::binary | std::ios::out | std::ios::in);
+        if (!m_diskFile.is_open()) {
+            std::error_code removeError;
+            std::filesystem::remove(m_diskFilePath, removeError);
+            m_diskFilePath.clear();
+            m_isUsingDisk = false;
+            throw XlsxError("Failed to open temporary file for shared strings storage");
         }
     }
     

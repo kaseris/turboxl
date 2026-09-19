@@ -95,3 +95,15 @@ TEST_F(SharedStringsProviderTest, ExternalStorageDoesNotExposeView) {
     EXPECT_FALSE(provider.tryGetStringView(0).has_value());
     EXPECT_EQ(provider.getString(0), "caf\xc3\xa9, \"quoted\"");
 }
+
+TEST_F(SharedStringsProviderTest, ExternalStorageClosesCleanly) {
+    xlsxcsv::core::OpcPackage package;
+    package.open(INTEGRATION_XLSX);
+    xlsxcsv::core::SharedStringsConfig config;
+    config.mode = xlsxcsv::core::SharedStringsMode::External;
+    xlsxcsv::core::SharedStringsProvider provider(config);
+    provider.parse(package);
+
+    EXPECT_NO_THROW(provider.close());
+    EXPECT_FALSE(provider.isOpen());
+}
