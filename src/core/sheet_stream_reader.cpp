@@ -22,10 +22,13 @@ public:
                    const SharedStringsProvider* sharedStrings,
                    const StylesRegistry* styles) {
         
-        // Read worksheet XML from package
-        // The sheetPath is relative to xl/ directory, so prefix it
+        // Relationship targets may be package-absolute ("/xl/...") or
+        // relative to xl/workbook.xml ("worksheets/..."). ZIP entry names
+        // never start with '/', so normalize absolute targets first.
         std::string fullPath = sheetPath;
-        if (fullPath.find("xl/") != 0) {
+        if (!fullPath.empty() && fullPath.front() == '/') {
+            fullPath.erase(0, 1);
+        } else if (fullPath.find("xl/") != 0) {
             fullPath = "xl/" + fullPath;
         }
         auto xmlData = package.getZipReader().readEntry(fullPath);
