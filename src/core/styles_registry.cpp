@@ -15,7 +15,7 @@ public:
         close();
     }
     
-    void parse(const OpcPackage& package) {
+    void parse(const OpcPackage& package, StylesRegistry::ParseMode mode) {
         if (m_isOpen) {
             close();
         }
@@ -28,6 +28,7 @@ public:
         }
         
         auto xmlData = package.getZipReader().readEntry(stylesPath);
+        m_parseMode = mode;
         parseStylesXml(xmlData);
         
         m_isOpen = true;
@@ -41,6 +42,7 @@ public:
         m_borders.clear();
         m_cellStyles.clear();
         m_dateTimeStyleMask.clear();
+        m_styleTypes.clear();
     }
     
     bool isOpen() const {
@@ -161,9 +163,17 @@ public:
         }
         return m_dateTimeStyleMask[static_cast<size_t>(styleIndex)] != 0;
     }
+
+    NumberFormatType getNumberFormatTypeForStyle(int styleIndex) const {
+        if (!m_isOpen || styleIndex < 0 ||
+            static_cast<size_t>(styleIndex) >= m_styleTypes.size()) {
+            return NumberFormatType::General;
+        }
+        return m_styleTypes[static_cast<size_t>(styleIndex)];
+    }
     
     size_t getStyleCount() const {
-        return m_cellStyles.size();
+        return m_styleTypes.size();
     }
     
     size_t getNumberFormatCount() const {
@@ -194,11 +204,14 @@ private:
                 if (name) {
                     if (xmlStrcmp(name, BAD_CAST "numFmts") == 0) {
                         parseNumberFormats(reader);
-                    } else if (xmlStrcmp(name, BAD_CAST "fonts") == 0) {
+                    } else if (m_parseMode == StylesRegistry::ParseMode::Full &&
+                               xmlStrcmp(name, BAD_CAST "fonts") == 0) {
                         parseFonts(reader);
-                    } else if (xmlStrcmp(name, BAD_CAST "fills") == 0) {
+                    } else if (m_parseMode == StylesRegistry::ParseMode::Full &&
+                               xmlStrcmp(name, BAD_CAST "fills") == 0) {
                         parseFills(reader);
-                    } else if (xmlStrcmp(name, BAD_CAST "borders") == 0) {
+                    } else if (m_parseMode == StylesRegistry::ParseMode::Full &&
+                               xmlStrcmp(name, BAD_CAST "borders") == 0) {
                         parseBorders(reader);
                     } else if (xmlStrcmp(name, BAD_CAST "cellXfs") == 0) {
                         parseCellXfs(reader);
@@ -439,7 +452,7 @@ private:
                 
                 if (name && xmlStrcmp(name, BAD_CAST "xf") == 0) {
                     CellStyle style;
-                    style.styleIndex = static_cast<int>(m_cellStyles.size());
+                    style.styleIndex = static_cast<int>(m_styleTypes.size());
                     
                     xmlChar* numFmtId = xmlTextReaderGetAttribute(reader, BAD_CAST "numFmtId");
                     xmlChar* fontId = xmlTextReaderGetAttribute(reader, BAD_CAST "fontId");
@@ -470,36 +483,39 @@ private:
                         xmlFree(numFmtId);
                     }
                     
-                    if (fontId) {
+                    if (m_parseMode == StylesRegistry::ParseMode::Full && fontId) {
                         int fid = std::atoi(reinterpret_cast<const char*>(fontId));
                         if (fid >= 0 && static_cast<size_t>(fid) < m_fonts.size()) {
                             style.font = m_fonts[fid];
                         }
-                        xmlFree(fontId);
                     }
+                    if (fontId) xmlFree(fontId);
                     
-                    if (fillId) {
+                    if (m_parseMode == StylesRegistry::ParseMode::Full && fillId) {
                         int fid = std::atoi(reinterpret_cast<const char*>(fillId));
                         if (fid >= 0 && static_cast<size_t>(fid) < m_fills.size()) {
                             style.fill = m_fills[fid];
                         }
-                        xmlFree(fillId);
                     }
+                    if (fillId) xmlFree(fillId);
                     
-                    if (borderId) {
+                    if (m_parseMode == StylesRegistry::ParseMode::Full && borderId) {
                         int bid = std::atoi(reinterpret_cast<const char*>(borderId));
                         if (bid >= 0 && static_cast<size_t>(bid) < m_borders.size()) {
                             style.border = m_borders[bid];
                         }
-                        xmlFree(borderId);
                     }
+                    if (borderId) xmlFree(borderId);
                     
                     const NumberFormatType type = style.numberFormat.type;
                     const bool isDateTime = (type == NumberFormatType::Date) ||
                                             (type == NumberFormatType::Time) ||
                                             (type == NumberFormatType::DateTime);
                     m_dateTimeStyleMask.push_back(isDateTime ? 1 : 0);
-                    m_cellStyles.push_back(style);
+                    m_styleTypes.push_back(type);
+                    if (m_parseMode == StylesRegistry::ParseMode::Full) {
+                        m_cellStyles.push_back(std::move(style));
+                    }
                 }
                 
                 if (name) xmlFree(name);
@@ -556,6 +572,8 @@ private:
     std::vector<BorderInfo> m_borders;
     std::vector<CellStyle> m_cellStyles;
     std::vector<uint8_t> m_dateTimeStyleMask;
+    std::vector<NumberFormatType> m_styleTypes;
+    StylesRegistry::ParseMode m_parseMode = StylesRegistry::ParseMode::Full;
 };
 
 // StylesRegistry implementation
@@ -566,8 +584,8 @@ StylesRegistry::~StylesRegistry() = default;
 StylesRegistry::StylesRegistry(StylesRegistry&&) noexcept = default;
 StylesRegistry& StylesRegistry::operator=(StylesRegistry&&) noexcept = default;
 
-void StylesRegistry::parse(const OpcPackage& package) {
-    m_impl->parse(package);
+void StylesRegistry::parse(const OpcPackage& package, ParseMode mode) {
+    m_impl->parse(package, mode);
 }
 
 bool StylesRegistry::isOpen() const {
@@ -600,6 +618,10 @@ bool StylesRegistry::isDateTimeFormat(const std::string& formatCode) const {
 
 bool StylesRegistry::isDateTimeStyle(int styleIndex) const {
     return m_impl->isDateTimeStyle(styleIndex);
+}
+
+NumberFormatType StylesRegistry::getNumberFormatTypeForStyle(int styleIndex) const {
+    return m_impl->getNumberFormatTypeForStyle(styleIndex);
 }
 
 size_t StylesRegistry::getStyleCount() const {

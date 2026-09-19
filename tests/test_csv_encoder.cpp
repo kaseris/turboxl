@@ -132,3 +132,33 @@ TEST(CsvEncoderTest, PreservesExcel1900LeapDaySemantics) {
              numericCell(3, 61.0, 1)}),
         "1900-02-28,1900-02-29,1900-03-01\n");
 }
+
+TEST(CsvEncoderTest, PreservesNumericFormattingSemantics) {
+    xlsxcsv::core::RowData row;
+    row.rowNumber = 1;
+    row.cells = {
+        numericCell(1, 42.0, 0),
+        numericCell(2, 1.2345678, 0),
+        numericCell(3, -0.0, 0),
+        numericCell(4, 0.0000004, 0),
+    };
+    xlsxcsv::core::CsvRowCollector collector;
+    collector.handleRow(row);
+    EXPECT_EQ(collector.getCsvString(), "42,1.234568,0,0\n");
+}
+
+TEST(CsvEncoderTest, UsesIndexedHiddenColumnFiltering) {
+    xlsxcsv::CsvOptions options;
+    options.includeHiddenColumns = false;
+    xlsxcsv::core::CsvRowCollector collector(
+        nullptr, nullptr, xlsxcsv::core::DateSystem::Date1900, &options);
+    xlsxcsv::core::WorksheetMetadata metadata;
+    metadata.columnInfo.push_back({2, true, 0.0});
+    collector.handleWorksheetMetadata(metadata);
+    xlsxcsv::core::RowData row;
+    row.rowNumber = 1;
+    row.cells = {numericCell(1, 1.0, 0), numericCell(2, 2.0, 0),
+                 numericCell(3, 3.0, 0)};
+    collector.handleRow(row);
+    EXPECT_EQ(collector.getCsvString(), "1,3\n");
+}

@@ -44,17 +44,27 @@ public:
     }
     
     void close() {
+        if (m_diskFile.is_open()) {
+            m_diskFile.flush();
+            m_diskFile.close();
+        }
+        m_diskFile.clear();
+
+        if (!m_diskFilePath.empty()) {
+            std::error_code removeError;
+            std::filesystem::remove(m_diskFilePath, removeError);
+            m_diskFilePath.clear();
+        }
+
         m_isOpen = false;
         m_arena.clear();
         m_offsets.clear();
+        m_lengths.clear();
+        m_diskOffsets.clear();
         m_arenaCapacity = 0;
         m_stringCount = 0;
         m_memoryUsage = 0;
         
-        if (m_isUsingDisk && !m_diskFilePath.empty()) {
-            std::filesystem::remove(m_diskFilePath);
-            m_diskFilePath.clear();
-        }
         m_isUsingDisk = false;
         m_activeMode = m_config.mode;
     }
@@ -86,6 +96,20 @@ public:
             return getStringFromArena(index);
         }
     }
+
+    std::optional<std::string_view> tryGetStringView(size_t index) const {
+        if (!m_isOpen || m_isUsingDisk || index >= m_offsets.size() ||
+            index >= m_lengths.size()) {
+            return std::nullopt;
+        }
+        const uint32_t offset = m_offsets[index];
+        const uint32_t length = m_lengths[index];
+        if (static_cast<size_t>(offset) + length > m_arena.size()) {
+            return std::nullopt;
+        }
+        return std::string_view(
+            reinterpret_cast<const char*>(m_arena.data() + offset), length);
+    }
     
     std::optional<std::string> getStringFromArena(size_t index) const {
         if (index >= m_offsets.size()) {
@@ -97,9 +121,8 @@ public:
             return std::nullopt;
         }
         
-        // Strings are null-terminated in arena
-        const char* str = reinterpret_cast<const char*>(&m_arena[offset]);
-        return std::string(str);
+        auto view = tryGetStringView(index);
+        return view ? std::optional<std::string>(std::string(*view)) : std::nullopt;
     }
     
     size_t getStringCount() const {
@@ -179,6 +202,7 @@ private:
             m_arenaCapacity = std::max(INITIAL_ARENA_SIZE, estimatedSize * 2);
             m_arena.reserve(m_arenaCapacity);
             m_offsets.reserve(1024);
+            m_lengths.reserve(1024);
         }
     }
     
@@ -189,9 +213,22 @@ private:
         auto tempDir = std::filesystem::temp_directory_path();
         m_diskFilePath = tempDir / ("turboxl_strings_" + std::to_string(reinterpret_cast<uintptr_t>(this)) + ".tmp");
         
-        m_diskFile.open(m_diskFilePath, std::ios::binary | std::ios::out | std::ios::in | std::ios::trunc);
+        // MSVC's fstream does not reliably create a missing file when it is
+        // opened for both input and output. Create it first, then reopen it
+        // for random-access reads and writes.
+        m_diskFile.open(m_diskFilePath, std::ios::binary | std::ios::out | std::ios::trunc);
         if (!m_diskFile.is_open()) {
             throw XlsxError("Failed to create temporary file for shared strings storage");
+        }
+        m_diskFile.close();
+        m_diskFile.clear();
+        m_diskFile.open(m_diskFilePath, std::ios::binary | std::ios::out | std::ios::in);
+        if (!m_diskFile.is_open()) {
+            std::error_code removeError;
+            std::filesystem::remove(m_diskFilePath, removeError);
+            m_diskFilePath.clear();
+            m_isUsingDisk = false;
+            throw XlsxError("Failed to open temporary file for shared strings storage");
         }
     }
     
@@ -301,8 +338,10 @@ private:
         uint32_t offset = static_cast<uint32_t>(m_arena.size());
         if (index >= m_offsets.size()) {
             m_offsets.resize(index + 1);
+            m_lengths.resize(index + 1);
         }
         m_offsets[index] = offset;
+        m_lengths[index] = static_cast<uint32_t>(value.size());
         
         // Append string to arena with null terminator
         m_arena.insert(m_arena.end(), value.begin(), value.end());
@@ -386,6 +425,7 @@ private:
     // Arena-based storage (performance optimization)
     std::vector<uint8_t> m_arena;          // Single arena buffer for all strings
     std::vector<uint32_t> m_offsets;       // Start offset of each string in arena
+    std::vector<uint32_t> m_lengths;       // Byte length of each arena string
     size_t m_arenaCapacity;                // Current arena capacity
     static constexpr size_t INITIAL_ARENA_SIZE = 8 * 1024 * 1024;  // 8MB initial
     
@@ -428,6 +468,10 @@ std::string SharedStringsProvider::getString(size_t index) const {
 
 std::optional<std::string> SharedStringsProvider::tryGetString(size_t index) const {
     return m_impl->tryGetString(index);
+}
+
+std::optional<std::string_view> SharedStringsProvider::tryGetStringView(size_t index) const {
+    return m_impl->tryGetStringView(index);
 }
 
 size_t SharedStringsProvider::getStringCount() const {

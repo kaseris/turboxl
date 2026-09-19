@@ -3,6 +3,7 @@
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/variant.h>
 #include <nanobind/stl/vector.h>
+#include <nanobind/stl/filesystem.h>
 #include "xlsxcsv.hpp"
 
 namespace nb = nanobind;
@@ -70,6 +71,21 @@ NB_MODULE(turboxl, m) {
         nb::arg("sheet") = -1,
         nb::arg("options") = xlsxcsv::CsvOptions{},
         "Convert a worksheet from XLSX to CSV string"
+    );
+
+    m.def("read_sheet_to_file",
+        [](const std::string& xlsx_path,
+           const std::filesystem::path& output_path,
+           const std::variant<std::string, int>& sheet,
+           const xlsxcsv::CsvOptions& options) {
+            nb::gil_scoped_release gil;
+            xlsxcsv::readSheetToFile(xlsx_path, output_path, sheet, options);
+        },
+        nb::arg("xlsx_path"),
+        nb::arg("output_path"),
+        nb::arg("sheet") = -1,
+        nb::arg("options") = xlsxcsv::CsvOptions{},
+        "Convert a worksheet from XLSX directly to a CSV file"
     );
     
     // Convenience function

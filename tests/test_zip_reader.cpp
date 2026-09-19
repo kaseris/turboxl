@@ -156,6 +156,21 @@ TEST_F(ZipReaderTest, ReadEntryAsString) {
     EXPECT_EQ(content, "Hello, World!\nThis is a test file.");
 }
 
+TEST_F(ZipReaderTest, StreamsIndexedEntry) {
+    xlsxcsv::core::ZipReader reader;
+    reader.open(testZipPath.string());
+    auto stream = reader.openEntryStream("test.txt");
+    std::string content(stream->size(), '\0');
+    size_t offset = 0;
+    while (offset < content.size()) {
+        offset += stream->read(content.data() + offset,
+            std::min<size_t>(3, content.size() - offset));
+    }
+    EXPECT_EQ(stream->read(content.data(), 1), 0u);
+    EXPECT_EQ(stream->bytesRead(), stream->size());
+    EXPECT_EQ(content, "Hello, World!\nThis is a test file.");
+}
+
 TEST_F(ZipReaderTest, ReadNonExistentEntry) {
     if (!fs::exists(testZipPath)) {
         FAIL() << "Test ZIP file could not be created";

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(turboxl VERSION 0.2.7 LANGUAGES CXX)
+project(turboxl VERSION 0.3.0 LANGUAGES CXX)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
@@ -426,6 +426,8 @@ endif()
 
 # Benchmarks
 if(BUILD_BENCHMARKS)
+    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
     find_package(benchmark QUIET)
     if(NOT benchmark_FOUND)
         include(FetchContent)
@@ -443,6 +445,12 @@ if(BUILD_BENCHMARKS)
             turboxl_core
             benchmark::benchmark
     )
+    if(ZLIB_LIBRARY_DIRS)
+        target_link_directories(turboxl_benchmarks PRIVATE ${ZLIB_LIBRARY_DIRS})
+    endif()
+    if(MINIZIP_FOUND AND MINIZIP_LIBRARY_DIRS)
+        target_link_directories(turboxl_benchmarks PRIVATE ${MINIZIP_LIBRARY_DIRS})
+    endif()
 endif()
 
 # Installation

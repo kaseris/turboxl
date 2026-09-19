@@ -17,6 +17,10 @@ def main():
         filename = str(path)
         assert turboxl.read_sheet_to_csv(filename) == '"café, ""quoted""",42,2024-01-15,2024-01-15T13:45:30\n'
         assert turboxl.read_sheet_to_csv(filename, 1) == 'secret\n'
+        output = Path(tmp) / 'conversion.csv'
+        output.write_text('old')
+        turboxl.read_sheet_to_file(filename, output)
+        assert output.read_bytes() == b'"caf\xc3\xa9, ""quoted""",42,2024-01-15,2024-01-15T13:45:30\n'
         assert turboxl.read_specific_sheet(filename, 'Hidden') == 'secret\n'
         expected_sparse = 'origin\n' + '\n' * 3 + ',,,gap\n' + '\n' * 44 + ',' * 25 + 'far\n'
         assert turboxl.read_specific_sheet(filename, 'Sparse') == expected_sparse

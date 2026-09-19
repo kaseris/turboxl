@@ -8,6 +8,7 @@
 #include <optional>
 #include <variant>
 #include <stdexcept>
+#include <iosfwd>
 
 namespace xlsxcsv::core {
 
@@ -19,6 +20,25 @@ using ByteVector = std::vector<uint8_t>;
 class XlsxError : public std::runtime_error {
 public:
     explicit XlsxError(const std::string& message) : std::runtime_error(message) {}
+};
+
+class ZipEntryStream {
+public:
+    ~ZipEntryStream();
+    ZipEntryStream(const ZipEntryStream&) = delete;
+    ZipEntryStream& operator=(const ZipEntryStream&) = delete;
+    ZipEntryStream(ZipEntryStream&&) noexcept;
+    ZipEntryStream& operator=(ZipEntryStream&&) noexcept;
+
+    size_t read(void* buffer, size_t size);
+    size_t size() const;
+    size_t bytesRead() const;
+
+private:
+    class Impl;
+    explicit ZipEntryStream(std::unique_ptr<Impl> impl);
+    std::unique_ptr<Impl> m_impl;
+    friend class ZipReader;
 };
 
 // Security limits for ZIP operations
@@ -56,6 +76,7 @@ public:
     bool hasEntry(const std::string& path) const;
     ByteVector readEntry(const std::string& path) const;
     std::string readEntryAsString(const std::string& path) const;
+    std::unique_ptr<ZipEntryStream> openEntryStream(const std::string& path) const;
     
     const ZipSecurityLimits& getSecurityLimits() const;
 
@@ -213,6 +234,7 @@ struct CellStyle {
 
 class StylesRegistry {
 public:
+    enum class ParseMode { Full, CsvOnly };
     StylesRegistry();
     ~StylesRegistry();
     
@@ -222,7 +244,7 @@ public:
     StylesRegistry(StylesRegistry&&) noexcept;
     StylesRegistry& operator=(StylesRegistry&&) noexcept;
     
-    void parse(const OpcPackage& package);
+    void parse(const OpcPackage& package, ParseMode mode = ParseMode::Full);
     bool isOpen() const;
     void close();
     
@@ -231,6 +253,7 @@ public:
     std::optional<NumberFormat> getNumberFormat(int formatId) const;
     NumberFormatType detectNumberFormatType(const std::string& formatCode) const;
     bool isDateTimeStyle(int styleIndex) const;
+    NumberFormatType getNumberFormatTypeForStyle(int styleIndex) const;
     
     // Utility methods
     bool isDateTimeFormat(int formatId) const;
@@ -277,6 +300,7 @@ public:
     // String lookup methods
     std::string getString(size_t index) const;
     std::optional<std::string> tryGetString(size_t index) const;
+    std::optional<std::string_view> tryGetStringView(size_t index) const;
     size_t getStringCount() const;
     bool hasStrings() const;
     
@@ -400,6 +424,17 @@ public:
     virtual void handleWorksheetMetadata([[maybe_unused]] const WorksheetMetadata& metadata) {}  // Optional
 };
 
+// Optional lower-allocation callback used by CSV conversion. Handlers may
+// decline it for modes that require a complete row.
+class SheetCellHandler {
+public:
+    virtual ~SheetCellHandler() = default;
+    virtual bool acceptsStreamingCells() const = 0;
+    virtual void beginRow(int rowNumber, bool hidden) = 0;
+    virtual void handleCell(CellData&& cell) = 0;
+    virtual void endRow() = 0;
+};
+
 // Sheet streaming parser
 class SheetStreamReader {
 public:
@@ -439,21 +474,28 @@ class DataConverter;
 class CsvOptions; // Forward declaration
 
 // CSV Row Handler that collects data into CSV format
-class CsvRowCollector : public SheetRowHandler {
+class CsvRowCollector : public SheetRowHandler, public SheetCellHandler {
 public:
     explicit CsvRowCollector(const SharedStringsProvider* sharedStrings = nullptr,
                            const StylesRegistry* styles = nullptr,
                            DateSystem dateSystem = DateSystem::Date1900,
-                           const void* csvOptions = nullptr);
+                           const void* csvOptions = nullptr,
+                           std::ostream* outputStream = nullptr);
     ~CsvRowCollector();
     
     // SheetRowHandler interface
     void handleRow(const RowData& row) override;
     void handleError(const std::string& message) override;
     void handleWorksheetMetadata(const WorksheetMetadata& metadata) override;
+    bool acceptsStreamingCells() const override;
+    void beginRow(int rowNumber, bool hidden) override;
+    void handleCell(CellData&& cell) override;
+    void endRow() override;
     
     // Get results
     std::string getCsvString() const;
+    std::string takeCsvString();
+    void finalize();
     const std::vector<std::string>& getErrors() const;
     size_t getRowCount() const;
 
