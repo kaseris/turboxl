@@ -1,0 +1,7 @@
+report,region,vm_size,cpu,engine,version,median_seconds,median_peak_rss_mb,relative_to_turboxl,output_sha256
+txl-amd-260919.json,uksouth,Standard_D4as_v6,AMD EPYC 9V74 80-Core Processor,calamine,0.8.2,3.5775682889999985,401.6015625,1.300033586666869,b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1
+txl-amd-260919.json,uksouth,Standard_D4as_v6,AMD EPYC 9V74 80-Core Processor,openpyxl,3.1.5,18.02694917800001,259.92578125,6.550717555439717,b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1
+txl-amd-260919.json,uksouth,Standard_D4as_v6,AMD EPYC 9V74 80-Core Processor,turboxl,0.3.0,2.751904508999999,177.54296875,1.0,b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1
+txl-intel-260919.json,uksouth,Standard_D4s_v6,INTEL(R) XEON(R) PLATINUM 8573C,calamine,0.8.2,3.5264954499999988,401.59765625,1.1280747362015264,b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1
+txl-intel-260919.json,uksouth,Standard_D4s_v6,INTEL(R) XEON(R) PLATINUM 8573C,openpyxl,3.1.5,17.972228629,259.984375,5.749055218435828,b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1
+txl-intel-260919.json,uksouth,Standard_D4s_v6,INTEL(R) XEON(R) PLATINUM 8573C,turboxl,0.3.0,3.126118630999997,177.5390625,1.0,b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1

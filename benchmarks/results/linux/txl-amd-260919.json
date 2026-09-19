@@ -1,0 +1,247 @@
+{
+  "input": {
+    "filename": "benchmark.xlsx",
+    "rounds": 7,
+    "sheet_index": 0,
+    "size_bytes": 21651166,
+    "warmup_rounds": 1
+  },
+  "machine": {
+    "cloud_provider": "azure",
+    "cloud_region": "uksouth",
+    "cloud_vm_size": "Standard_D4as_v6",
+    "cpu": {
+      "architecture": "x86_64",
+      "logical_cpus": "4",
+      "lscpu_count": "4",
+      "model_name": "AMD EPYC 9V74 80-Core Processor",
+      "processor": "x86_64",
+      "threads_per_core": "2",
+      "vendor_id": "AuthenticAMD"
+    },
+    "hostname": "txl-amd-260919",
+    "platform": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.35",
+    "python": "3.10.12"
+  },
+  "packages": {
+    "openpyxl": "3.1.5",
+    "python-calamine": "0.8.2",
+    "turboxl": "0.3.0"
+  },
+  "parity": {
+    "all_hashes_match": true,
+    "hashes": {
+      "calamine": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1",
+      "openpyxl": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1",
+      "turboxl": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+    }
+  },
+  "results": {
+    "calamine": {
+      "bytes": 54233035,
+      "max_seconds": 3.6024058329999917,
+      "median_peak_rss_mb": 401.6015625,
+      "median_seconds": 3.5775682889999985,
+      "min_seconds": 3.552066762999999,
+      "relative_to_turboxl": 1.300033586666869,
+      "rows": 150001,
+      "samples": [
+        {
+          "bytes": 54233035,
+          "engine": "calamine",
+          "peak_rss_kb": 411120,
+          "rows": 150001,
+          "seconds": 3.552066762999999,
+          "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+        },
+        {
+          "bytes": 54233035,
+          "engine": "calamine",
+          "peak_rss_kb": 411288,
+          "rows": 150001,
+          "seconds": 3.6024058329999917,
+          "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+        },
+        {
+          "bytes": 54233035,
+          "engine": "calamine",
+          "peak_rss_kb": 411168,
+          "rows": 150001,
+          "seconds": 3.5605199099999822,
+          "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+        },
+        {
+          "bytes": 54233035,
+          "engine": "calamine",
+          "peak_rss_kb": 411308,
+          "rows": 150001,
+          "seconds": 3.596348156999994,
+          "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+        },
+        {
+          "bytes": 54233035,
+          "engine": "calamine",
+          "peak_rss_kb": 411248,
+          "rows": 150001,
+          "seconds": 3.576343938000008,
+          "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+        },
+        {
+          "bytes": 54233035,
+          "engine": "calamine",
+          "peak_rss_kb": 410988,
+          "rows": 150001,
+          "seconds": 3.5775682889999985,
+          "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+        },
+        {
+          "bytes": 54233035,
+          "engine": "calamine",
+          "peak_rss_kb": 411240,
+          "rows": 150001,
+          "seconds": 3.598673138999999,
+          "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+        }
+      ],
+      "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+    },
+    "openpyxl": {
+      "bytes": 54233035,
+      "max_seconds": 18.396367311000006,
+      "median_peak_rss_mb": 259.92578125,
+      "median_seconds": 18.02694917800001,
+      "min_seconds": 17.88821242999998,
+      "relative_to_turboxl": 6.550717555439717,
+      "rows": 150001,
+      "samples": [
+        {
+          "bytes": 54233035,
+          "engine": "openpyxl",
+          "peak_rss_kb": 266232,
+          "rows": 150001,
+          "seconds": 18.115883394999997,
+          "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+        },
+        {
+          "bytes": 54233035,
+          "engine": "openpyxl",
+          "peak_rss_kb": 266004,
+          "rows": 150001,
+          "seconds": 18.02694917800001,
+          "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+        },
+        {
+          "bytes": 54233035,
+          "engine": "openpyxl",
+          "peak_rss_kb": 266312,
+          "rows": 150001,
+          "seconds": 17.889751891000003,
+          "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+        },
+        {
+          "bytes": 54233035,
+          "engine": "openpyxl",
+          "peak_rss_kb": 266164,
+          "rows": 150001,
+          "seconds": 17.94648633600002,
+          "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+        },
+        {
+          "bytes": 54233035,
+          "engine": "openpyxl",
+          "peak_rss_kb": 266124,
+          "rows": 150001,
+          "seconds": 17.88821242999998,
+          "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+        },
+        {
+          "bytes": 54233035,
+          "engine": "openpyxl",
+          "peak_rss_kb": 266140,
+          "rows": 150001,
+          "seconds": 18.396367311000006,
+          "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+        },
+        {
+          "bytes": 54233035,
+          "engine": "openpyxl",
+          "peak_rss_kb": 266364,
+          "rows": 150001,
+          "seconds": 18.23034475099999,
+          "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+        }
+      ],
+      "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+    },
+    "turboxl": {
+      "bytes": 54233035,
+      "max_seconds": 2.759048309999997,
+      "median_peak_rss_mb": 177.54296875,
+      "median_seconds": 2.751904508999999,
+      "min_seconds": 2.7297835089999865,
+      "relative_to_turboxl": 1.0,
+      "rows": 150001,
+      "samples": [
+        {
+          "bytes": 54233035,
+          "engine": "turboxl",
+          "peak_rss_kb": 181804,
+          "rows": 150001,
+          "seconds": 2.7568726670000103,
+          "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+        },
+        {
+          "bytes": 54233035,
+          "engine": "turboxl",
+          "peak_rss_kb": 181800,
+          "rows": 150001,
+          "seconds": 2.751904508999999,
+          "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+        },
+        {
+          "bytes": 54233035,
+          "engine": "turboxl",
+          "peak_rss_kb": 181804,
+          "rows": 150001,
+          "seconds": 2.743132029999998,
+          "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+        },
+        {
+          "bytes": 54233035,
+          "engine": "turboxl",
+          "peak_rss_kb": 181804,
+          "rows": 150001,
+          "seconds": 2.759048309999997,
+          "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+        },
+        {
+          "bytes": 54233035,
+          "engine": "turboxl",
+          "peak_rss_kb": 181932,
+          "rows": 150001,
+          "seconds": 2.7471276349999982,
+          "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+        },
+        {
+          "bytes": 54233035,
+          "engine": "turboxl",
+          "peak_rss_kb": 181932,
+          "rows": 150001,
+          "seconds": 2.7521678299999905,
+          "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+        },
+        {
+          "bytes": 54233035,
+          "engine": "turboxl",
+          "peak_rss_kb": 181800,
+          "rows": 150001,
+          "seconds": 2.7297835089999865,
+          "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+        }
+      ],
+      "sha256": "b2ee56ec1b8ee53faca09731e03c3f6e799c343de74f26779b51ebeca3a017f1"
+    }
+  },
+  "schema_version": 1,
+  "timestamp_utc": "2026-09-19T22:24:08Z"
+}

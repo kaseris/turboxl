@@ -7,29 +7,72 @@ Fast, read-only XLSX to CSV converter with C++20 core and Python bindings.
 
 ## Performance
 
-**Real-world benchmarks** on Chicago Crime dataset (21.9MB, 146,574 rows):
+The following end-to-end XLSX-to-CSV results were measured on Azure x86-64
+VMs in UK South. The deterministic
+[input workbook](benchmarks/turboxl-large-benchmark.xlsx) is 21.7 MB and
+contains 150,001 rows, 18 columns, and approximately 2.7 million cells. Each
+engine reads the first worksheet and materializes equivalent UTF-8 CSV output
+in memory.
 
-| Metric         | TurboXL         | OpenPyXL       | Improvement      |
-| -------------- | --------------- | -------------- | ---------------- |
-| **Speed**      | 2.4s            | 63.1s          | **26.7x faster** |
-| **Memory**     | 33.5MB          | 66.9MB         | **2.0x less**    |
-| **Throughput** | 62,040 rows/sec | 2,321 rows/sec | **26.7x faster** |
+### Execution time
 
-_Dataset: [Chicago Crimes 2025](https://data.cityofchicago.org/Public-Safety/Crimes-2025/t7ek-mgzi/about_data)_
+Lower is better. The multiplier is the competing engine's elapsed time divided
+by TurboXL's elapsed time on the same machine.
 
-🚀 **Recent Optimizations Implemented:**
+| OS | Azure VM | Host CPU | TurboXL | Calamine | OpenPyXL |
+| --- | --- | --- | ---: | ---: | ---: |
+| Linux | `Standard_D4as_v6` | AMD EPYC 9V74 | **2.752s** | 3.578s (1.30x) | 18.027s (6.55x) |
+| Linux | `Standard_D4s_v6` | Intel Xeon Platinum 8573C | **3.126s** | 3.526s (1.13x) | 17.972s (5.75x) |
+| Windows | `Standard_D4as_v6` | AMD EPYC 9V74 | **3.097s** | 4.204s (1.36x) | 21.095s (6.81x) |
+| Windows | `Standard_D4s_v6` | Intel Xeon Platinum 8573C | **3.544s** | 4.252s (1.20x) | 20.800s (5.87x) |
 
-- **zlib-ng integration** - Up to 2.5x faster ZIP decompression
-- **Release build optimizations** - `-O3 -march=native -flto` for GCC/Clang, `/O2 /GL /arch:AVX2` for MSVC
-- **Arena-based shared strings** - Memory-efficient string storage
-- **Chunked ZIP reading** - 512 KiB buffer optimization
+### Peak process memory
+
+| OS | Azure VM | TurboXL | Calamine | OpenPyXL |
+| --- | --- | ---: | ---: | ---: |
+| Linux | `Standard_D4as_v6` | **177.5 MiB** | 401.6 MiB | 259.9 MiB |
+| Linux | `Standard_D4s_v6` | **177.5 MiB** | 401.6 MiB | 260.0 MiB |
+| Windows | `Standard_D4as_v6` | **172.2 MiB** | 373.2 MiB | 235.2 MiB |
+| Windows | `Standard_D4s_v6` | **172.4 MiB** | 373.6 MiB | 235.6 MiB |
+
+### Methodology
+
+- Versions: TurboXL 0.3.0, python-calamine 0.8.2, and OpenPyXL 3.1.5.
+- Linux: Ubuntu 22.04, Python 3.10.12, one warm-up plus seven measured rounds;
+  reported values are medians.
+- Windows: Windows Server 2022, Python 3.10.11, one warm-up plus one measured
+  validation round. These Windows figures are preliminary until repeated with
+  the same seven-round protocol.
+- Engine order is shuffled deterministically between rounds. Each measurement
+  runs in a fresh child process.
+- All engines produced the same row count, byte count, and SHA-256 output hash.
+- Linux memory is maximum resident set size; Windows memory is peak working set.
+  Treat cross-OS memory comparisons as directional rather than exact.
+
+The raw [Linux](benchmarks/results/linux) and
+[Windows](benchmarks/results/windows) JSON and CSV reports are included in the
+repository.
+
+Reproduce the benchmark with [`tools/azure_benchmark_once.sh`](tools/azure_benchmark_once.sh)
+and [`tools/cloud_benchmark.py`](tools/cloud_benchmark.py):
+
+```bash
+# Linux
+./tools/azure_benchmark_once.sh --subscription "SUBSCRIPTION"
+
+# Windows
+./tools/azure_benchmark_once.sh --subscription "SUBSCRIPTION" --os windows
+```
+
+Implementation features include zlib-ng support, release-mode compiler
+optimizations, arena-based shared strings, and chunked ZIP reading.
 
 ## What It Does
 
 - ✅ Read XLSX files and convert to CSV
 - ✅ Handle shared strings, numbers, dates, booleans
 - ✅ Process multiple worksheets
-- ✅ Memory-efficient streaming (33.5MB for 146k rows)
+- ✅ Memory-efficient XLSX-to-CSV conversion
 - ✅ Cross-platform (Linux, macOS, Windows)
 
 ## What It Doesn't Do
@@ -106,7 +149,9 @@ sudo apt-get install -y libxml2-dev libminizip-dev cmake build-essential pkg-con
 vcpkg install --triplet x64-windows-static-md
 ```
 
-**Performance Note:** Installing `zlib-ng` provides significant performance improvements (up to 2.5x faster decompression). The build system automatically detects and uses zlib-ng if available, falling back to standard zlib otherwise.
+**Performance Note:** The build system automatically detects and uses zlib-ng
+when available, falling back to standard zlib otherwise. Measure the impact on
+your own workbook and deployment target.
 
 ### Build C++ Core (library only)
 
