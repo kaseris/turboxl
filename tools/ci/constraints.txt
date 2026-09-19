@@ -5,7 +5,7 @@ nanobind==2.12.0
 packaging==25.0
 twine==6.2.0
 abi3audit==0.0.24
-auditwheel==6.7.0
+auditwheel==6.8.2
 delocate==0.13.0
 delvewheel==1.13.0
 virtualenv==21.4.2
