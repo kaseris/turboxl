@@ -1,0 +1,45 @@
+name: Set up native dependencies
+description: Shared platform dependencies and persistent build caches
+inputs:
+  linux-container:
+    description: Install Linux dependencies inside cibuildwheel instead of on the host
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: |
+          /tmp/turboxl-ccache
+          ${{ runner.temp }}/cibuildwheel-cache
+          ${{ runner.temp }}/vcpkg-binary-cache
+        key: build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'tools/ci/*', 'pyproject.toml', '.github/actions/setup-build/action.yml') }}-${{ github.sha }}
+        restore-keys: |
+          build-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('vcpkg.json', 'tools/ci/*', 'pyproject.toml', '.github/actions/setup-build/action.yml') }}-
+    - name: Configure cache and build environment
+      shell: bash
+      run: |
+        mkdir -p /tmp/turboxl-ccache
+        echo 'CCACHE_DIR=/tmp/turboxl-ccache' >> "$GITHUB_ENV"
+        echo 'CCACHE_MAXSIZE=1G' >> "$GITHUB_ENV"
+        echo 'CCACHE_COMPILERCHECK=content' >> "$GITHUB_ENV"
+        echo 'CMAKE_BUILD_PARALLEL_LEVEL=4' >> "$GITHUB_ENV"
+    - name: Install Unix dependencies
+      if: runner.os == 'macOS' || (runner.os == 'Linux' && inputs.linux-container != 'true')
+      shell: bash
+      run: bash tools/ci/install_deps.sh | tee -a "$GITHUB_STEP_SUMMARY"
+    - name: Configure macOS discovery
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        echo "PKG_CONFIG_PATH=$(brew --prefix libxml2)/lib/pkgconfig:$(brew --prefix minizip-ng)/lib/pkgconfig:$(brew --prefix zlib-ng)/lib/pkgconfig" >> "$GITHUB_ENV"
+        echo "CMAKE_PREFIX_PATH=$(brew --prefix libxml2):$(brew --prefix minizip-ng):$(brew --prefix zlib-ng)" >> "$GITHUB_ENV"
+        echo 'MACOSX_DEPLOYMENT_TARGET=15.0' >> "$GITHUB_ENV"
+    - name: Install Windows dependencies
+      if: runner.os == 'Windows'
+      shell: pwsh
+      env:
+        VCPKG_BINARY_SOURCES: clear;files,${{ runner.temp }}/vcpkg-binary-cache,readwrite
+      run: |
+        New-Item -ItemType Directory -Force "$env:RUNNER_TEMP/vcpkg-binary-cache" | Out-Null
+        & ./tools/ci/install_deps.ps1 | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append

@@ -1,0 +1,43 @@
+name: Native tests
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Native / ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, windows-2022, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: ./.github/actions/setup-build
+      - name: Configure Unix Debug build
+        if: runner.os != 'Windows'
+        shell: bash
+        run: >-
+          cmake -S . -B out/native -DCMAKE_BUILD_TYPE=Debug
+          -DBUILD_PYTHON=OFF -DBUILD_TESTS=ON -DTURBOXL_ENABLE_IPO=OFF
+          -DTURBOXL_PORTABLE_BUILD=ON -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+      - name: Configure Windows Debug build
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: >-
+          cmake -S . -B out/native -A x64
+          -DBUILD_PYTHON=OFF -DBUILD_TESTS=ON -DTURBOXL_ENABLE_IPO=OFF
+          -DTURBOXL_PORTABLE_BUILD=ON -DTURBOXL_STATIC_WINDOWS_DEPS=ON
+          "-DCMAKE_TOOLCHAIN_FILE=$env:CMAKE_TOOLCHAIN_FILE"
+          -DVCPKG_TARGET_TRIPLET=x64-windows-static-md
+      - run: cmake --build out/native --config Debug --parallel 4
+      - run: ctest --test-dir out/native -C Debug --output-on-failure --no-tests=error
+      - name: Compiler cache statistics
+        if: always() && runner.os != 'Windows'
+        shell: bash
+        run: ccache --show-stats | tee -a "$GITHUB_STEP_SUMMARY"

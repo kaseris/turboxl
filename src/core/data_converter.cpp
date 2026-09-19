@@ -39,7 +39,8 @@ public:
         
         // Convert to days since Unix epoch (January 1, 1970)
         // Excel epoch 1900 = December 30, 1899 (not January 1, 1900 due to the bug)
-        constexpr double DAYS_BETWEEN_1899_AND_1970 = 25567.0;
+        const double DAYS_BETWEEN_1899_AND_1970 =
+            dateSystem == DateSystem::Date1904 ? 25569.0 : 25568.0;
         double daysSinceUnixEpoch = adjustedSerial - DAYS_BETWEEN_1899_AND_1970;
         
         // Convert to seconds and create time_point
@@ -235,7 +236,10 @@ public:
             std::string cellValue;
 
             if (cell) {
-                cellValue = DataConverter::convertCellValue(*cell, m_sharedStrings, m_styles, m_dateSystem);
+                // RAW mode preserves the numeric serial even when a date style exists.
+                const auto* styles = (m_options && m_options->dateMode == ::xlsxcsv::CsvOptions::DateMode::RAW)
+                    ? nullptr : m_styles;
+                cellValue = DataConverter::convertCellValue(*cell, m_sharedStrings, styles, m_dateSystem);
 
                 // If this cell is the top-left of a merged range, cache its value
                 if (m_options && m_options->mergedHandling == ::xlsxcsv::CsvOptions::MergedHandling::PROPAGATE) {

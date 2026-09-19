@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include "fixture_helpers.hpp"
 #include "xlsxcsv/core.hpp"
 #include <filesystem>
 #include <fstream>
@@ -27,8 +28,6 @@ protected:
     }
     
     void createBasicStylesXlsx() {
-        std::string zipCmd = "cd \"" + testDir.string() + "\" && zip -q \"" + 
-                            basicStylesXlsxPath.filename().string() + "\" ";
         
         // Create directory structure
         fs::create_directories(testDir / "xl");
@@ -116,8 +115,7 @@ R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 </styleSheet>)";
 
         // Create ZIP
-        zipCmd += "[Content_Types].xml _rels xl";
-        system(zipCmd.c_str());
+        createArchive(testDir, basicStylesXlsxPath, {"[Content_Types].xml", "_rels", "xl"});
         
         // Clean up temp files
         fs::remove_all(testDir / "[Content_Types].xml");
@@ -126,8 +124,6 @@ R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
     }
     
     void createComplexStylesXlsx() {
-        std::string zipCmd = "cd \"" + testDir.string() + "\" && zip -q \"" + 
-                            complexStylesXlsxPath.filename().string() + "\" ";
         
         // Create directory structure  
         fs::create_directories(testDir / "xl");
@@ -251,8 +247,7 @@ R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 </styleSheet>)";
 
         // Create ZIP
-        zipCmd += "[Content_Types].xml _rels xl";
-        system(zipCmd.c_str());
+        createArchive(testDir, complexStylesXlsxPath, {"[Content_Types].xml", "_rels", "xl"});
         
         // Clean up temp files
         fs::remove_all(testDir / "[Content_Types].xml");
@@ -261,8 +256,6 @@ R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
     }
     
     void createDateFormatsXlsx() {
-        std::string zipCmd = "cd \"" + testDir.string() + "\" && zip -q \"" + 
-                            dateFormatsXlsxPath.filename().string() + "\" ";
         
         // Create directory structure
         fs::create_directories(testDir / "xl");
@@ -334,8 +327,7 @@ R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 </styleSheet>)";
 
         // Create ZIP
-        zipCmd += "[Content_Types].xml _rels xl";
-        system(zipCmd.c_str());
+        createArchive(testDir, dateFormatsXlsxPath, {"[Content_Types].xml", "_rels", "xl"});
         
         // Clean up temp files
         fs::remove_all(testDir / "[Content_Types].xml");
@@ -358,7 +350,7 @@ TEST_F(StylesRegistryTest, DefaultConstruction) {
 
 TEST_F(StylesRegistryTest, ParseBasicStyles) {
     if (!fs::exists(basicStylesXlsxPath)) {
-        GTEST_SKIP() << "Basic styles test XLSX file could not be created";
+        FAIL() << "Basic styles test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -374,7 +366,7 @@ TEST_F(StylesRegistryTest, ParseBasicStyles) {
 
 TEST_F(StylesRegistryTest, GetCellStyle) {
     if (!fs::exists(basicStylesXlsxPath)) {
-        GTEST_SKIP() << "Basic styles test XLSX file could not be created";
+        FAIL() << "Basic styles test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -410,7 +402,7 @@ TEST_F(StylesRegistryTest, GetCellStyle) {
 
 TEST_F(StylesRegistryTest, NumberFormatDetection) {
     if (!fs::exists(basicStylesXlsxPath)) {
-        GTEST_SKIP() << "Basic styles test XLSX file could not be created";
+        FAIL() << "Basic styles test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -496,7 +488,7 @@ TEST_F(StylesRegistryTest, NumberFormatTypeDetection) {
 
 TEST_F(StylesRegistryTest, DateTimeFormatDetection) {
     if (!fs::exists(dateFormatsXlsxPath)) {
-        GTEST_SKIP() << "Date formats test XLSX file could not be created";
+        FAIL() << "Date formats test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -530,7 +522,7 @@ TEST_F(StylesRegistryTest, DateTimeFormatDetection) {
 
 TEST_F(StylesRegistryTest, ComplexStylesParsing) {
     if (!fs::exists(complexStylesXlsxPath)) {
-        GTEST_SKIP() << "Complex styles test XLSX file could not be created";
+        FAIL() << "Complex styles test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -581,7 +573,7 @@ TEST_F(StylesRegistryTest, ComplexStylesParsing) {
 
 TEST_F(StylesRegistryTest, CloseRegistry) {
     if (!fs::exists(basicStylesXlsxPath)) {
-        GTEST_SKIP() << "Basic styles test XLSX file could not be created";
+        FAIL() << "Basic styles test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -606,7 +598,7 @@ TEST_F(StylesRegistryTest, CloseRegistry) {
 
 TEST_F(StylesRegistryTest, MoveConstruction) {
     if (!fs::exists(basicStylesXlsxPath)) {
-        GTEST_SKIP() << "Basic styles test XLSX file could not be created";
+        FAIL() << "Basic styles test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -623,7 +615,7 @@ TEST_F(StylesRegistryTest, MoveConstruction) {
 
 TEST_F(StylesRegistryTest, MoveAssignment) {
     if (!fs::exists(basicStylesXlsxPath)) {
-        GTEST_SKIP() << "Basic styles test XLSX file could not be created";
+        FAIL() << "Basic styles test XLSX file could not be created";
     }
     
     xlsxcsv::core::OpcPackage package;
@@ -643,8 +635,6 @@ TEST_F(StylesRegistryTest, MissingStylesFile) {
     // Create a simple XLSX without styles.xml
     fs::path noStylesPath = testDir / "no_styles.xlsx";
     
-    std::string zipCmd = "cd \"" + testDir.string() + "\" && zip -q \"" + 
-                        noStylesPath.filename().string() + "\" ";
     
     // Create minimal XLSX structure without styles.xml
     fs::create_directories(testDir / "xl");
@@ -673,8 +663,7 @@ R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 </workbook>)";
 
     // Create ZIP
-    zipCmd += "[Content_Types].xml _rels xl";
-    system(zipCmd.c_str());
+    createArchive(testDir, noStylesPath, {"[Content_Types].xml", "_rels", "xl"});
     
     // Clean up temp files
     fs::remove_all(testDir / "[Content_Types].xml");

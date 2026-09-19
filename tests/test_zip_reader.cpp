@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include "fixture_helpers.hpp"
 #include "xlsxcsv/core.hpp"
 #include <fstream>
 #include <filesystem>
@@ -33,8 +34,7 @@ protected:
         file.close();
         
         // Use system zip command to create test zip
-        std::string cmd = "cd " + testDir.string() + " && zip -q test.zip test.txt";
-        system(cmd.c_str());
+        createArchive(testDir, testZipPath, {"test.txt"});
     }
     
     fs::path testDir;
@@ -67,7 +67,7 @@ TEST_F(ZipReaderTest, CustomSecurityLimits) {
 
 TEST_F(ZipReaderTest, OpenValidZipFile) {
     if (!fs::exists(testZipPath)) {
-        GTEST_SKIP() << "Test ZIP file could not be created";
+        FAIL() << "Test ZIP file could not be created";
     }
     
     xlsxcsv::core::ZipReader reader;
@@ -95,7 +95,7 @@ TEST_F(ZipReaderTest, OpenInvalidZipFile) {
 
 TEST_F(ZipReaderTest, ListEntries) {
     if (!fs::exists(testZipPath)) {
-        GTEST_SKIP() << "Test ZIP file could not be created";
+        FAIL() << "Test ZIP file could not be created";
     }
     
     xlsxcsv::core::ZipReader reader;
@@ -119,7 +119,7 @@ TEST_F(ZipReaderTest, ListEntries) {
 
 TEST_F(ZipReaderTest, HasEntry) {
     if (!fs::exists(testZipPath)) {
-        GTEST_SKIP() << "Test ZIP file could not be created";
+        FAIL() << "Test ZIP file could not be created";
     }
     
     xlsxcsv::core::ZipReader reader;
@@ -131,7 +131,7 @@ TEST_F(ZipReaderTest, HasEntry) {
 
 TEST_F(ZipReaderTest, ReadEntry) {
     if (!fs::exists(testZipPath)) {
-        GTEST_SKIP() << "Test ZIP file could not be created";
+        FAIL() << "Test ZIP file could not be created";
     }
     
     xlsxcsv::core::ZipReader reader;
@@ -146,7 +146,7 @@ TEST_F(ZipReaderTest, ReadEntry) {
 
 TEST_F(ZipReaderTest, ReadEntryAsString) {
     if (!fs::exists(testZipPath)) {
-        GTEST_SKIP() << "Test ZIP file could not be created";
+        FAIL() << "Test ZIP file could not be created";
     }
     
     xlsxcsv::core::ZipReader reader;
@@ -158,7 +158,7 @@ TEST_F(ZipReaderTest, ReadEntryAsString) {
 
 TEST_F(ZipReaderTest, ReadNonExistentEntry) {
     if (!fs::exists(testZipPath)) {
-        GTEST_SKIP() << "Test ZIP file could not be created";
+        FAIL() << "Test ZIP file could not be created";
     }
     
     xlsxcsv::core::ZipReader reader;
@@ -170,7 +170,7 @@ TEST_F(ZipReaderTest, ReadNonExistentEntry) {
 
 TEST_F(ZipReaderTest, CloseFile) {
     if (!fs::exists(testZipPath)) {
-        GTEST_SKIP() << "Test ZIP file could not be created";
+        FAIL() << "Test ZIP file could not be created";
     }
     
     xlsxcsv::core::ZipReader reader;
@@ -188,7 +188,7 @@ TEST_F(ZipReaderTest, CloseFile) {
 
 TEST_F(ZipReaderTest, MoveConstruction) {
     if (!fs::exists(testZipPath)) {
-        GTEST_SKIP() << "Test ZIP file could not be created";
+        FAIL() << "Test ZIP file could not be created";
     }
     
     xlsxcsv::core::ZipReader reader1;
@@ -202,7 +202,7 @@ TEST_F(ZipReaderTest, MoveConstruction) {
 
 TEST_F(ZipReaderTest, MoveAssignment) {
     if (!fs::exists(testZipPath)) {
-        GTEST_SKIP() << "Test ZIP file could not be created";
+        FAIL() << "Test ZIP file could not be created";
     }
     
     xlsxcsv::core::ZipReader reader1;
