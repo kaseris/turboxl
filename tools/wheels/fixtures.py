@@ -33,7 +33,9 @@ def workbook(output):
 </Types>''',
         '_rels/.rels': f'<Relationships xmlns="{pkg}"><Relationship Id="rId1" Type="{rel}/officeDocument" Target="xl/workbook.xml"/></Relationships>',
         'xl/workbook.xml': f'<workbook xmlns="{main}" xmlns:r="{rel}"><sheets><sheet name="Data" sheetId="1" r:id="rId1"/><sheet name="Hidden" sheetId="2" state="hidden" r:id="rId2"/></sheets></workbook>',
-        'xl/_rels/workbook.xml.rels': f'<Relationships xmlns="{pkg}"><Relationship Id="rId1" Type="{rel}/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="{rel}/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="{rel}/styles" Target="styles.xml"/><Relationship Id="rId4" Type="{rel}/sharedStrings" Target="sharedStrings.xml"/></Relationships>',
+        # Exercise both OPC target forms: openpyxl commonly writes package-absolute
+        # worksheet targets, while other producers use workbook-relative targets.
+        'xl/_rels/workbook.xml.rels': f'<Relationships xmlns="{pkg}"><Relationship Id="rId1" Type="{rel}/worksheet" Target="/xl/worksheets/sheet1.xml"/><Relationship Id="rId2" Type="{rel}/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="{rel}/styles" Target="styles.xml"/><Relationship Id="rId4" Type="{rel}/sharedStrings" Target="sharedStrings.xml"/></Relationships>',
         'xl/styles.xml': f'<styleSheet xmlns="{main}"><cellXfs count="2"><xf numFmtId="0"/><xf numFmtId="14"/></cellXfs></styleSheet>',
         'xl/sharedStrings.xml': f'<sst xmlns="{main}" count="1" uniqueCount="1"><si><t>café, "quoted"</t></si></sst>',
         'xl/worksheets/sheet1.xml': f'<worksheet xmlns="{main}"><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1"><v>42</v></c><c r="C1" s="1"><v>45292</v></c></row></sheetData></worksheet>',
