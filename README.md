@@ -283,6 +283,9 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## CI and releases
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the complete feature and release
+workflow.
+
 CI builds all 12 wheels, runs native Debug tests, and gates Windows releases on
 exact CSV parity and median performance against pinned `python-calamine`. These
 checks run on every PR and push to `main`. The stable branch-protection check is
