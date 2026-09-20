@@ -70,6 +70,15 @@ Run the narrower test or benchmark for the code you touched as well. The full
 wheel matrix is intentionally left to GitHub Actions because it covers four
 platform targets and all supported Python variants.
 
+For typed worksheet extraction work, compare end-to-end Python materialization
+against the pinned python-calamine version and retain the machine-readable
+result when the change is intended to make or update a performance claim:
+
+```bash
+python tools/benchmark_typed.py --rows 60000 --warmups 2 --rounds 9 \
+  --json-output typed-benchmark-results.json
+```
+
 ### 4. Open and merge a pull request
 
 Explain the user-visible behavior, important implementation choices, and the

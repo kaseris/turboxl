@@ -1,0 +1,839 @@
+{
+  "environment": {
+    "platform": "macOS-15.7.4-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "python": "3.14.7",
+    "rows": 60000,
+    "warmups": 2,
+    "rounds": 9
+  },
+  "families": {
+    "dense-inline": {
+      "fixture": "typed-dense-inline.xlsx",
+      "parity": true,
+      "turboxl_median_seconds": 0.1944740839971928,
+      "calamine_median_seconds": 0.14638754200132098,
+      "turboxl_advantage": -0.3284879391952485,
+      "passes_10_percent_gate": false,
+      "results": {
+        "turboxl": [
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.19401775000005728,
+            "peak_rss_mib": 66.15625,
+            "phases": {
+              "native_seconds": 0.180233,
+              "boxing_seconds": 0.0077277100000000005,
+              "total_seconds": 0.18796000000000002
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.1943230830001994,
+            "peak_rss_mib": 66.28125,
+            "phases": {
+              "native_seconds": 0.180117,
+              "boxing_seconds": 0.00785137,
+              "total_seconds": 0.187969
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.19306883399985963,
+            "peak_rss_mib": 66.515625,
+            "phases": {
+              "native_seconds": 0.17940799999999998,
+              "boxing_seconds": 0.00756825,
+              "total_seconds": 0.186976
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.1944740839971928,
+            "peak_rss_mib": 66.0625,
+            "phases": {
+              "native_seconds": 0.180208,
+              "boxing_seconds": 0.00781892,
+              "total_seconds": 0.188026
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.19439375000365544,
+            "peak_rss_mib": 66.703125,
+            "phases": {
+              "native_seconds": 0.180342,
+              "boxing_seconds": 0.00797817,
+              "total_seconds": 0.18832
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.19508629199845018,
+            "peak_rss_mib": 65.28125,
+            "phases": {
+              "native_seconds": 0.181271,
+              "boxing_seconds": 0.00789433,
+              "total_seconds": 0.189165
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.20484900000155903,
+            "peak_rss_mib": 66.1875,
+            "phases": {
+              "native_seconds": 0.19130699999999998,
+              "boxing_seconds": 0.00757533,
+              "total_seconds": 0.198882
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.19483745800243923,
+            "peak_rss_mib": 66.328125,
+            "phases": {
+              "native_seconds": 0.179848,
+              "boxing_seconds": 0.0083475,
+              "total_seconds": 0.188195
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.19655600000260165,
+            "peak_rss_mib": 65.578125,
+            "phases": {
+              "native_seconds": 0.182429,
+              "boxing_seconds": 0.00786454,
+              "total_seconds": 0.19029300000000002
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          }
+        ],
+        "calamine": [
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.14616437500080792,
+            "peak_rss_mib": 95.640625,
+            "phases": {
+              "load_seconds": 0.13469391699618427,
+              "materialize_seconds": 0.00774466700386256
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.14638754200132098,
+            "peak_rss_mib": 90.0625,
+            "phases": {
+              "load_seconds": 0.13447891700343462,
+              "materialize_seconds": 0.007705999996687751
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.14642441700561903,
+            "peak_rss_mib": 90.328125,
+            "phases": {
+              "load_seconds": 0.13488183300069068,
+              "materialize_seconds": 0.00754745899757836
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.14642854200064903,
+            "peak_rss_mib": 89.90625,
+            "phases": {
+              "load_seconds": 0.13485324999783188,
+              "materialize_seconds": 0.007487250004487578
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.14646941699902527,
+            "peak_rss_mib": 94.8125,
+            "phases": {
+              "load_seconds": 0.13490249999449588,
+              "materialize_seconds": 0.007441333000315353
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.14484720899781678,
+            "peak_rss_mib": 90.0625,
+            "phases": {
+              "load_seconds": 0.13315145899832714,
+              "materialize_seconds": 0.007428791999700479
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.14582075000362238,
+            "peak_rss_mib": 90.734375,
+            "phases": {
+              "load_seconds": 0.13448366599914152,
+              "materialize_seconds": 0.007589041997562163
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.145269582993933,
+            "peak_rss_mib": 95.28125,
+            "phases": {
+              "load_seconds": 0.1338283750010305,
+              "materialize_seconds": 0.007507000002078712
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.14743479099706747,
+            "peak_rss_mib": 94.859375,
+            "phases": {
+              "load_seconds": 0.13578533299732953,
+              "materialize_seconds": 0.007609917003719602
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          }
+        ]
+      }
+    },
+    "dense-shared": {
+      "fixture": "typed-dense-shared.xlsx",
+      "parity": true,
+      "turboxl_median_seconds": 0.18670341699908022,
+      "calamine_median_seconds": 0.1330034170023282,
+      "turboxl_advantage": -0.40374902545407537,
+      "passes_10_percent_gate": false,
+      "results": {
+        "turboxl": [
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.18609316700167255,
+            "peak_rss_mib": 65.8125,
+            "phases": {
+              "native_seconds": 0.172298,
+              "boxing_seconds": 0.00784262,
+              "total_seconds": 0.180141
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.19583754199993564,
+            "peak_rss_mib": 66.625,
+            "phases": {
+              "native_seconds": 0.179063,
+              "boxing_seconds": 0.00963008,
+              "total_seconds": 0.188693
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.1849592499929713,
+            "peak_rss_mib": 65.84375,
+            "phases": {
+              "native_seconds": 0.17066,
+              "boxing_seconds": 0.00770446,
+              "total_seconds": 0.178365
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.18670341699908022,
+            "peak_rss_mib": 66.078125,
+            "phases": {
+              "native_seconds": 0.172244,
+              "boxing_seconds": 0.00791833,
+              "total_seconds": 0.18016200000000002
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.18661799999972573,
+            "peak_rss_mib": 66.03125,
+            "phases": {
+              "native_seconds": 0.172393,
+              "boxing_seconds": 0.00780079,
+              "total_seconds": 0.18019300000000002
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.18500891699659405,
+            "peak_rss_mib": 65.90625,
+            "phases": {
+              "native_seconds": 0.170315,
+              "boxing_seconds": 0.00798321,
+              "total_seconds": 0.178298
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.18931145800161175,
+            "peak_rss_mib": 66.046875,
+            "phases": {
+              "native_seconds": 0.17451499999999998,
+              "boxing_seconds": 0.008183,
+              "total_seconds": 0.182698
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.1991584999996121,
+            "peak_rss_mib": 65.8125,
+            "phases": {
+              "native_seconds": 0.184638,
+              "boxing_seconds": 0.008072,
+              "total_seconds": 0.19271000000000002
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.19992095899942797,
+            "peak_rss_mib": 65.875,
+            "phases": {
+              "native_seconds": 0.18499700000000002,
+              "boxing_seconds": 0.00823708,
+              "total_seconds": 0.19323400000000002
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          }
+        ],
+        "calamine": [
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.1320326670029317,
+            "peak_rss_mib": 94.96875,
+            "phases": {
+              "load_seconds": 0.12018962499860208,
+              "materialize_seconds": 0.007726292002189439
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.13224487499974202,
+            "peak_rss_mib": 95.984375,
+            "phases": {
+              "load_seconds": 0.12037445899477461,
+              "materialize_seconds": 0.007712375001574401
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.13119845899927896,
+            "peak_rss_mib": 90.40625,
+            "phases": {
+              "load_seconds": 0.11989362500025891,
+              "materialize_seconds": 0.007559208002930973
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.1330034170023282,
+            "peak_rss_mib": 90.703125,
+            "phases": {
+              "load_seconds": 0.12068204199749744,
+              "materialize_seconds": 0.007848541994462721
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.13375554199592443,
+            "peak_rss_mib": 90.640625,
+            "phases": {
+              "load_seconds": 0.12209516700386303,
+              "materialize_seconds": 0.007493958000850398
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.13502608300041175,
+            "peak_rss_mib": 90.140625,
+            "phases": {
+              "load_seconds": 0.12306337500194786,
+              "materialize_seconds": 0.007910290994914249
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.13398125000094296,
+            "peak_rss_mib": 90.625,
+            "phases": {
+              "load_seconds": 0.12140095799986739,
+              "materialize_seconds": 0.008718500001123175
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.13299637499585515,
+            "peak_rss_mib": 95.75,
+            "phases": {
+              "load_seconds": 0.12084795800183201,
+              "materialize_seconds": 0.007830832997569814
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.1343024170055287,
+            "peak_rss_mib": 90.46875,
+            "phases": {
+              "load_seconds": 0.12144112500391202,
+              "materialize_seconds": 0.008476749993860722
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          }
+        ]
+      }
+    },
+    "sparse-mixed": {
+      "fixture": "typed-sparse-mixed.xlsx",
+      "parity": true,
+      "turboxl_median_seconds": 0.03941208300238941,
+      "calamine_median_seconds": 0.02818712500447873,
+      "turboxl_advantage": -0.39822997187996695,
+      "passes_10_percent_gate": false,
+      "results": {
+        "turboxl": [
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.03931758300313959,
+            "peak_rss_mib": 52.640625,
+            "phases": {
+              "native_seconds": 0.029217800000000002,
+              "boxing_seconds": 0.00543067,
+              "total_seconds": 0.0346486
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "fc89262330af4f9307c1141478502a60c1c093d7f4a2588918e3864b68259c56"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.04043904199352255,
+            "peak_rss_mib": 52.984375,
+            "phases": {
+              "native_seconds": 0.029841200000000002,
+              "boxing_seconds": 0.00562867,
+              "total_seconds": 0.035469900000000006
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "fc89262330af4f9307c1141478502a60c1c093d7f4a2588918e3864b68259c56"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.040074999997159466,
+            "peak_rss_mib": 53.5625,
+            "phases": {
+              "native_seconds": 0.029791,
+              "boxing_seconds": 0.00536067,
+              "total_seconds": 0.0351517
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "fc89262330af4f9307c1141478502a60c1c093d7f4a2588918e3864b68259c56"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.03941208300238941,
+            "peak_rss_mib": 53.34375,
+            "phases": {
+              "native_seconds": 0.029560700000000002,
+              "boxing_seconds": 0.0054412900000000005,
+              "total_seconds": 0.035002000000000005
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "fc89262330af4f9307c1141478502a60c1c093d7f4a2588918e3864b68259c56"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.03977308300090954,
+            "peak_rss_mib": 52.875,
+            "phases": {
+              "native_seconds": 0.0293878,
+              "boxing_seconds": 0.0054412900000000005,
+              "total_seconds": 0.0348292
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "fc89262330af4f9307c1141478502a60c1c093d7f4a2588918e3864b68259c56"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.03921112500393065,
+            "peak_rss_mib": 52.640625,
+            "phases": {
+              "native_seconds": 0.0291302,
+              "boxing_seconds": 0.00541871,
+              "total_seconds": 0.034548999999999996
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "fc89262330af4f9307c1141478502a60c1c093d7f4a2588918e3864b68259c56"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.04295049999927869,
+            "peak_rss_mib": 53.828125,
+            "phases": {
+              "native_seconds": 0.0302651,
+              "boxing_seconds": 0.00618192,
+              "total_seconds": 0.036447099999999996
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "fc89262330af4f9307c1141478502a60c1c093d7f4a2588918e3864b68259c56"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.03915087500354275,
+            "peak_rss_mib": 53.171875,
+            "phases": {
+              "native_seconds": 0.0289124,
+              "boxing_seconds": 0.00543029,
+              "total_seconds": 0.034342700000000004
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "fc89262330af4f9307c1141478502a60c1c093d7f4a2588918e3864b68259c56"
+          },
+          {
+            "engine": "turboxl",
+            "version": "0.3.0",
+            "seconds": 0.03939474999788217,
+            "peak_rss_mib": 53.125,
+            "phases": {
+              "native_seconds": 0.0291776,
+              "boxing_seconds": 0.00541858,
+              "total_seconds": 0.0345962
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "fc89262330af4f9307c1141478502a60c1c093d7f4a2588918e3864b68259c56"
+          }
+        ],
+        "calamine": [
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.027996541000902653,
+            "peak_rss_mib": 55.171875,
+            "phases": {
+              "load_seconds": 0.0211090420052642,
+              "materialize_seconds": 0.004535042004135903
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "fc89262330af4f9307c1141478502a60c1c093d7f4a2588918e3864b68259c56"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.028373417000693735,
+            "peak_rss_mib": 54.6875,
+            "phases": {
+              "load_seconds": 0.021370250004110858,
+              "materialize_seconds": 0.004572915997414384
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "fc89262330af4f9307c1141478502a60c1c093d7f4a2588918e3864b68259c56"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.028819790997658856,
+            "peak_rss_mib": 54.78125,
+            "phases": {
+              "load_seconds": 0.0217940840011579,
+              "materialize_seconds": 0.004541333000815939
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "fc89262330af4f9307c1141478502a60c1c093d7f4a2588918e3864b68259c56"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.0277477080016979,
+            "peak_rss_mib": 54.4375,
+            "phases": {
+              "load_seconds": 0.02080641700013075,
+              "materialize_seconds": 0.004550000005110633
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "fc89262330af4f9307c1141478502a60c1c093d7f4a2588918e3864b68259c56"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.027859374997206032,
+            "peak_rss_mib": 54.703125,
+            "phases": {
+              "load_seconds": 0.021115875002578832,
+              "materialize_seconds": 0.004392249997181352
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "fc89262330af4f9307c1141478502a60c1c093d7f4a2588918e3864b68259c56"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.028073665998817887,
+            "peak_rss_mib": 55.40625,
+            "phases": {
+              "load_seconds": 0.02111049999803072,
+              "materialize_seconds": 0.0044867500037071295
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "fc89262330af4f9307c1141478502a60c1c093d7f4a2588918e3864b68259c56"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.02818712500447873,
+            "peak_rss_mib": 55.015625,
+            "phases": {
+              "load_seconds": 0.021316500002285466,
+              "materialize_seconds": 0.004519417001574766
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "fc89262330af4f9307c1141478502a60c1c093d7f4a2588918e3864b68259c56"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.028322750004008412,
+            "peak_rss_mib": 54.953125,
+            "phases": {
+              "load_seconds": 0.021607041999232024,
+              "materialize_seconds": 0.004403916995215695
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "fc89262330af4f9307c1141478502a60c1c093d7f4a2588918e3864b68259c56"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.031306958000641316,
+            "peak_rss_mib": 55.40625,
+            "phases": {
+              "load_seconds": 0.023124625004129484,
+              "materialize_seconds": 0.004655459000787232
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "fc89262330af4f9307c1141478502a60c1c093d7f4a2588918e3864b68259c56"
+          }
+        ]
+      }
+    }
+  },
+  "exact_compatible_value_parity": true,
+  "typed_adapter_may_proceed": false
+}

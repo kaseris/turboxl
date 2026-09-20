@@ -211,8 +211,10 @@ add_library(turboxl_core
     src/core/cell_data.cpp
     src/core/sheet_stream_reader.cpp
     src/core/data_converter.cpp
+    src/core/typed_row_collector.cpp
     src/csv/csv_encoder.cpp
     src/facade/xlsx_reader.cpp
+    src/facade/typed_reader.cpp
 )
 
 target_include_directories(turboxl_core
@@ -332,6 +334,7 @@ if(BUILD_PYTHON)
         nanobind_add_module(turboxl src/python/module.cpp)
     endif()
     target_link_libraries(turboxl PRIVATE turboxl_core)
+    target_include_directories(turboxl PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
     # Propagate LIBXML_STATIC to the Python extension compile if needed
     if(WIN32 AND _LIBXML2_IS_STATIC)
@@ -400,9 +403,13 @@ if(BUILD_TESTS)
         tests/test_phase5_functionality.cpp
         tests/test_csv_encoder.cpp
         tests/test_integration.cpp
+        tests/test_typed_reader.cpp
     )
     
-    target_include_directories(turboxl_tests PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+    target_include_directories(turboxl_tests PRIVATE
+        "${CMAKE_CURRENT_BINARY_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    )
 
     target_link_libraries(turboxl_tests
         PRIVATE

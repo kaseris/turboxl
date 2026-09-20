@@ -83,15 +83,81 @@ def generate(output: Path, rows: int, mode: str) -> None:
             sheet.write(b"</sheetData></worksheet>")
 
 
+def generate_typed(output: Path, rows: int, family: str) -> None:
+    shared = family == "dense-shared"
+    sparse = family == "sparse-mixed"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    headers = ("text", "int", "float", "bool", "text2", "int2", "bool2", "float2")
+    pool = list(headers) + [f"label-{index}" for index in range(256)]
+
+    with ZipFile(output, "w", ZIP_DEFLATED, compresslevel=6) as archive:
+        for name, content in static_parts(shared).items():
+            archive.writestr(name, content.encode())
+        if shared:
+            items = "".join(f"<si><t>{value}</t></si>" for value in pool)
+            archive.writestr(
+                "xl/sharedStrings.xml",
+                f'<sst xmlns="{MAIN}" uniqueCount="{len(pool)}">{items}</sst>'.encode(),
+            )
+
+        def text_cell(reference: str, value: str, pool_index: int) -> str:
+            return (
+                shared_cell(reference, pool_index)
+                if shared
+                else inline_cell(reference, value)
+            )
+
+        with archive.open("xl/worksheets/sheet1.xml", "w") as sheet:
+            sheet.write(f'<worksheet xmlns="{MAIN}"><sheetData>'.encode())
+            header_cells = "".join(
+                text_cell(f"{chr(65 + index)}1", value, index)
+                for index, value in enumerate(headers)
+            )
+            sheet.write(f'<row r="1">{header_cells}</row>'.encode())
+            for row in range(2, rows + 2):
+                if sparse and row != rows + 1 and row % 3:
+                    continue
+                label_index = 8 + row % 256
+                first = text_cell(f"A{row}", f"label-{row % 256}", label_index)
+                if sparse:
+                    xml = (
+                        f'<row r="{row}">{first}<c r="C{row}"><v>{row / 7:.7f}</v></c>'
+                        f'<c r="H{row}" t="b"><v>{row & 1}</v></c></row>'
+                    )
+                else:
+                    second_index = 8 + (row * 7) % 256
+                    second = text_cell(
+                        f"E{row}", f"label-{(row * 7) % 256}", second_index
+                    )
+                    xml = (
+                        f'<row r="{row}">{first}<c r="B{row}"><v>{row}</v></c>'
+                        f'<c r="C{row}"><v>{row / 7:.7f}</v></c>'
+                        f'<c r="D{row}" t="b"><v>{row & 1}</v></c>{second}'
+                        f'<c r="F{row}"><v>{row * 3}</v></c>'
+                        f'<c r="G{row}" t="b"><v>{(row + 1) & 1}</v></c>'
+                        f'<c r="H{row}"><v>{row / 13:.7f}</v></c></row>'
+                    )
+                sheet.write(xml.encode())
+            sheet.write(b"</sheetData></worksheet>")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("output", type=Path)
     parser.add_argument("--rows", type=int, default=60_000)
     parser.add_argument("--mode", choices=("inline", "shared"), default="inline")
+    parser.add_argument(
+        "--family",
+        choices=("dense-inline", "dense-shared", "sparse-mixed"),
+        help="generate a typed-path benchmark fixture",
+    )
     args = parser.parse_args()
     if args.rows < 1:
         parser.error("--rows must be positive")
-    generate(args.output, args.rows, args.mode)
+    if args.family:
+        generate_typed(args.output, args.rows, args.family)
+    else:
+        generate(args.output, args.rows, args.mode)
 
 
 if __name__ == "__main__":

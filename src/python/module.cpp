@@ -5,8 +5,37 @@
 #include <nanobind/stl/vector.h>
 #include <nanobind/stl/filesystem.h>
 #include "xlsxcsv.hpp"
+#include "typed_reader.hpp"
+
+#include <chrono>
+#include <cstdlib>
+#include <iostream>
 
 namespace nb = nanobind;
+
+namespace {
+
+nb::object boxTypedValue(const xlsxcsv::internal::TypedCellValue& value) {
+    if (std::holds_alternative<std::monostate>(value)) {
+        return nb::none();
+    }
+    if (std::holds_alternative<bool>(value)) {
+        return nb::bool_(std::get<bool>(value));
+    }
+    if (std::holds_alternative<double>(value)) {
+        return nb::float_(std::get<double>(value));
+    }
+    const auto& text = std::get<std::string>(value);
+    return nb::str(text.data(), text.size());
+}
+
+bool profileTypedTimings() {
+    const char* value = std::getenv("TURBOXL_PROFILE_TYPED_TIMINGS");
+    return value && (value[0] == '1' || value[0] == 't' || value[0] == 'T' ||
+                     value[0] == 'y' || value[0] == 'Y');
+}
+
+} // namespace
 
 NB_MODULE(turboxl, m) {
     m.doc() = "Fast XLSX to CSV converter (C++ core with Python bindings)";
@@ -142,5 +171,51 @@ NB_MODULE(turboxl, m) {
         nb::arg("sheet_names"),
         nb::arg("options") = xlsxcsv::CsvOptions{},
         "Convert multiple worksheets to CSV by name"
+    );
+
+    // Private vertical-slice API used only by the typed-path benchmark. The
+    // public owning Workbook/Sheet API is tracked separately.
+    m.def("_read_sheet_to_python",
+        [](const std::string& xlsx_path,
+           const std::variant<std::string, int>& sheet) -> nb::list {
+            using Clock = std::chrono::steady_clock;
+            const auto totalStart = Clock::now();
+            xlsxcsv::internal::TypedWorksheet nativeRows;
+            const auto nativeStart = Clock::now();
+            {
+                nb::gil_scoped_release gil;
+                nativeRows = xlsxcsv::internal::readSheetToTyped(xlsx_path, sheet);
+            }
+            const auto nativeEnd = Clock::now();
+
+            const auto boxingStart = Clock::now();
+            nb::list rows;
+            for (const auto& nativeRow : nativeRows) {
+                nb::list row;
+                for (const auto& value : nativeRow) {
+                    row.append(boxTypedValue(value));
+                }
+                rows.append(std::move(row));
+            }
+            const auto boxingEnd = Clock::now();
+
+            if (profileTypedTimings()) {
+                const auto milliseconds = [](auto duration) {
+                    return std::chrono::duration<double, std::milli>(duration).count();
+                };
+                const std::size_t columns = nativeRows.empty() ? 0 : nativeRows.front().size();
+                std::cerr
+                    << "turboxl_typed_timing_ms"
+                    << " native=" << milliseconds(nativeEnd - nativeStart)
+                    << " boxing=" << milliseconds(boxingEnd - boxingStart)
+                    << " total=" << milliseconds(boxingEnd - totalStart)
+                    << " rows=" << nativeRows.size()
+                    << " columns=" << columns << '\n';
+            }
+            return rows;
+        },
+        nb::arg("xlsx_path"),
+        nb::arg("sheet") = 0,
+        "Private benchmark-only typed worksheet extraction path"
     );
 }

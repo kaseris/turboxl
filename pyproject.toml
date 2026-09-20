@@ -41,7 +41,7 @@ dev = [
 [tool.scikit-build]
 wheel.py-api = "cp312"
 install.components = ["python"]
-sdist.include = ["tools/ci/**", "tools/wheels/**", "tools/generate_benchmark_fixture.py", "tools/benchmark_parity.py", "benchmarks/**", "tests/**", "cmake/**"]
+sdist.include = ["tools/ci/**", "tools/wheels/**", "tools/generate_benchmark_fixture.py", "tools/benchmark_parity.py", "tools/benchmark_typed.py", "benchmarks/**", "tests/**", "cmake/**"]
 cmake.build-type = "Release"
 cmake.define = { BUILD_PYTHON = "ON", BUILD_TESTS = "OFF", BUILD_CLI = "OFF", BUILD_BENCHMARKS = "OFF", TURBOXL_PORTABLE_BUILD = "ON", TURBOXL_ENABLE_NATIVE_OPTIMIZATION = "OFF", TURBOXL_ENABLE_IPO = "ON" }
 

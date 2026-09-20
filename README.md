@@ -67,6 +67,44 @@ and [`tools/cloud_benchmark.py`](tools/cloud_benchmark.py):
 Implementation features include zlib-ng support, release-mode compiler
 optimizations, arena-based shared strings, and chunked ZIP reading.
 
+### Typed worksheet vertical-slice result
+
+Issue #100 added a private, path-based typed extraction slice to measure the
+cost of producing rectangular Python `list[list]` data before committing to a
+pandas adapter. This is benchmark scaffolding, not a supported public API;
+`_read_sheet_to_python` may change or disappear as the owning Workbook/Sheet
+API is built.
+
+The September 20, 2026 run used macOS 15.7.4 on arm64, CPython 3.14.7,
+TurboXL 0.3.0 from this checkout, and python-calamine 0.8.2. Each deterministic
+fixture contained 60,000 data rows. Results are medians of nine measurements
+after two warm-ups, with each engine run in a fresh process and engine order
+alternated between rounds.
+
+| Fixture family | TurboXL total | Native extraction | Python boxing | Calamine total | TurboXL advantage | Peak RSS (TurboXL / Calamine) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Dense inline strings | 0.1945s | 0.1802s | 0.0079s | 0.1464s | -32.8% | 66.2 / 90.7 MiB |
+| Dense shared strings | 0.1867s | 0.1724s | 0.0080s | 0.1330s | -40.4% | 65.9 / 90.6 MiB |
+| Sparse mixed primitives | 0.0394s | 0.0294s | 0.0054s | 0.0282s | -39.8% | 53.1 / 55.0 MiB |
+
+All three fixture families produced identical rectangular shapes and compatible
+scalar values. TurboXL used less peak memory, but did not achieve the required
+10% median speed advantage on any family. The performance gate therefore fails
+and the conditional pandas-adapter work in #108 must not proceed on this
+evidence.
+
+Reproduce the run with:
+
+```bash
+python tools/benchmark_typed.py \
+  --rows 60000 --warmups 2 --rounds 9 \
+  --fixtures-dir typed-benchmark-fixtures \
+  --json-output typed-benchmark-results.json
+```
+
+The raw report is committed at
+[`benchmarks/results/typed/macos-arm64-260920.json`](benchmarks/results/typed/macos-arm64-260920.json).
+
 ## What It Does
 
 - ✅ Read XLSX files and convert to CSV
