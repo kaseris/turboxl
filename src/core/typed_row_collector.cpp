@@ -69,6 +69,25 @@ public:
         lastPhysicalRow = rowNumber;
     }
 
+    void reserveColumns(std::size_t hint) {
+        if (currentRow && hint > 0) {
+            currentRow->reserve(hint);
+        }
+    }
+
+    void addValue(int columnNumber, TypedCellValue&& value) {
+        if (!currentRow || columnNumber <= 0) {
+            errors.emplace_back("Invalid primitive cell column");
+            return;
+        }
+        const auto column = static_cast<std::size_t>(columnNumber);
+        if (currentRow->size() < column) {
+            currentRow->resize(column);
+        }
+        (*currentRow)[column - 1] = std::move(value);
+        columnCount = std::max(columnCount, column);
+    }
+
     void addCell(const core::CellData& cell) {
         if (!currentRow) {
             return;
@@ -137,6 +156,45 @@ void TypedRowCollector::handleCell(core::CellData&& cell) {
 }
 
 void TypedRowCollector::endRow() {
+    m_impl->currentRow = nullptr;
+}
+
+void TypedRowCollector::beginPrimitiveRow(
+    int rowNumber, [[maybe_unused]] bool hidden, std::size_t columnReserveHint) {
+    m_impl->beginRow(rowNumber);
+    m_impl->reserveColumns(columnReserveHint);
+}
+
+void TypedRowCollector::addEmpty(int column) {
+    m_impl->addValue(column, std::monostate{});
+}
+
+void TypedRowCollector::addBoolean(int column, bool value) {
+    m_impl->addValue(column, value);
+}
+
+void TypedRowCollector::addNumber(int column, double value) {
+    m_impl->addValue(column, value);
+}
+
+void TypedRowCollector::addString(int column, std::string&& value) {
+    m_impl->addValue(column, std::move(value));
+}
+
+void TypedRowCollector::addSharedString(int column, std::size_t index) {
+    if (m_impl->sharedStrings) {
+        auto value = m_impl->sharedStrings->tryGetString(index);
+        if (value) {
+            m_impl->addValue(column, std::move(*value));
+            return;
+        }
+    }
+    m_impl->errors.push_back(
+        "Shared string index out of range: " + std::to_string(index));
+    m_impl->addValue(column, std::monostate{});
+}
+
+void TypedRowCollector::endPrimitiveRow() {
     m_impl->currentRow = nullptr;
 }
 

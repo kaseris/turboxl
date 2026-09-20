@@ -1,6 +1,7 @@
 #pragma once
 
 #include "xlsxcsv/core.hpp"
+#include "core/primitive_cell_handler.hpp"
 
 #include <cstddef>
 #include <memory>
@@ -15,7 +16,8 @@ using TypedRow = std::vector<TypedCellValue>;
 using TypedWorksheet = std::vector<TypedRow>;
 
 class TypedRowCollector final : public core::SheetRowHandler,
-                                public core::SheetCellHandler {
+                                public core::SheetCellHandler,
+                                public PrimitiveCellHandler {
 public:
     explicit TypedRowCollector(const core::SharedStringsProvider* sharedStrings = nullptr);
     ~TypedRowCollector() override;
@@ -31,6 +33,15 @@ public:
     void beginRow(int rowNumber, bool hidden) override;
     void handleCell(core::CellData&& cell) override;
     void endRow() override;
+
+    void beginPrimitiveRow(
+        int rowNumber, bool hidden, std::size_t columnReserveHint) override;
+    void addEmpty(int column) override;
+    void addBoolean(int column, bool value) override;
+    void addNumber(int column, double value) override;
+    void addString(int column, std::string&& value) override;
+    void addSharedString(int column, std::size_t index) override;
+    void endPrimitiveRow() override;
 
     TypedWorksheet takeRows();
     const std::vector<std::string>& getErrors() const;

@@ -37,7 +37,9 @@ documentation agree.
   work: check output parity and benchmark the affected path.
 
 Generated directories such as `build/`, `out/`, `dist/`, and virtual
-environments must not be committed.
+environments must not be committed. The source-distribution configuration also
+excludes generated build and output directories so local artifacts cannot leak
+into a release archive.
 
 ### 3. Verify locally
 

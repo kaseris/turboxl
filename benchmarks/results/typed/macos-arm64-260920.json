@@ -11,21 +11,21 @@
     "dense-inline": {
       "fixture": "typed-dense-inline.xlsx",
       "parity": true,
-      "turboxl_median_seconds": 0.1944740839971928,
-      "calamine_median_seconds": 0.14638754200132098,
-      "turboxl_advantage": -0.3284879391952485,
-      "passes_10_percent_gate": false,
+      "turboxl_median_seconds": 0.09004820800328162,
+      "calamine_median_seconds": 0.15468554200197104,
+      "turboxl_advantage": 0.4178628019279643,
+      "passes_10_percent_gate": true,
       "results": {
         "turboxl": [
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.19401775000005728,
-            "peak_rss_mib": 66.15625,
+            "seconds": 0.08893220899335574,
+            "peak_rss_mib": 85.34375,
             "phases": {
-              "native_seconds": 0.180233,
-              "boxing_seconds": 0.0077277100000000005,
-              "total_seconds": 0.18796000000000002
+              "native_seconds": 0.0739685,
+              "boxing_seconds": 0.00807446,
+              "total_seconds": 0.082043
             },
             "rows": 60001,
             "columns": 8,
@@ -35,12 +35,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.1943230830001994,
-            "peak_rss_mib": 66.28125,
+            "seconds": 0.09071874999790452,
+            "peak_rss_mib": 84.984375,
             "phases": {
-              "native_seconds": 0.180117,
-              "boxing_seconds": 0.00785137,
-              "total_seconds": 0.187969
+              "native_seconds": 0.0746669,
+              "boxing_seconds": 0.00850971,
+              "total_seconds": 0.08317659999999999
             },
             "rows": 60001,
             "columns": 8,
@@ -50,12 +50,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.19306883399985963,
-            "peak_rss_mib": 66.515625,
+            "seconds": 0.08925941699999385,
+            "peak_rss_mib": 84.890625,
             "phases": {
-              "native_seconds": 0.17940799999999998,
-              "boxing_seconds": 0.00756825,
-              "total_seconds": 0.186976
+              "native_seconds": 0.0748598,
+              "boxing_seconds": 0.00786267,
+              "total_seconds": 0.08272249999999999
             },
             "rows": 60001,
             "columns": 8,
@@ -65,12 +65,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.1944740839971928,
-            "peak_rss_mib": 66.0625,
+            "seconds": 0.08976791599707212,
+            "peak_rss_mib": 85.015625,
             "phases": {
-              "native_seconds": 0.180208,
-              "boxing_seconds": 0.00781892,
-              "total_seconds": 0.188026
+              "native_seconds": 0.07435800000000001,
+              "boxing_seconds": 0.00803917,
+              "total_seconds": 0.0823972
             },
             "rows": 60001,
             "columns": 8,
@@ -80,12 +80,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.19439375000365544,
-            "peak_rss_mib": 66.703125,
+            "seconds": 0.09028391700121574,
+            "peak_rss_mib": 84.921875,
             "phases": {
-              "native_seconds": 0.180342,
-              "boxing_seconds": 0.00797817,
-              "total_seconds": 0.18832
+              "native_seconds": 0.07532710000000001,
+              "boxing_seconds": 0.00794696,
+              "total_seconds": 0.0832741
             },
             "rows": 60001,
             "columns": 8,
@@ -95,12 +95,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.19508629199845018,
-            "peak_rss_mib": 65.28125,
+            "seconds": 0.09023495900328271,
+            "peak_rss_mib": 85.0625,
             "phases": {
-              "native_seconds": 0.181271,
-              "boxing_seconds": 0.00789433,
-              "total_seconds": 0.189165
+              "native_seconds": 0.0749832,
+              "boxing_seconds": 0.00805058,
+              "total_seconds": 0.08303390000000001
             },
             "rows": 60001,
             "columns": 8,
@@ -110,12 +110,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.20484900000155903,
-            "peak_rss_mib": 66.1875,
+            "seconds": 0.08944645799056161,
+            "peak_rss_mib": 85.40625,
             "phases": {
-              "native_seconds": 0.19130699999999998,
-              "boxing_seconds": 0.00757533,
-              "total_seconds": 0.198882
+              "native_seconds": 0.07511029999999999,
+              "boxing_seconds": 0.00782392,
+              "total_seconds": 0.08293429999999999
             },
             "rows": 60001,
             "columns": 8,
@@ -125,12 +125,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.19483745800243923,
-            "peak_rss_mib": 66.328125,
+            "seconds": 0.09004820800328162,
+            "peak_rss_mib": 84.546875,
             "phases": {
-              "native_seconds": 0.179848,
-              "boxing_seconds": 0.0083475,
-              "total_seconds": 0.188195
+              "native_seconds": 0.07503270000000001,
+              "boxing_seconds": 0.0080275,
+              "total_seconds": 0.0830603
             },
             "rows": 60001,
             "columns": 8,
@@ -140,12 +140,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.19655600000260165,
-            "peak_rss_mib": 65.578125,
+            "seconds": 0.09045354199770372,
+            "peak_rss_mib": 84.71875,
             "phases": {
-              "native_seconds": 0.182429,
-              "boxing_seconds": 0.00786454,
-              "total_seconds": 0.19029300000000002
+              "native_seconds": 0.07502460000000001,
+              "boxing_seconds": 0.00813138,
+              "total_seconds": 0.08315600000000001
             },
             "rows": 60001,
             "columns": 8,
@@ -157,11 +157,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.14616437500080792,
-            "peak_rss_mib": 95.640625,
+            "seconds": 0.15521558400359936,
+            "peak_rss_mib": 95.84375,
             "phases": {
-              "load_seconds": 0.13469391699618427,
-              "materialize_seconds": 0.00774466700386256
+              "load_seconds": 0.142580291008926,
+              "materialize_seconds": 0.007856708005419932
             },
             "rows": 60001,
             "columns": 8,
@@ -171,11 +171,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.14638754200132098,
-            "peak_rss_mib": 90.0625,
+            "seconds": 0.15468554200197104,
+            "peak_rss_mib": 94.734375,
             "phases": {
-              "load_seconds": 0.13447891700343462,
-              "materialize_seconds": 0.007705999996687751
+              "load_seconds": 0.14178779200301506,
+              "materialize_seconds": 0.007970749997184612
             },
             "rows": 60001,
             "columns": 8,
@@ -185,11 +185,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.14642441700561903,
-            "peak_rss_mib": 90.328125,
+            "seconds": 0.1538069169910159,
+            "peak_rss_mib": 95.5,
             "phases": {
-              "load_seconds": 0.13488183300069068,
-              "materialize_seconds": 0.00754745899757836
+              "load_seconds": 0.1413533750019269,
+              "materialize_seconds": 0.007900875003542751
             },
             "rows": 60001,
             "columns": 8,
@@ -199,11 +199,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.14642854200064903,
-            "peak_rss_mib": 89.90625,
+            "seconds": 0.154877042004955,
+            "peak_rss_mib": 95.25,
             "phases": {
-              "load_seconds": 0.13485324999783188,
-              "materialize_seconds": 0.007487250004487578
+              "load_seconds": 0.14165241600130685,
+              "materialize_seconds": 0.00805454199144151
             },
             "rows": 60001,
             "columns": 8,
@@ -213,11 +213,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.14646941699902527,
-            "peak_rss_mib": 94.8125,
+            "seconds": 0.1529181670048274,
+            "peak_rss_mib": 95.265625,
             "phases": {
-              "load_seconds": 0.13490249999449588,
-              "materialize_seconds": 0.007441333000315353
+              "load_seconds": 0.14059545799682382,
+              "materialize_seconds": 0.008157374992151745
             },
             "rows": 60001,
             "columns": 8,
@@ -227,11 +227,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.14484720899781678,
-            "peak_rss_mib": 90.0625,
+            "seconds": 0.1537910000042757,
+            "peak_rss_mib": 95.359375,
             "phases": {
-              "load_seconds": 0.13315145899832714,
-              "materialize_seconds": 0.007428791999700479
+              "load_seconds": 0.14082095799676608,
+              "materialize_seconds": 0.007839333993615583
             },
             "rows": 60001,
             "columns": 8,
@@ -241,11 +241,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.14582075000362238,
-            "peak_rss_mib": 90.734375,
+            "seconds": 0.15574533300241455,
+            "peak_rss_mib": 95.359375,
             "phases": {
-              "load_seconds": 0.13448366599914152,
-              "materialize_seconds": 0.007589041997562163
+              "load_seconds": 0.14310324999678414,
+              "materialize_seconds": 0.00779458400211297
             },
             "rows": 60001,
             "columns": 8,
@@ -255,11 +255,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.145269582993933,
-            "peak_rss_mib": 95.28125,
+            "seconds": 0.15391458399244584,
+            "peak_rss_mib": 95.203125,
             "phases": {
-              "load_seconds": 0.1338283750010305,
-              "materialize_seconds": 0.007507000002078712
+              "load_seconds": 0.14122487501299474,
+              "materialize_seconds": 0.00783791700087022
             },
             "rows": 60001,
             "columns": 8,
@@ -269,11 +269,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.14743479099706747,
-            "peak_rss_mib": 94.859375,
+            "seconds": 0.1555930000031367,
+            "peak_rss_mib": 90.40625,
             "phases": {
-              "load_seconds": 0.13578533299732953,
-              "materialize_seconds": 0.007609917003719602
+              "load_seconds": 0.14262366699404083,
+              "materialize_seconds": 0.007963416996062733
             },
             "rows": 60001,
             "columns": 8,
@@ -286,21 +286,21 @@
     "dense-shared": {
       "fixture": "typed-dense-shared.xlsx",
       "parity": true,
-      "turboxl_median_seconds": 0.18670341699908022,
-      "calamine_median_seconds": 0.1330034170023282,
-      "turboxl_advantage": -0.40374902545407537,
-      "passes_10_percent_gate": false,
+      "turboxl_median_seconds": 0.08682820800459012,
+      "calamine_median_seconds": 0.1395639590045903,
+      "turboxl_advantage": 0.3778608128927159,
+      "passes_10_percent_gate": true,
       "results": {
         "turboxl": [
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.18609316700167255,
-            "peak_rss_mib": 65.8125,
+            "seconds": 0.08682820800459012,
+            "peak_rss_mib": 82.234375,
             "phases": {
-              "native_seconds": 0.172298,
-              "boxing_seconds": 0.00784262,
-              "total_seconds": 0.180141
+              "native_seconds": 0.071617,
+              "boxing_seconds": 0.00791962,
+              "total_seconds": 0.0795367
             },
             "rows": 60001,
             "columns": 8,
@@ -310,12 +310,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.19583754199993564,
-            "peak_rss_mib": 66.625,
+            "seconds": 0.0864848330093082,
+            "peak_rss_mib": 82.4375,
             "phases": {
-              "native_seconds": 0.179063,
-              "boxing_seconds": 0.00963008,
-              "total_seconds": 0.188693
+              "native_seconds": 0.07172709999999999,
+              "boxing_seconds": 0.00793396,
+              "total_seconds": 0.0796611
             },
             "rows": 60001,
             "columns": 8,
@@ -325,12 +325,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.1849592499929713,
-            "peak_rss_mib": 65.84375,
+            "seconds": 0.08655741700204089,
+            "peak_rss_mib": 82.140625,
             "phases": {
-              "native_seconds": 0.17066,
-              "boxing_seconds": 0.00770446,
-              "total_seconds": 0.178365
+              "native_seconds": 0.0718597,
+              "boxing_seconds": 0.008021789999999999,
+              "total_seconds": 0.07988150000000001
             },
             "rows": 60001,
             "columns": 8,
@@ -340,12 +340,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.18670341699908022,
-            "peak_rss_mib": 66.078125,
+            "seconds": 0.08932120799727272,
+            "peak_rss_mib": 82.203125,
             "phases": {
-              "native_seconds": 0.172244,
-              "boxing_seconds": 0.00791833,
-              "total_seconds": 0.18016200000000002
+              "native_seconds": 0.07365909999999999,
+              "boxing_seconds": 0.00834758,
+              "total_seconds": 0.0820067
             },
             "rows": 60001,
             "columns": 8,
@@ -355,12 +355,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.18661799999972573,
-            "peak_rss_mib": 66.03125,
+            "seconds": 0.08670887499465607,
+            "peak_rss_mib": 82.40625,
             "phases": {
-              "native_seconds": 0.172393,
-              "boxing_seconds": 0.00780079,
-              "total_seconds": 0.18019300000000002
+              "native_seconds": 0.0714481,
+              "boxing_seconds": 0.00822667,
+              "total_seconds": 0.0796748
             },
             "rows": 60001,
             "columns": 8,
@@ -370,12 +370,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.18500891699659405,
-            "peak_rss_mib": 65.90625,
+            "seconds": 0.08700945798773319,
+            "peak_rss_mib": 82.53125,
             "phases": {
-              "native_seconds": 0.170315,
-              "boxing_seconds": 0.00798321,
-              "total_seconds": 0.178298
+              "native_seconds": 0.071658,
+              "boxing_seconds": 0.00801996,
+              "total_seconds": 0.079678
             },
             "rows": 60001,
             "columns": 8,
@@ -385,12 +385,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.18931145800161175,
-            "peak_rss_mib": 66.046875,
+            "seconds": 0.08699245800380595,
+            "peak_rss_mib": 82.15625,
             "phases": {
-              "native_seconds": 0.17451499999999998,
-              "boxing_seconds": 0.008183,
-              "total_seconds": 0.182698
+              "native_seconds": 0.07175920000000001,
+              "boxing_seconds": 0.008016,
+              "total_seconds": 0.0797752
             },
             "rows": 60001,
             "columns": 8,
@@ -400,12 +400,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.1991584999996121,
-            "peak_rss_mib": 65.8125,
+            "seconds": 0.08695962499768939,
+            "peak_rss_mib": 82.3125,
             "phases": {
-              "native_seconds": 0.184638,
-              "boxing_seconds": 0.008072,
-              "total_seconds": 0.19271000000000002
+              "native_seconds": 0.0724394,
+              "boxing_seconds": 0.00838092,
+              "total_seconds": 0.0808203
             },
             "rows": 60001,
             "columns": 8,
@@ -415,12 +415,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.19992095899942797,
-            "peak_rss_mib": 65.875,
+            "seconds": 0.08618562499759719,
+            "peak_rss_mib": 82.28125,
             "phases": {
-              "native_seconds": 0.18499700000000002,
-              "boxing_seconds": 0.00823708,
-              "total_seconds": 0.19323400000000002
+              "native_seconds": 0.0714149,
+              "boxing_seconds": 0.008006880000000001,
+              "total_seconds": 0.0794218
             },
             "rows": 60001,
             "columns": 8,
@@ -432,11 +432,39 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.1320326670029317,
+            "seconds": 0.1395639590045903,
+            "peak_rss_mib": 94.859375,
+            "phases": {
+              "load_seconds": 0.1266820830060169,
+              "materialize_seconds": 0.007971541999722831
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.13788470899453387,
+            "peak_rss_mib": 90.453125,
+            "phases": {
+              "load_seconds": 0.1256352079944918,
+              "materialize_seconds": 0.008101667001028545
+            },
+            "rows": 60001,
+            "columns": 8,
+            "cells": 480008,
+            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
+          },
+          {
+            "engine": "calamine",
+            "version": "0.8.2",
+            "seconds": 0.1399639580049552,
             "peak_rss_mib": 94.96875,
             "phases": {
-              "load_seconds": 0.12018962499860208,
-              "materialize_seconds": 0.007726292002189439
+              "load_seconds": 0.1272224999993341,
+              "materialize_seconds": 0.007783207998727448
             },
             "rows": 60001,
             "columns": 8,
@@ -446,11 +474,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.13224487499974202,
-            "peak_rss_mib": 95.984375,
+            "seconds": 0.14388120800140314,
+            "peak_rss_mib": 90.203125,
             "phases": {
-              "load_seconds": 0.12037445899477461,
-              "materialize_seconds": 0.007712375001574401
+              "load_seconds": 0.1294062500091968,
+              "materialize_seconds": 0.00882558299053926
             },
             "rows": 60001,
             "columns": 8,
@@ -460,11 +488,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.13119845899927896,
-            "peak_rss_mib": 90.40625,
+            "seconds": 0.13900624999951106,
+            "peak_rss_mib": 95.359375,
             "phases": {
-              "load_seconds": 0.11989362500025891,
-              "materialize_seconds": 0.007559208002930973
+              "load_seconds": 0.1263864999928046,
+              "materialize_seconds": 0.007997458000318147
             },
             "rows": 60001,
             "columns": 8,
@@ -474,11 +502,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.1330034170023282,
-            "peak_rss_mib": 90.703125,
+            "seconds": 0.1415172499982873,
+            "peak_rss_mib": 95.96875,
             "phases": {
-              "load_seconds": 0.12068204199749744,
-              "materialize_seconds": 0.007848541994462721
+              "load_seconds": 0.1281752919894643,
+              "materialize_seconds": 0.008705333995749243
             },
             "rows": 60001,
             "columns": 8,
@@ -488,11 +516,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.13375554199592443,
-            "peak_rss_mib": 90.640625,
+            "seconds": 0.1374524580023717,
+            "peak_rss_mib": 95.109375,
             "phases": {
-              "load_seconds": 0.12209516700386303,
-              "materialize_seconds": 0.007493958000850398
+              "load_seconds": 0.12542079199920408,
+              "materialize_seconds": 0.007963832991663367
             },
             "rows": 60001,
             "columns": 8,
@@ -502,11 +530,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.13502608300041175,
-            "peak_rss_mib": 90.140625,
+            "seconds": 0.14035600000352133,
+            "peak_rss_mib": 95.1875,
             "phases": {
-              "load_seconds": 0.12306337500194786,
-              "materialize_seconds": 0.007910290994914249
+              "load_seconds": 0.12756166700273752,
+              "materialize_seconds": 0.008096541001577862
             },
             "rows": 60001,
             "columns": 8,
@@ -516,39 +544,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.13398125000094296,
-            "peak_rss_mib": 90.625,
+            "seconds": 0.1392122919933172,
+            "peak_rss_mib": 90.453125,
             "phases": {
-              "load_seconds": 0.12140095799986739,
-              "materialize_seconds": 0.008718500001123175
-            },
-            "rows": 60001,
-            "columns": 8,
-            "cells": 480008,
-            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
-          },
-          {
-            "engine": "calamine",
-            "version": "0.8.2",
-            "seconds": 0.13299637499585515,
-            "peak_rss_mib": 95.75,
-            "phases": {
-              "load_seconds": 0.12084795800183201,
-              "materialize_seconds": 0.007830832997569814
-            },
-            "rows": 60001,
-            "columns": 8,
-            "cells": 480008,
-            "sha256": "7d59aaf66b03d3b3406aa16c988d4e23220343d50fbdca90ce05b292c621872f"
-          },
-          {
-            "engine": "calamine",
-            "version": "0.8.2",
-            "seconds": 0.1343024170055287,
-            "peak_rss_mib": 90.46875,
-            "phases": {
-              "load_seconds": 0.12144112500391202,
-              "materialize_seconds": 0.008476749993860722
+              "load_seconds": 0.1268177080055466,
+              "materialize_seconds": 0.007970082995598204
             },
             "rows": 60001,
             "columns": 8,
@@ -561,21 +561,21 @@
     "sparse-mixed": {
       "fixture": "typed-sparse-mixed.xlsx",
       "parity": true,
-      "turboxl_median_seconds": 0.03941208300238941,
-      "calamine_median_seconds": 0.02818712500447873,
-      "turboxl_advantage": -0.39822997187996695,
-      "passes_10_percent_gate": false,
+      "turboxl_median_seconds": 0.024793124990537763,
+      "calamine_median_seconds": 0.0294987080123974,
+      "turboxl_advantage": 0.15951827516927272,
+      "passes_10_percent_gate": true,
       "results": {
         "turboxl": [
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.03931758300313959,
-            "peak_rss_mib": 52.640625,
+            "seconds": 0.024774374993285164,
+            "peak_rss_mib": 55.734375,
             "phases": {
-              "native_seconds": 0.029217800000000002,
-              "boxing_seconds": 0.00543067,
-              "total_seconds": 0.0346486
+              "native_seconds": 0.013623699999999999,
+              "boxing_seconds": 0.005635169999999999,
+              "total_seconds": 0.0192589
             },
             "rows": 60001,
             "columns": 8,
@@ -585,12 +585,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.04043904199352255,
-            "peak_rss_mib": 52.984375,
+            "seconds": 0.024703208007849753,
+            "peak_rss_mib": 55.546875,
             "phases": {
-              "native_seconds": 0.029841200000000002,
-              "boxing_seconds": 0.00562867,
-              "total_seconds": 0.035469900000000006
+              "native_seconds": 0.0139194,
+              "boxing_seconds": 0.0057369199999999995,
+              "total_seconds": 0.0196563
             },
             "rows": 60001,
             "columns": 8,
@@ -600,12 +600,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.040074999997159466,
-            "peak_rss_mib": 53.5625,
+            "seconds": 0.025004791998071596,
+            "peak_rss_mib": 56.609375,
             "phases": {
-              "native_seconds": 0.029791,
-              "boxing_seconds": 0.00536067,
-              "total_seconds": 0.0351517
+              "native_seconds": 0.0141714,
+              "boxing_seconds": 0.00578625,
+              "total_seconds": 0.0199577
             },
             "rows": 60001,
             "columns": 8,
@@ -615,12 +615,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.03941208300238941,
-            "peak_rss_mib": 53.34375,
+            "seconds": 0.02571062499191612,
+            "peak_rss_mib": 56.1875,
             "phases": {
-              "native_seconds": 0.029560700000000002,
-              "boxing_seconds": 0.0054412900000000005,
-              "total_seconds": 0.035002000000000005
+              "native_seconds": 0.014174599999999999,
+              "boxing_seconds": 0.005716789999999999,
+              "total_seconds": 0.0198914
             },
             "rows": 60001,
             "columns": 8,
@@ -630,12 +630,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.03977308300090954,
-            "peak_rss_mib": 52.875,
+            "seconds": 0.025131458998657763,
+            "peak_rss_mib": 55.921875,
             "phases": {
-              "native_seconds": 0.0293878,
-              "boxing_seconds": 0.0054412900000000005,
-              "total_seconds": 0.0348292
+              "native_seconds": 0.014035,
+              "boxing_seconds": 0.0056535000000000005,
+              "total_seconds": 0.0196885
             },
             "rows": 60001,
             "columns": 8,
@@ -645,12 +645,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.03921112500393065,
-            "peak_rss_mib": 52.640625,
+            "seconds": 0.024793124990537763,
+            "peak_rss_mib": 55.296875,
             "phases": {
-              "native_seconds": 0.0291302,
-              "boxing_seconds": 0.00541871,
-              "total_seconds": 0.034548999999999996
+              "native_seconds": 0.014188000000000001,
+              "boxing_seconds": 0.00564108,
+              "total_seconds": 0.0198291
             },
             "rows": 60001,
             "columns": 8,
@@ -660,12 +660,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.04295049999927869,
-            "peak_rss_mib": 53.828125,
+            "seconds": 0.024562749997130595,
+            "peak_rss_mib": 55.21875,
             "phases": {
-              "native_seconds": 0.0302651,
-              "boxing_seconds": 0.00618192,
-              "total_seconds": 0.036447099999999996
+              "native_seconds": 0.0139958,
+              "boxing_seconds": 0.00581208,
+              "total_seconds": 0.019808
             },
             "rows": 60001,
             "columns": 8,
@@ -675,12 +675,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.03915087500354275,
-            "peak_rss_mib": 53.171875,
+            "seconds": 0.024227874993812293,
+            "peak_rss_mib": 55.828125,
             "phases": {
-              "native_seconds": 0.0289124,
-              "boxing_seconds": 0.00543029,
-              "total_seconds": 0.034342700000000004
+              "native_seconds": 0.0139802,
+              "boxing_seconds": 0.00567754,
+              "total_seconds": 0.019657800000000003
             },
             "rows": 60001,
             "columns": 8,
@@ -690,12 +690,12 @@
           {
             "engine": "turboxl",
             "version": "0.3.0",
-            "seconds": 0.03939474999788217,
-            "peak_rss_mib": 53.125,
+            "seconds": 0.024891708002542146,
+            "peak_rss_mib": 55.171875,
             "phases": {
-              "native_seconds": 0.0291776,
-              "boxing_seconds": 0.00541858,
-              "total_seconds": 0.0345962
+              "native_seconds": 0.014269800000000001,
+              "boxing_seconds": 0.00577604,
+              "total_seconds": 0.0200459
             },
             "rows": 60001,
             "columns": 8,
@@ -707,11 +707,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.027996541000902653,
-            "peak_rss_mib": 55.171875,
+            "seconds": 0.029552457999670878,
+            "peak_rss_mib": 55.140625,
             "phases": {
-              "load_seconds": 0.0211090420052642,
-              "materialize_seconds": 0.004535042004135903
+              "load_seconds": 0.02210087500861846,
+              "materialize_seconds": 0.004706832987722009
             },
             "rows": 60001,
             "columns": 8,
@@ -721,11 +721,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.028373417000693735,
-            "peak_rss_mib": 54.6875,
+            "seconds": 0.029333582991966978,
+            "peak_rss_mib": 54.9375,
             "phases": {
-              "load_seconds": 0.021370250004110858,
-              "materialize_seconds": 0.004572915997414384
+              "load_seconds": 0.022042417011107318,
+              "materialize_seconds": 0.0047302500024670735
             },
             "rows": 60001,
             "columns": 8,
@@ -735,11 +735,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.028819790997658856,
-            "peak_rss_mib": 54.78125,
+            "seconds": 0.029778915995848365,
+            "peak_rss_mib": 55.109375,
             "phases": {
-              "load_seconds": 0.0217940840011579,
-              "materialize_seconds": 0.004541333000815939
+              "load_seconds": 0.02205333299934864,
+              "materialize_seconds": 0.004793500003870577
             },
             "rows": 60001,
             "columns": 8,
@@ -749,11 +749,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.0277477080016979,
-            "peak_rss_mib": 54.4375,
+            "seconds": 0.0294987080123974,
+            "peak_rss_mib": 55.5,
             "phases": {
-              "load_seconds": 0.02080641700013075,
-              "materialize_seconds": 0.004550000005110633
+              "load_seconds": 0.022399458001018502,
+              "materialize_seconds": 0.004699750003055669
             },
             "rows": 60001,
             "columns": 8,
@@ -763,11 +763,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.027859374997206032,
-            "peak_rss_mib": 54.703125,
+            "seconds": 0.02931450000323821,
+            "peak_rss_mib": 55.046875,
             "phases": {
-              "load_seconds": 0.021115875002578832,
-              "materialize_seconds": 0.004392249997181352
+              "load_seconds": 0.022265207997406833,
+              "materialize_seconds": 0.004647624999051914
             },
             "rows": 60001,
             "columns": 8,
@@ -777,11 +777,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.028073665998817887,
-            "peak_rss_mib": 55.40625,
+            "seconds": 0.029161958998884074,
+            "peak_rss_mib": 55.390625,
             "phases": {
-              "load_seconds": 0.02111049999803072,
-              "materialize_seconds": 0.0044867500037071295
+              "load_seconds": 0.022168499999679625,
+              "materialize_seconds": 0.004596416998538189
             },
             "rows": 60001,
             "columns": 8,
@@ -791,11 +791,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.02818712500447873,
-            "peak_rss_mib": 55.015625,
+            "seconds": 0.029742457991233096,
+            "peak_rss_mib": 55.109375,
             "phases": {
-              "load_seconds": 0.021316500002285466,
-              "materialize_seconds": 0.004519417001574766
+              "load_seconds": 0.02223408299323637,
+              "materialize_seconds": 0.004602166009135544
             },
             "rows": 60001,
             "columns": 8,
@@ -805,11 +805,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.028322750004008412,
-            "peak_rss_mib": 54.953125,
+            "seconds": 0.030001291990629397,
+            "peak_rss_mib": 55.484375,
             "phases": {
-              "load_seconds": 0.021607041999232024,
-              "materialize_seconds": 0.004403916995215695
+              "load_seconds": 0.022186917005456053,
+              "materialize_seconds": 0.004814041996723972
             },
             "rows": 60001,
             "columns": 8,
@@ -819,11 +819,11 @@
           {
             "engine": "calamine",
             "version": "0.8.2",
-            "seconds": 0.031306958000641316,
-            "peak_rss_mib": 55.40625,
+            "seconds": 0.02915816698805429,
+            "peak_rss_mib": 54.546875,
             "phases": {
-              "load_seconds": 0.023124625004129484,
-              "materialize_seconds": 0.004655459000787232
+              "load_seconds": 0.021919958002399653,
+              "materialize_seconds": 0.0045841670071240515
             },
             "rows": 60001,
             "columns": 8,
@@ -835,5 +835,5 @@
     }
   },
   "exact_compatible_value_parity": true,
-  "typed_adapter_may_proceed": false
+  "typed_adapter_may_proceed": true
 }

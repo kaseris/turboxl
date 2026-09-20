@@ -1,4 +1,5 @@
 #include "typed_reader.hpp"
+#include "core/fast_typed_sheet_reader.hpp"
 
 #include <optional>
 #include <sstream>
@@ -59,16 +60,21 @@ TypedWorksheet readSheetToTyped(
             // Workbooks without sharedStrings.xml are valid.
         }
 
-        TypedRowCollector collector(sharedStrings.isOpen() ? &sharedStrings : nullptr);
-        core::SheetStreamReader reader;
-        reader.parseSheet(
-            package, sheet->target, collector,
-            sharedStrings.isOpen() ? &sharedStrings : nullptr);
-        if (!collector.getErrors().empty()) {
-            throw std::runtime_error(
-                "Sheet parsing errors: " + joinErrors(collector.getErrors()));
+        const auto* strings = sharedStrings.isOpen() ? &sharedStrings : nullptr;
+        TypedRowCollector fastCollector(strings);
+        if (tryReadTypedWorksheetFast(package, sheet->target, fastCollector) &&
+            fastCollector.getErrors().empty()) {
+            return fastCollector.takeRows();
         }
-        return collector.takeRows();
+
+        TypedRowCollector fallbackCollector(strings);
+        core::SheetStreamReader reader;
+        reader.parseSheet(package, sheet->target, fallbackCollector, strings);
+        if (!fallbackCollector.getErrors().empty()) {
+            throw std::runtime_error(
+                "Sheet parsing errors: " + joinErrors(fallbackCollector.getErrors()));
+        }
+        return fallbackCollector.takeRows();
     } catch (const core::XlsxError& error) {
         throw std::runtime_error("XLSX parsing error: " + std::string(error.what()));
     } catch (const std::exception& error) {

@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "fixture_config.hpp"
+#include "core/fast_typed_sheet_reader.hpp"
 #include "typed_reader.hpp"
 
 #include <string>
@@ -15,6 +16,11 @@ TypedWorksheet parseXml(const std::string& xml, TypedRowCollector& collector) {
     const std::vector<std::uint8_t> bytes(xml.begin(), xml.end());
     reader.parseSheetData(bytes, collector);
     return collector.takeRows();
+}
+
+bool parseFastXml(const std::string& xml, TypedRowCollector& collector) {
+    const std::vector<std::uint8_t> bytes(xml.begin(), xml.end());
+    return xlsxcsv::internal::tryParseTypedWorksheetFast(bytes, collector);
 }
 
 TEST(TypedRowCollectorTest, PreservesCoordinatesAndPrimitiveValues) {
@@ -68,6 +74,59 @@ TEST(TypedRowCollectorTest, ReportsMalformedWorksheet) {
     TypedRowCollector collector;
     (void)parseXml(xml, collector);
     EXPECT_FALSE(collector.getErrors().empty());
+}
+
+TEST(FastTypedSheetReaderTest, ParsesNamespacedPrimitiveCellsAndEntities) {
+    const std::string xml =
+        R"(<?xml version="1.0"?><x:worksheet xmlns:x="urn:test"><x:sheetData>)"
+        R"(<x:row r="2" spans="1:5"><x:c r="A2"><x:v>-12.5</x:v></x:c>)"
+        R"(<x:c r="C2" t="b"><x:v>1</x:v></x:c>)"
+        R"(<x:c r="D2" t="str"><x:v>A&amp;B&#x20AC;</x:v></x:c>)"
+        R"(<x:c r="E2" t="inlineStr"><x:is><x:r><x:t>rich </x:t></x:r>)"
+        R"(<x:r><x:t><![CDATA[text]]></x:t></x:r></x:is></x:c>)"
+        R"(</x:row></x:sheetData></x:worksheet>)";
+    TypedRowCollector collector;
+    ASSERT_TRUE(parseFastXml(xml, collector));
+    auto rows = collector.takeRows();
+
+    ASSERT_TRUE(collector.getErrors().empty());
+    ASSERT_EQ(rows.size(), 2U);
+    ASSERT_EQ(rows[1].size(), 5U);
+    EXPECT_DOUBLE_EQ(std::get<double>(rows[1][0]), -12.5);
+    EXPECT_TRUE(std::holds_alternative<std::monostate>(rows[1][1]));
+    EXPECT_TRUE(std::get<bool>(rows[1][2]));
+    EXPECT_EQ(std::get<std::string>(rows[1][3]), "A&B\xe2\x82\xac");
+    EXPECT_EQ(std::get<std::string>(rows[1][4]), "rich text");
+}
+
+TEST(FastTypedSheetReaderTest, HandlesEmptyRowsAndCells) {
+    const std::string xml =
+        R"(<worksheet><sheetData><row r="1"/><row r="3">)"
+        R"(<c r="B3"/><c r="D3" t="inlineStr"><is><t/></is></c>)"
+        R"(</row></sheetData></worksheet>)";
+    TypedRowCollector collector;
+    ASSERT_TRUE(parseFastXml(xml, collector));
+    auto rows = collector.takeRows();
+
+    ASSERT_EQ(rows.size(), 3U);
+    ASSERT_EQ(rows.front().size(), 4U);
+    EXPECT_TRUE(std::holds_alternative<std::monostate>(rows[2][1]));
+    EXPECT_EQ(std::get<std::string>(rows[2][3]), "");
+}
+
+TEST(FastTypedSheetReaderTest, DeclinesUnsupportedOrMalformedXml) {
+    TypedRowCollector doctypeCollector;
+    EXPECT_FALSE(parseFastXml(
+        R"(<!DOCTYPE worksheet [<!ENTITY x "text">]><worksheet/>)",
+        doctypeCollector));
+
+    TypedRowCollector malformedCollector;
+    EXPECT_FALSE(parseFastXml(
+        R"(<worksheet><sheetData><row r="1"><c r="A1"><v>1</v></c>)",
+        malformedCollector));
+
+    TypedRowCollector wrongRootCollector;
+    EXPECT_FALSE(parseFastXml(R"(<not-a-worksheet/>)", wrongRootCollector));
 }
 
 TEST(TypedReaderIntegrationTest, ResolvesSharedStringsAndKeepsRawNumbers) {

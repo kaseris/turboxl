@@ -211,6 +211,7 @@ add_library(turboxl_core
     src/core/cell_data.cpp
     src/core/sheet_stream_reader.cpp
     src/core/data_converter.cpp
+    src/core/fast_typed_sheet_reader.cpp
     src/core/typed_row_collector.cpp
     src/csv/csv_encoder.cpp
     src/facade/xlsx_reader.cpp

@@ -83,15 +83,15 @@ alternated between rounds.
 
 | Fixture family | TurboXL total | Native extraction | Python boxing | Calamine total | TurboXL advantage | Peak RSS (TurboXL / Calamine) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Dense inline strings | 0.1945s | 0.1802s | 0.0079s | 0.1464s | -32.8% | 66.2 / 90.7 MiB |
-| Dense shared strings | 0.1867s | 0.1724s | 0.0080s | 0.1330s | -40.4% | 65.9 / 90.6 MiB |
-| Sparse mixed primitives | 0.0394s | 0.0294s | 0.0054s | 0.0282s | -39.8% | 53.1 / 55.0 MiB |
+| Dense inline strings | 0.0900s | 0.0750s | 0.0080s | 0.1547s | 41.8% | 85.0 / 95.3 MiB |
+| Dense shared strings | 0.0868s | 0.0717s | 0.0080s | 0.1396s | 37.8% | 82.3 / 95.0 MiB |
+| Sparse mixed primitives | 0.0248s | 0.0140s | 0.0057s | 0.0295s | 16.0% | 55.7 / 55.1 MiB |
 
 All three fixture families produced identical rectangular shapes and compatible
-scalar values. TurboXL used less peak memory, but did not achieve the required
-10% median speed advantage on any family. The performance gate therefore fails
-and the conditional pandas-adapter work in #108 must not proceed on this
-evidence.
+scalar values. The typed-only worksheet scanner retained the existing libxml2
+reader as a compatibility fallback and achieved the required 10% median speed
+advantage on every family. The performance gate therefore passes and the
+conditional pandas-adapter work in #108 may proceed.
 
 Reproduce the run with:
 
