@@ -1,4 +1,5 @@
 #include "xlsxcsv/core.hpp"
+#include "core/primitive_cell_handler.hpp"
 #include <libxml/xmlreader.h>
 #include <libxml/xmlstring.h>
 #include <stdexcept>
@@ -232,10 +233,15 @@ private:
             xmlTextReaderMoveToElement(reader);
         }
 
+        auto* primitiveHandler = dynamic_cast<internal::PrimitiveCellHandler*>(&handler);
+        const bool streamPrimitives = primitiveHandler != nullptr;
         auto* cellHandler = dynamic_cast<SheetCellHandler*>(&handler);
-        const bool streamCells = cellHandler && cellHandler->acceptsStreamingCells();
+        const bool streamCells = !streamPrimitives && cellHandler && cellHandler->acceptsStreamingCells();
         std::optional<RowData> rowData;
-        if (streamCells) {
+        if (streamPrimitives) {
+            primitiveHandler->beginPrimitiveRow(
+                rowNumber, isHidden, static_cast<std::size_t>(spanReserveHint));
+        } else if (streamCells) {
             cellHandler->beginRow(rowNumber, isHidden);
         } else {
             rowData.emplace();
@@ -248,7 +254,8 @@ private:
         
         // Parse cells in this row
         if (xmlTextReaderIsEmptyElement(reader)) {
-            if (streamCells) cellHandler->endRow();
+            if (streamPrimitives) primitiveHandler->endPrimitiveRow();
+            else if (streamCells) cellHandler->endRow();
             else handler.handleRow(*rowData);
             return;
         }
@@ -262,10 +269,14 @@ private:
             
             if (nodeType == XML_READER_TYPE_ELEMENT && strcmp(name, "c") == 0) {
                 // Parse cell
-                auto cell = parseCell(reader, rowNumber, sharedStrings, styles);
-                if (cell.has_value()) {
-                    if (streamCells) cellHandler->handleCell(std::move(*cell));
-                    else rowData->cells.push_back(std::move(*cell));
+                if (streamPrimitives) {
+                    parsePrimitiveCell(reader, *primitiveHandler);
+                } else {
+                    auto cell = parseCell(reader, rowNumber, sharedStrings, styles);
+                    if (cell.has_value()) {
+                        if (streamCells) cellHandler->handleCell(std::move(*cell));
+                        else rowData->cells.push_back(std::move(*cell));
+                    }
                 }
             } else if (nodeType == XML_READER_TYPE_END_ELEMENT && strcmp(name, "row") == 0) {
                 // End of row
@@ -273,8 +284,116 @@ private:
             }
         }
         
-        if (streamCells) cellHandler->endRow();
+        if (streamPrimitives) primitiveHandler->endPrimitiveRow();
+        else if (streamCells) cellHandler->endRow();
         else handler.handleRow(*rowData);
+    }
+
+    void parsePrimitiveCell(
+        xmlTextReaderPtr reader, internal::PrimitiveCellHandler& handler) {
+        int column = 0;
+        CellType type = CellType::Number;
+
+        if (xmlTextReaderMoveToFirstAttribute(reader) == 1) {
+            do {
+                const char* attrName = reinterpret_cast<const char*>(
+                    xmlTextReaderConstName(reader));
+                const char* attrValue = reinterpret_cast<const char*>(
+                    xmlTextReaderConstValue(reader));
+                if (!attrName || !attrValue) continue;
+
+                if (attrName[0] == 'r' && attrName[1] == '\0') {
+                    parseCellColumn(attrValue, column);
+                } else if (attrName[0] == 't' && attrName[1] == '\0') {
+                    if (attrValue[0] == 'b' && attrValue[1] == '\0') {
+                        type = CellType::Boolean;
+                    } else if (attrValue[0] == 'e' && attrValue[1] == '\0') {
+                        type = CellType::Error;
+                    } else if (attrValue[0] == 'n' && attrValue[1] == '\0') {
+                        type = CellType::Number;
+                    } else if (attrValue[0] == 's' && attrValue[1] == '\0') {
+                        type = CellType::SharedString;
+                    } else if (std::strcmp(attrValue, "str") == 0) {
+                        type = CellType::String;
+                    } else if (std::strcmp(attrValue, "inlineStr") == 0) {
+                        type = CellType::InlineString;
+                    } else {
+                        type = CellType::Unknown;
+                    }
+                }
+            } while (xmlTextReaderMoveToNextAttribute(reader) == 1);
+            xmlTextReaderMoveToElement(reader);
+        }
+
+        if (xmlTextReaderIsEmptyElement(reader)) {
+            handler.addEmpty(column);
+            return;
+        }
+
+        bool emitted = false;
+        int ret;
+        while ((ret = xmlTextReaderRead(reader)) == 1) {
+            const char* name = reinterpret_cast<const char*>(xmlTextReaderConstName(reader));
+            const int nodeType = xmlTextReaderNodeType(reader);
+            if (!name) continue;
+
+            if (nodeType == XML_READER_TYPE_ELEMENT && std::strcmp(name, "v") == 0) {
+                std::string value = readElementText(reader);
+                emitPrimitiveValue(handler, column, type, std::move(value));
+                emitted = true;
+            } else if (nodeType == XML_READER_TYPE_ELEMENT && std::strcmp(name, "is") == 0) {
+                handler.addString(column, parseInlineString(reader));
+                emitted = true;
+            } else if (nodeType == XML_READER_TYPE_END_ELEMENT && std::strcmp(name, "c") == 0) {
+                break;
+            }
+        }
+        if (!emitted) handler.addEmpty(column);
+    }
+
+    static void emitPrimitiveValue(
+        internal::PrimitiveCellHandler& handler,
+        int column,
+        CellType type,
+        std::string&& value) {
+        if (value.empty()) {
+            handler.addEmpty(column);
+            return;
+        }
+        switch (type) {
+            case CellType::Boolean:
+                handler.addBoolean(column, value == "1");
+                return;
+            case CellType::Number: {
+                const char* begin = value.data();
+                char* parsedEnd = nullptr;
+                const double number = std::strtod(begin, &parsedEnd);
+                if (parsedEnd == begin + value.size()) {
+                    handler.addNumber(column, number);
+                } else {
+                    handler.addEmpty(column);
+                }
+                return;
+            }
+            case CellType::SharedString: {
+                std::size_t index = 0;
+                const char* begin = value.data();
+                const char* end = begin + value.size();
+                const auto [parsedEnd, error] = std::from_chars(begin, end, index);
+                if (error == std::errc{} && parsedEnd == end) {
+                    handler.addSharedString(column, index);
+                } else {
+                    handler.addEmpty(column);
+                }
+                return;
+            }
+            case CellType::Error:
+            case CellType::String:
+            case CellType::InlineString:
+            case CellType::Unknown:
+                handler.addString(column, std::move(value));
+                return;
+        }
     }
     
     std::optional<CellData> parseCell(xmlTextReaderPtr reader,

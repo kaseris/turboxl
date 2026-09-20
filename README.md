@@ -67,6 +67,44 @@ and [`tools/cloud_benchmark.py`](tools/cloud_benchmark.py):
 Implementation features include zlib-ng support, release-mode compiler
 optimizations, arena-based shared strings, and chunked ZIP reading.
 
+### Typed worksheet vertical-slice result
+
+Issue #100 added a private, path-based typed extraction slice to measure the
+cost of producing rectangular Python `list[list]` data before committing to a
+pandas adapter. This is benchmark scaffolding, not a supported public API;
+`_read_sheet_to_python` may change or disappear as the owning Workbook/Sheet
+API is built.
+
+The September 20, 2026 run used macOS 15.7.4 on arm64, CPython 3.14.7,
+TurboXL 0.3.0 from this checkout, and python-calamine 0.8.2. Each deterministic
+fixture contained 60,000 data rows. Results are medians of nine measurements
+after two warm-ups, with each engine run in a fresh process and engine order
+alternated between rounds.
+
+| Fixture family | TurboXL total | Native extraction | Python boxing | Calamine total | TurboXL advantage | Peak RSS (TurboXL / Calamine) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Dense inline strings | 0.0900s | 0.0750s | 0.0080s | 0.1547s | 41.8% | 85.0 / 95.3 MiB |
+| Dense shared strings | 0.0868s | 0.0717s | 0.0080s | 0.1396s | 37.8% | 82.3 / 95.0 MiB |
+| Sparse mixed primitives | 0.0248s | 0.0140s | 0.0057s | 0.0295s | 16.0% | 55.7 / 55.1 MiB |
+
+All three fixture families produced identical rectangular shapes and compatible
+scalar values. The typed-only worksheet scanner retained the existing libxml2
+reader as a compatibility fallback and achieved the required 10% median speed
+advantage on every family. The performance gate therefore passes and the
+conditional pandas-adapter work in #108 may proceed.
+
+Reproduce the run with:
+
+```bash
+python tools/benchmark_typed.py \
+  --rows 60000 --warmups 2 --rounds 9 \
+  --fixtures-dir typed-benchmark-fixtures \
+  --json-output typed-benchmark-results.json
+```
+
+The raw report is committed at
+[`benchmarks/results/typed/macos-arm64-260920.json`](benchmarks/results/typed/macos-arm64-260920.json).
+
 ## What It Does
 
 - ✅ Read XLSX files and convert to CSV

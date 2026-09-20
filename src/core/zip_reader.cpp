@@ -7,6 +7,8 @@
 #  error "minizip unzip.h header not found"
 #endif
 #include <algorithm>
+#include <array>
+#include <cstring>
 #include <filesystem>
 #include <regex>
 #include <unordered_map>
@@ -41,27 +43,55 @@ public:
         if (!m_currentOpen || size == 0) return 0;
         const size_t remaining = m_expectedSize - m_bytesRead;
         if (remaining == 0) {
-            unsigned char extra = 0;
-            const int result = unzReadCurrentFile(m_file, &extra, 1);
-            if (result < 0) throw XlsxError("Failed while streaming ZIP entry");
-            if (result > 0) throw XlsxError("ZIP entry exceeds its declared size");
+            verifyEnd();
             return 0;
         }
-        const size_t requested = std::min({size, remaining,
-            static_cast<size_t>(std::numeric_limits<int>::max())});
-        const int result = unzReadCurrentFile(m_file, buffer, static_cast<uint32_t>(requested));
-        if (result < 0) throw XlsxError("Failed while streaming ZIP entry");
-        if (result == 0 && m_bytesRead != m_expectedSize) {
-            throw XlsxError("ZIP entry ended before its declared size");
+
+        auto* output = static_cast<unsigned char*>(buffer);
+        const size_t requested = std::min(size, remaining);
+        size_t copied = 0;
+        while (copied < requested) {
+            if (m_bufferOffset == m_bufferSize) {
+                fillBuffer();
+            }
+            const size_t available = m_bufferSize - m_bufferOffset;
+            const size_t count = std::min(requested - copied, available);
+            std::memcpy(output + copied, m_buffer.data() + m_bufferOffset, count);
+            m_bufferOffset += count;
+            copied += count;
         }
-        m_bytesRead += static_cast<size_t>(result);
-        return static_cast<size_t>(result);
+        m_bytesRead += copied;
+        return copied;
     }
 
     size_t size() const { return m_expectedSize; }
     size_t bytesRead() const { return m_bytesRead; }
 
 private:
+    void fillBuffer() {
+        const size_t remaining = m_expectedSize - m_inflatedBytes;
+        if (remaining == 0) {
+            throw XlsxError("ZIP entry ended before its declared size");
+        }
+        const size_t requested = std::min(remaining, m_buffer.size());
+        const int result = unzReadCurrentFile(
+            m_file, m_buffer.data(), static_cast<uint32_t>(requested));
+        if (result < 0) throw XlsxError("Failed while streaming ZIP entry");
+        if (result == 0) throw XlsxError("ZIP entry ended before its declared size");
+        m_bufferOffset = 0;
+        m_bufferSize = static_cast<size_t>(result);
+        m_inflatedBytes += m_bufferSize;
+    }
+
+    void verifyEnd() {
+        if (m_endVerified) return;
+        unsigned char extra = 0;
+        const int result = unzReadCurrentFile(m_file, &extra, 1);
+        if (result < 0) throw XlsxError("Failed while streaming ZIP entry");
+        if (result > 0) throw XlsxError("ZIP entry exceeds its declared size");
+        m_endVerified = true;
+    }
+
     void close() noexcept {
         if (m_currentOpen) {
             unzCloseCurrentFile(m_file);
@@ -76,7 +106,12 @@ private:
     unzFile m_file = nullptr;
     size_t m_expectedSize = 0;
     size_t m_bytesRead = 0;
+    size_t m_inflatedBytes = 0;
+    std::array<unsigned char, 128 * 1024> m_buffer{};
+    size_t m_bufferOffset = 0;
+    size_t m_bufferSize = 0;
     bool m_currentOpen = false;
+    bool m_endVerified = false;
 };
 
 ZipEntryStream::ZipEntryStream(std::unique_ptr<Impl> impl) : m_impl(std::move(impl)) {}
