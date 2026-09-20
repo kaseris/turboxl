@@ -18,6 +18,8 @@ TEST_F(SheetDiscoveryTest, SheetMetadataConstruction) {
     EXPECT_EQ(metadata.sheetId, 0);
     EXPECT_FALSE(metadata.visible);
     EXPECT_EQ(metadata.target, "");
+    EXPECT_EQ(metadata.kind, xlsxcsv::SheetKind::Other);
+    EXPECT_EQ(metadata.visibility, xlsxcsv::SheetVisibility::Hidden);
     
     // Test assignment
     metadata.name = "Test Sheet";
@@ -58,20 +60,33 @@ TEST_F(SheetDiscoveryTest, ErrorHandlingForInvalidFile) {
 
 TEST_F(SheetDiscoveryTest, MultiSheetFileDiscovery) {
     const auto sheets = xlsxcsv::getSheetList(INTEGRATION_XLSX);
-    ASSERT_EQ(sheets.size(), 3u);
-    EXPECT_EQ(sheets[0].name, "Data");
-    EXPECT_TRUE(sheets[0].visible);
-    EXPECT_EQ(sheets[1].name, "Hidden");
-    EXPECT_FALSE(sheets[1].visible);
-    EXPECT_EQ(sheets[2].name, "Sparse");
-    EXPECT_TRUE(sheets[2].visible);
+    ASSERT_EQ(sheets.size(), 6u);
+    EXPECT_EQ(sheets[0].kind, xlsxcsv::SheetKind::Chartsheet);
+    EXPECT_EQ(sheets[1].name, "Data");
+    EXPECT_EQ(sheets[1].kind, xlsxcsv::SheetKind::Worksheet);
+    EXPECT_EQ(sheets[2].visibility, xlsxcsv::SheetVisibility::Hidden);
+    EXPECT_EQ(sheets[3].visibility, xlsxcsv::SheetVisibility::VeryHidden);
+    EXPECT_EQ(sheets[4].kind, xlsxcsv::SheetKind::Other);
+    EXPECT_EQ(sheets[5].name, "Sparse");
 }
 
 TEST_F(SheetDiscoveryTest, VisibleSheetFiltering) {
     const auto sheets = xlsxcsv::getVisibleSheets(INTEGRATION_XLSX);
-    ASSERT_EQ(sheets.size(), 2u);
-    EXPECT_EQ(sheets[0].name, "Data");
-    EXPECT_EQ(sheets[1].name, "Sparse");
+    ASSERT_EQ(sheets.size(), 4u);
+    EXPECT_EQ(sheets[0].name, "Chart");
+    EXPECT_EQ(sheets[1].name, "Data");
+    EXPECT_EQ(sheets[2].name, "Dialog");
+    EXPECT_EQ(sheets[3].name, "Sparse");
+}
+
+TEST_F(SheetDiscoveryTest, WorksheetIndexesExcludeOtherSheetKinds) {
+    EXPECT_EQ(xlsxcsv::readSheetToCsv(INTEGRATION_XLSX, 0),
+              xlsxcsv::readSpecificSheet(INTEGRATION_XLSX, "Data"));
+    EXPECT_EQ(xlsxcsv::readSheetToCsv(INTEGRATION_XLSX, 1), "secret\n");
+    EXPECT_THROW(xlsxcsv::readSpecificSheet(INTEGRATION_XLSX, "Chart"),
+                 std::runtime_error);
+    EXPECT_THROW(xlsxcsv::readSpecificSheet(INTEGRATION_XLSX, "Dialog"),
+                 std::runtime_error);
 }
 
 TEST_F(SheetDiscoveryTest, SpecificSheetReading) {

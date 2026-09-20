@@ -330,41 +330,43 @@ if(BUILD_PYTHON)
     find_package(nanobind CONFIG REQUIRED)
 
     if(SKBUILD_SABI_COMPONENT)
-        nanobind_add_module(turboxl STABLE_ABI src/python/module.cpp)
+        nanobind_add_module(_turboxl STABLE_ABI src/python/module.cpp)
     else()
-        nanobind_add_module(turboxl src/python/module.cpp)
+        nanobind_add_module(_turboxl src/python/module.cpp)
     endif()
-    target_link_libraries(turboxl PRIVATE turboxl_core)
-    target_include_directories(turboxl PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    target_link_libraries(_turboxl PRIVATE turboxl_core)
+    target_include_directories(_turboxl PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
     # Propagate LIBXML_STATIC to the Python extension compile if needed
     if(WIN32 AND _LIBXML2_IS_STATIC)
-        target_compile_definitions(turboxl PRIVATE LIBXML_STATIC)
+        target_compile_definitions(_turboxl PRIVATE LIBXML_STATIC)
     endif()
     
     # Add library search directories for zlib-ng if needed
     if(ZLIB_LIBRARY_DIRS)
-        target_link_directories(turboxl PRIVATE ${ZLIB_LIBRARY_DIRS})
+        target_link_directories(_turboxl PRIVATE ${ZLIB_LIBRARY_DIRS})
     endif()
     # Add library search directories for minizip/libzip if provided
     if(MINIZIP_FOUND AND MINIZIP_LIBRARY_DIRS)
-        target_link_directories(turboxl PRIVATE ${MINIZIP_LIBRARY_DIRS})
+        target_link_directories(_turboxl PRIVATE ${MINIZIP_LIBRARY_DIRS})
     endif()
     if(LIBZIP_FOUND AND LIBZIP_LIBRARY_DIRS)
-        target_link_directories(turboxl PRIVATE ${LIBZIP_LIBRARY_DIRS})
+        target_link_directories(_turboxl PRIVATE ${LIBZIP_LIBRARY_DIRS})
     endif()
     
     # Ensure hidden visibility for small ABI surface
-    set_target_properties(turboxl PROPERTIES
+    set_target_properties(_turboxl PROPERTIES
         CXX_VISIBILITY_PRESET hidden
         VISIBILITY_INLINES_HIDDEN ON
     )
 
-    # Install the Python extension into the wheel's platlib root
-    install(TARGETS turboxl
-        LIBRARY DESTINATION . COMPONENT python
-        RUNTIME DESTINATION . COMPONENT python
-        ARCHIVE DESTINATION . COMPONENT python
+    install(TARGETS _turboxl
+        LIBRARY DESTINATION turboxl COMPONENT python
+        RUNTIME DESTINATION turboxl COMPONENT python
+        ARCHIVE DESTINATION turboxl COMPONENT python
+    )
+    install(FILES src/python/turboxl/__init__.py
+        DESTINATION turboxl COMPONENT python
     )
 endif()
 

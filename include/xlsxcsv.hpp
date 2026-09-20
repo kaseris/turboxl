@@ -9,6 +9,18 @@
 
 namespace xlsxcsv {
 
+enum class SheetKind {
+    Worksheet,
+    Chartsheet,
+    Other
+};
+
+enum class SheetVisibility {
+    Visible,
+    Hidden,
+    VeryHidden
+};
+
 /**
  * @brief Options for CSV conversion
  */
@@ -54,6 +66,8 @@ struct SheetMetadata {
     int sheetId = 0;             // Sheet ID number
     bool visible = false;        // Sheet visibility (false for hidden/veryHidden)
     std::string target = "";     // Internal target path (e.g., "worksheets/sheet1.xml")
+    SheetKind kind = SheetKind::Other;
+    SheetVisibility visibility = SheetVisibility::Hidden;
 };
 
 /**

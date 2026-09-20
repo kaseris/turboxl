@@ -6,6 +6,23 @@
 #else
 #  error "minizip unzip.h header not found"
 #endif
+#if __has_include(<minizip-ng/ioapi.h>)
+#  include <minizip-ng/ioapi.h>
+#  define TURBOXL_MINIZIP_FILE_CALLBACKS 1
+#elif __has_include(<minizip/ioapi.h>)
+#  include <minizip/ioapi.h>
+#  define TURBOXL_MINIZIP_FILE_CALLBACKS 1
+#elif __has_include(<minizip/mz_strm_mem.h>)
+#  include <minizip/mz.h>
+#  include <minizip/mz_strm_mem.h>
+#  define TURBOXL_MINIZIP_NATIVE_MEMORY_STREAM 1
+#elif __has_include(<minizip-ng/mz_strm_mem.h>)
+#  include <minizip-ng/mz.h>
+#  include <minizip-ng/mz_strm_mem.h>
+#  define TURBOXL_MINIZIP_NATIVE_MEMORY_STREAM 1
+#else
+#  error "minizip memory stream support not found"
+#endif
 #include <algorithm>
 #include <array>
 #include <cstring>
@@ -17,6 +34,147 @@
 namespace fs = std::filesystem;
 
 namespace xlsxcsv::core {
+
+namespace {
+
+#if defined(TURBOXL_MINIZIP_FILE_CALLBACKS)
+struct MemoryCursor {
+    std::shared_ptr<const ByteVector> data;
+    ZPOS64_T offset = 0;
+    bool error = false;
+};
+
+voidpf ZCALLBACK openMemoryFile(voidpf opaque, const void*, int mode) {
+    const bool readable = (mode & ZLIB_FILEFUNC_MODE_READ) != 0;
+    const bool writable = (mode & ZLIB_FILEFUNC_MODE_WRITE) != 0;
+    if (!readable || writable || opaque == nullptr) return nullptr;
+    auto* data = static_cast<std::shared_ptr<const ByteVector>*>(opaque);
+    return new MemoryCursor{*data};
+}
+
+uLong ZCALLBACK readMemoryFile(voidpf, voidpf stream, void* buffer, uLong size) {
+    auto* cursor = static_cast<MemoryCursor*>(stream);
+    if (!cursor || !buffer) return 0;
+    const auto dataSize = static_cast<ZPOS64_T>(cursor->data->size());
+    if (cursor->offset > dataSize) {
+        cursor->error = true;
+        return 0;
+    }
+    const auto remaining = dataSize - cursor->offset;
+    const auto count = std::min<ZPOS64_T>(remaining, size);
+    if (count != 0) {
+        std::memcpy(buffer, cursor->data->data() + cursor->offset,
+                    static_cast<size_t>(count));
+        cursor->offset += count;
+    }
+    return static_cast<uLong>(count);
+}
+
+uLong ZCALLBACK writeMemoryFile(voidpf, voidpf stream, const void*, uLong) {
+    if (auto* cursor = static_cast<MemoryCursor*>(stream)) cursor->error = true;
+    return 0;
+}
+
+ZPOS64_T ZCALLBACK tellMemoryFile(voidpf, voidpf stream) {
+    const auto* cursor = static_cast<MemoryCursor*>(stream);
+    return cursor ? cursor->offset : 0;
+}
+
+long ZCALLBACK seekMemoryFile(voidpf, voidpf stream, ZPOS64_T offset, int origin) {
+    auto* cursor = static_cast<MemoryCursor*>(stream);
+    if (!cursor) return -1;
+    const auto dataSize = static_cast<ZPOS64_T>(cursor->data->size());
+    const auto signedOffset = static_cast<std::int64_t>(offset);
+    std::int64_t base = 0;
+    switch (origin) {
+        case ZLIB_FILEFUNC_SEEK_SET:
+            if (offset > dataSize) {
+                cursor->error = true;
+                return -1;
+            }
+            cursor->offset = offset;
+            return 0;
+        case ZLIB_FILEFUNC_SEEK_CUR:
+            base = static_cast<std::int64_t>(cursor->offset);
+            break;
+        case ZLIB_FILEFUNC_SEEK_END:
+            base = static_cast<std::int64_t>(dataSize);
+            break;
+        default:
+            cursor->error = true;
+            return -1;
+    }
+    if (signedOffset < -base ||
+        signedOffset > static_cast<std::int64_t>(dataSize) - base) {
+        cursor->error = true;
+        return -1;
+    }
+    cursor->offset = static_cast<ZPOS64_T>(base + signedOffset);
+    return 0;
+}
+
+int ZCALLBACK closeMemoryFile(voidpf, voidpf stream) {
+    delete static_cast<MemoryCursor*>(stream);
+    return 0;
+}
+
+int ZCALLBACK errorMemoryFile(voidpf, voidpf stream) {
+    const auto* cursor = static_cast<MemoryCursor*>(stream);
+    return cursor && cursor->error ? 1 : 0;
+}
+
+zlib_filefunc64_def memoryFileFunctions(
+    std::shared_ptr<const ByteVector>* data) {
+    zlib_filefunc64_def functions{};
+    functions.zopen64_file = openMemoryFile;
+    functions.zread_file = readMemoryFile;
+    functions.zwrite_file = writeMemoryFile;
+    functions.ztell64_file = tellMemoryFile;
+    functions.zseek64_file = seekMemoryFile;
+    functions.zclose_file = closeMemoryFile;
+    functions.zerror_file = errorMemoryFile;
+    functions.opaque = data;
+    return functions;
+}
+#else
+struct MemoryFileFunctions {};
+
+unzFile openMemoryArchive(
+    const std::shared_ptr<const ByteVector>& data,
+    MemoryFileFunctions&) {
+    if (data->size() > static_cast<size_t>(INT32_MAX)) return nullptr;
+
+    void* stream = nullptr;
+    if (mz_stream_mem_create(&stream) == nullptr) return nullptr;
+    mz_stream_mem_set_buffer(
+        stream, const_cast<unsigned char*>(data->data()),
+        static_cast<int32_t>(data->size()));
+    if (mz_stream_mem_open(stream, nullptr, MZ_OPEN_MODE_READ) != MZ_OK) {
+        mz_stream_mem_delete(&stream);
+        return nullptr;
+    }
+
+    unzFile file = unzOpen_MZ(stream);
+    if (!file) {
+        mz_stream_mem_close(stream);
+        mz_stream_mem_delete(&stream);
+    }
+    return file;
+}
+#endif
+
+#if defined(TURBOXL_MINIZIP_FILE_CALLBACKS)
+using MemoryFileFunctions = zlib_filefunc64_def;
+
+unzFile openMemoryArchive(
+    std::shared_ptr<const ByteVector>& data,
+    MemoryFileFunctions& functions) {
+    functions = memoryFileFunctions(&data);
+    return unzOpen2_64(nullptr, &functions);
+}
+#endif
+
+} // namespace
 
 class ZipEntryStream::Impl {
 public:
@@ -33,6 +191,24 @@ public:
             unzClose(m_file);
             m_file = nullptr;
             throw XlsxError("Failed to open indexed ZIP entry for streaming");
+        }
+        m_currentOpen = true;
+    }
+
+    Impl(std::shared_ptr<const ByteVector> archiveData,
+         const unz64_file_pos& position,
+         size_t expectedSize)
+        : m_archiveData(std::move(archiveData)),
+          m_expectedSize(expectedSize) {
+        m_file = openMemoryArchive(m_archiveData, m_fileFunctions);
+        if (!m_file) {
+            throw XlsxError("Failed to reopen memory ZIP archive for streaming");
+        }
+        if (unzGoToFilePos64(m_file, &position) != UNZ_OK ||
+            unzOpenCurrentFile(m_file) != UNZ_OK) {
+            unzClose(m_file);
+            m_file = nullptr;
+            throw XlsxError("Failed to open indexed memory ZIP entry for streaming");
         }
         m_currentOpen = true;
     }
@@ -104,6 +280,7 @@ private:
     }
 
     unzFile m_file = nullptr;
+    std::shared_ptr<const ByteVector> m_archiveData;
     size_t m_expectedSize = 0;
     size_t m_bytesRead = 0;
     size_t m_inflatedBytes = 0;
@@ -112,6 +289,7 @@ private:
     size_t m_bufferSize = 0;
     bool m_currentOpen = false;
     bool m_endVerified = false;
+    MemoryFileFunctions m_fileFunctions{};
 };
 
 ZipEntryStream::ZipEntryStream(std::unique_ptr<Impl> impl) : m_impl(std::move(impl)) {}
@@ -132,9 +310,7 @@ public:
     }
     
     void open(const std::string& path) {
-        if (m_unzFile) {
-            close();
-        }
+        close();
         
         if (!fs::exists(path)) {
             throw XlsxError("ZIP file does not exist: " + path);
@@ -146,8 +322,36 @@ public:
         }
         
         m_archivePath = path;
-        validateAndIndex();
-        m_isOpen = true;
+        try {
+            validateAndIndex();
+            m_isOpen = true;
+        } catch (...) {
+            close();
+            throw;
+        }
+    }
+
+    void open(ByteVector data) {
+        close();
+        if (data.empty()) {
+            throw XlsxError("Memory ZIP archive is empty");
+        }
+        if (data.size() > m_limits.maxArchiveSize) {
+            throw XlsxError("Memory ZIP archive exceeds size limit");
+        }
+        m_archiveData = std::make_shared<const ByteVector>(std::move(data));
+        m_unzFile = openMemoryArchive(m_archiveData, m_fileFunctions);
+        if (!m_unzFile) {
+            m_archiveData.reset();
+            throw XlsxError("Failed to open memory ZIP archive");
+        }
+        try {
+            validateAndIndex();
+            m_isOpen = true;
+        } catch (...) {
+            close();
+            throw;
+        }
     }
     
     void close() {
@@ -160,6 +364,7 @@ public:
         m_records.clear();
         m_entryIndex.clear();
         m_archivePath.clear();
+        m_archiveData.reset();
     }
     
     bool isOpen() const {
@@ -249,13 +454,15 @@ public:
 
     struct StreamSpec {
         std::string archivePath;
+        std::shared_ptr<const ByteVector> archiveData;
         unz64_file_pos position;
         size_t uncompressedSize;
     };
 
     StreamSpec streamSpec(const std::string& path) const {
         const auto& record = findRecord(path);
-        return {m_archivePath, record.position, record.entry.uncompressedSize};
+        return {m_archivePath, m_archiveData, record.position,
+                record.entry.uncompressedSize};
     }
     
     std::string readEntryAsString(const std::string& path) {
@@ -375,6 +582,8 @@ private:
     unzFile m_unzFile;
     bool m_isOpen = false;
     std::string m_archivePath;
+    std::shared_ptr<const ByteVector> m_archiveData;
+    MemoryFileFunctions m_fileFunctions{};
     std::vector<ZipEntry> m_entries;
     std::vector<EntryRecord> m_records;
     std::unordered_map<std::string, size_t> m_entryIndex;
@@ -391,6 +600,10 @@ ZipReader& ZipReader::operator=(ZipReader&&) noexcept = default;
 
 void ZipReader::open(const std::string& path) {
     m_impl->open(path);
+}
+
+void ZipReader::open(ByteVector data) {
+    m_impl->open(std::move(data));
 }
 
 void ZipReader::close() {
@@ -419,8 +632,11 @@ std::string ZipReader::readEntryAsString(const std::string& path) const {
 
 std::unique_ptr<ZipEntryStream> ZipReader::openEntryStream(const std::string& path) const {
     auto spec = m_impl->streamSpec(path);
-    auto impl = std::make_unique<ZipEntryStream::Impl>(
-        spec.archivePath, spec.position, spec.uncompressedSize);
+    auto impl = spec.archiveData
+        ? std::make_unique<ZipEntryStream::Impl>(
+              std::move(spec.archiveData), spec.position, spec.uncompressedSize)
+        : std::make_unique<ZipEntryStream::Impl>(
+              spec.archivePath, spec.position, spec.uncompressedSize);
     return std::unique_ptr<ZipEntryStream>(new ZipEntryStream(std::move(impl)));
 }
 

@@ -140,7 +140,7 @@ TEST(TypedReaderIntegrationTest, ResolvesSharedStringsAndKeepsRawNumbers) {
 }
 
 TEST(TypedReaderIntegrationTest, ProducesRectangularSparseWorksheet) {
-    const auto rows = xlsxcsv::internal::readSheetToTyped(INTEGRATION_XLSX, 2);
+    const auto rows = xlsxcsv::internal::readSheetToTyped(INTEGRATION_XLSX, 3);
     ASSERT_EQ(rows.size(), 50U);
     for (const auto& row : rows) {
         EXPECT_EQ(row.size(), 26U);

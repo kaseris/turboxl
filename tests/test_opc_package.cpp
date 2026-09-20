@@ -3,8 +3,19 @@
 #include "xlsxcsv/core.hpp"
 #include <fstream>
 #include <filesystem>
+#include <iterator>
 
 namespace fs = std::filesystem;
+
+namespace {
+
+xlsxcsv::core::ByteVector readBytes(const fs::path& path) {
+    std::ifstream input(path, std::ios::binary);
+    return {std::istreambuf_iterator<char>(input),
+            std::istreambuf_iterator<char>()};
+}
+
+} // namespace
 
 class OpcPackageTest : public ::testing::Test {
 protected:
@@ -84,6 +95,14 @@ TEST_F(OpcPackageTest, OpenValidXlsxFile) {
     EXPECT_TRUE(package.isOpen());
 }
 
+TEST_F(OpcPackageTest, OpensEquivalentMemorySource) {
+    xlsxcsv::core::OpcPackage package;
+    package.open(readBytes(testXlsxPath));
+    EXPECT_TRUE(package.isOpen());
+    EXPECT_EQ(package.findWorkbookPath(), "xl/workbook.xml");
+    EXPECT_TRUE(package.getZipReader().hasEntry("xl/workbook.xml"));
+}
+
 TEST_F(OpcPackageTest, PropagatesCustomSecurityLimits) {
     if (!fs::exists(testXlsxPath)) {
         FAIL() << "Test XLSX file could not be created";
@@ -93,6 +112,7 @@ TEST_F(OpcPackageTest, PropagatesCustomSecurityLimits) {
     limits.maxEntries = 123;
     limits.maxEntrySize = 4 * 1024 * 1024;
     limits.maxTotalUncompressed = 16 * 1024 * 1024;
+    limits.maxArchiveSize = 8 * 1024 * 1024;
 
     xlsxcsv::core::OpcPackage package(limits);
     package.open(testXlsxPath.string());
@@ -101,6 +121,7 @@ TEST_F(OpcPackageTest, PropagatesCustomSecurityLimits) {
     EXPECT_EQ(actual.maxEntries, limits.maxEntries);
     EXPECT_EQ(actual.maxEntrySize, limits.maxEntrySize);
     EXPECT_EQ(actual.maxTotalUncompressed, limits.maxTotalUncompressed);
+    EXPECT_EQ(actual.maxArchiveSize, limits.maxArchiveSize);
 }
 
 TEST_F(OpcPackageTest, OpenNonExistentFile) {

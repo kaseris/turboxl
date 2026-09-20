@@ -17,6 +17,7 @@ protected:
         createBasicXlsxFile();
         createDate1904XlsxFile();
         createMultiSheetXlsxFile();
+        createMixedSheetKindsXlsxFile();
     }
     
     void TearDown() override {
@@ -187,11 +188,55 @@ protected:
         // Create ZIP file
         createArchive(tempDir, testDir / "multisheet.xlsx");
     }
+
+    void createMixedSheetKindsXlsxFile() {
+        mixedKindsXlsxPath = testDir / "mixed-kinds.xlsx";
+        auto tempDir = testDir / "mixed_kinds_content";
+        fs::create_directories(tempDir / "_rels");
+        fs::create_directories(tempDir / "xl" / "_rels");
+
+        std::ofstream contentTypes(tempDir / "[Content_Types].xml");
+        contentTypes << R"(<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+</Types>)";
+        contentTypes.close();
+
+        std::ofstream mainRels(tempDir / "_rels" / ".rels");
+        mainRels << R"(<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>)";
+        mainRels.close();
+
+        std::ofstream workbook(tempDir / "xl" / "workbook.xml");
+        workbook << R"(<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>
+<sheet name="Chart" sheetId="1" r:id="rId1"/>
+<sheet name="Hidden" sheetId="2" state="hidden" r:id="rId2"/>
+<sheet name="VeryHidden" sheetId="3" state="veryHidden" r:id="rId3"/>
+<sheet name="Dialog" sheetId="4" r:id="rId4"/>
+<sheet name="Data" sheetId="5" r:id="rId5"/>
+</sheets></workbook>)";
+        workbook.close();
+
+        std::ofstream workbookRels(tempDir / "xl" / "_rels" / "workbook.xml.rels");
+        workbookRels << R"(<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chartsheet" Target="chartsheets/sheet1.xml"/>
+<Relationship Id="rId2" Type="http://purl.oclc.org/ooxml/officeDocument/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>
+<Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/dialogsheet" Target="dialogsheets/sheet1.xml"/>
+<Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/>
+</Relationships>)";
+        workbookRels.close();
+
+        createArchive(tempDir, mixedKindsXlsxPath);
+    }
     
     fs::path testDir;
     fs::path basicXlsxPath;
     fs::path date1904XlsxPath;
     fs::path multiSheetXlsxPath;
+    fs::path mixedKindsXlsxPath;
 };
 
 TEST_F(WorkbookTest, DefaultConstruction) {
@@ -360,6 +405,33 @@ TEST_F(WorkbookTest, FindSheetByIndex) {
     
     auto negativeSheet = workbook.findSheet(-1);
     EXPECT_FALSE(negativeSheet.has_value());
+}
+
+TEST_F(WorkbookTest, ClassifiesAndIndexesOnlyWorksheets) {
+    xlsxcsv::core::OpcPackage package;
+    package.open(mixedKindsXlsxPath.string());
+    xlsxcsv::core::Workbook workbook;
+    workbook.open(package);
+
+    const auto sheets = workbook.getSheets();
+    ASSERT_EQ(sheets.size(), 5u);
+    EXPECT_EQ(workbook.getSheetCount(), 3u);
+    EXPECT_EQ(sheets[0].kind, xlsxcsv::core::SheetKind::Chartsheet);
+    EXPECT_EQ(sheets[1].kind, xlsxcsv::core::SheetKind::Worksheet);
+    EXPECT_EQ(sheets[1].visibility,
+              xlsxcsv::core::SheetVisibility::Hidden);
+    EXPECT_EQ(sheets[2].visibility,
+              xlsxcsv::core::SheetVisibility::VeryHidden);
+    EXPECT_EQ(sheets[3].kind, xlsxcsv::core::SheetKind::Other);
+    EXPECT_EQ(sheets[4].kind, xlsxcsv::core::SheetKind::Worksheet);
+
+    EXPECT_EQ(workbook.findSheet(0)->name, "Hidden");
+    EXPECT_EQ(workbook.findSheet(1)->name, "VeryHidden");
+    EXPECT_EQ(workbook.findSheet(2)->name, "Data");
+    EXPECT_FALSE(workbook.findSheet(3));
+    EXPECT_THROW(workbook.findSheet("Chart"), xlsxcsv::core::XlsxError);
+    EXPECT_THROW(workbook.findSheet("Dialog"), xlsxcsv::core::XlsxError);
+    EXPECT_FALSE(workbook.findSheet("Missing"));
 }
 
 TEST_F(WorkbookTest, RelationshipMapping) {

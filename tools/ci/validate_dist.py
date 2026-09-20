@@ -52,7 +52,9 @@ def validate(directory, version, platform=None):
             metadata(wheel.read(meta[0]), version)
             if any(n.startswith(('include/', 'lib/', 'bin/')) or n.endswith(('.a', '.lib', '.h', '.hpp', '.cmake')) for n in names):
                 raise ValueError(f'Native development files in {path.name}')
-            if not any(n.startswith('turboxl.') and n.endswith(('.so', '.pyd')) for n in names):
+            if 'turboxl/__init__.py' not in names:
+                raise ValueError(f'Missing Python package in {path.name}')
+            if not any(n.startswith('turboxl/_turboxl') and n.endswith(('.so', '.pyd')) for n in names):
                 raise ValueError(f'Missing extension in {path.name}')
             if not any('license' in n.lower() for n in names):
                 raise ValueError(f'Missing license in {path.name}')
@@ -67,12 +69,14 @@ def validate(directory, version, platform=None):
             prefix = f'turboxl-{version}/'
             names = {n.removeprefix(prefix) for n in archive.getnames()}
             required = {'CMakeLists.txt', 'pyproject.toml', 'README.md', 'LICENSE', 'PKG-INFO',
-                        'src/python/module.cpp', 'include/xlsxcsv.hpp', 'cmake/turboxlConfig.cmake.in',
+                        'src/python/module.cpp', 'src/python/turboxl/__init__.py',
+                        'include/xlsxcsv.hpp', 'cmake/turboxlConfig.cmake.in',
                         'tools/wheels/fixtures.py', 'tools/wheels/smoke_test.py', 'tools/ci/constraints.txt',
                         'tools/ci/install_deps.sh', 'tests/fixture_config.hpp.in', 'tests/fixture_helpers.hpp'}
             if not required <= names:
                 raise ValueError(f'Incomplete sdist: {required - names}')
-            if any(n.startswith(('.git/', '.venv/', 'build/')) for n in names):
+            if any(n.startswith(('.git/', '.venv/', 'build/')) or
+                   '/__pycache__/' in n or n.endswith('.pyc') for n in names):
                 raise ValueError('Local state leaked into sdist')
             metadata(archive.extractfile(prefix + 'PKG-INFO').read(), version)
     print(f'Validated {len(seen)} wheels' + (' and sdist' if not platform else ''))

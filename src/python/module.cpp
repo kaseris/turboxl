@@ -37,7 +37,7 @@ bool profileTypedTimings() {
 
 } // namespace
 
-NB_MODULE(turboxl, m) {
+NB_MODULE(_turboxl, m) {
     m.doc() = "Fast XLSX to CSV converter (C++ core with Python bindings)";
     
     // Enums
@@ -57,6 +57,16 @@ NB_MODULE(turboxl, m) {
     nb::enum_<xlsxcsv::CsvOptions::MergedHandling>(m, "MergedHandling")
         .value("NONE", xlsxcsv::CsvOptions::MergedHandling::NONE)
         .value("PROPAGATE", xlsxcsv::CsvOptions::MergedHandling::PROPAGATE);
+
+    nb::enum_<xlsxcsv::SheetKind>(m, "SheetKind")
+        .value("WORKSHEET", xlsxcsv::SheetKind::Worksheet)
+        .value("CHARTSHEET", xlsxcsv::SheetKind::Chartsheet)
+        .value("OTHER", xlsxcsv::SheetKind::Other);
+
+    nb::enum_<xlsxcsv::SheetVisibility>(m, "SheetVisibility")
+        .value("VISIBLE", xlsxcsv::SheetVisibility::Visible)
+        .value("HIDDEN", xlsxcsv::SheetVisibility::Hidden)
+        .value("VERY_HIDDEN", xlsxcsv::SheetVisibility::VeryHidden);
     
     // SheetMetadata struct
     nb::class_<xlsxcsv::SheetMetadata>(m, "SheetMetadata")
@@ -65,6 +75,8 @@ NB_MODULE(turboxl, m) {
         .def_rw("sheet_id", &xlsxcsv::SheetMetadata::sheetId)
         .def_rw("visible", &xlsxcsv::SheetMetadata::visible)
         .def_rw("target", &xlsxcsv::SheetMetadata::target)
+        .def_rw("kind", &xlsxcsv::SheetMetadata::kind)
+        .def_rw("visibility", &xlsxcsv::SheetMetadata::visibility)
         .def("__repr__", [](const xlsxcsv::SheetMetadata &s) {
             return "SheetMetadata(name='" + s.name + "', sheet_id=" + std::to_string(s.sheetId) + 
                    ", visible=" + (s.visible ? "True" : "False") + ")";

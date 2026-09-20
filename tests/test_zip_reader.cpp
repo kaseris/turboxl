@@ -3,8 +3,43 @@
 #include "xlsxcsv/core.hpp"
 #include <fstream>
 #include <filesystem>
+#include <algorithm>
+#include <iterator>
+#include <string_view>
 
 namespace fs = std::filesystem;
+
+namespace {
+
+xlsxcsv::core::ByteVector readBytes(const fs::path& path) {
+    std::ifstream input(path, std::ios::binary);
+    return {std::istreambuf_iterator<char>(input),
+            std::istreambuf_iterator<char>()};
+}
+
+void replaceBytes(xlsxcsv::core::ByteVector& data,
+                  std::string_view before,
+                  std::string_view after) {
+    ASSERT_EQ(before.size(), after.size());
+    for (size_t offset = 0; offset + before.size() <= data.size(); ++offset) {
+        if (std::equal(before.begin(), before.end(), data.begin() + offset)) {
+            std::copy(after.begin(), after.end(), data.begin() + offset);
+        }
+    }
+}
+
+void markEntriesEncrypted(xlsxcsv::core::ByteVector& data) {
+    for (size_t offset = 0; offset + 10 <= data.size(); ++offset) {
+        const bool localHeader = data[offset] == 'P' && data[offset + 1] == 'K' &&
+            data[offset + 2] == 3 && data[offset + 3] == 4;
+        const bool centralHeader = data[offset] == 'P' && data[offset + 1] == 'K' &&
+            data[offset + 2] == 1 && data[offset + 3] == 2;
+        if (localHeader) data[offset + 6] |= 1;
+        if (centralHeader) data[offset + 8] |= 1;
+    }
+}
+
+} // namespace
 
 class ZipReaderTest : public ::testing::Test {
 protected:
@@ -49,6 +84,7 @@ TEST_F(ZipReaderTest, DefaultConstruction) {
     EXPECT_EQ(limits.maxEntries, 10000u);
     EXPECT_EQ(limits.maxEntrySize, 256u * 1024 * 1024);
     EXPECT_EQ(limits.maxTotalUncompressed, 2ULL * 1024 * 1024 * 1024);
+    EXPECT_EQ(limits.maxArchiveSize, 512ULL * 1024 * 1024);
 }
 
 TEST_F(ZipReaderTest, CustomSecurityLimits) {
@@ -169,6 +205,81 @@ TEST_F(ZipReaderTest, StreamsIndexedEntry) {
     EXPECT_EQ(stream->read(content.data(), 1), 0u);
     EXPECT_EQ(stream->bytesRead(), stream->size());
     EXPECT_EQ(content, "Hello, World!\nThis is a test file.");
+}
+
+TEST_F(ZipReaderTest, MemorySourceMatchesPathSource) {
+    xlsxcsv::core::ZipReader pathReader;
+    pathReader.open(testZipPath.string());
+    xlsxcsv::core::ZipReader memoryReader;
+    memoryReader.open(readBytes(testZipPath));
+
+    EXPECT_EQ(memoryReader.listEntries().size(), pathReader.listEntries().size());
+    EXPECT_EQ(memoryReader.readEntryAsString("test.txt"),
+              pathReader.readEntryAsString("test.txt"));
+}
+
+TEST_F(ZipReaderTest, IndependentMemoryStreamsRetainBackingData) {
+    xlsxcsv::core::ZipReader reader;
+    reader.open(readBytes(testZipPath));
+    auto first = reader.openEntryStream("test.txt");
+    auto second = reader.openEntryStream("test.txt");
+    reader.close();
+
+    std::string firstContent(first->size(), '\0');
+    std::string secondContent(second->size(), '\0');
+    EXPECT_EQ(first->read(firstContent.data(), 5), 5u);
+    EXPECT_EQ(second->read(secondContent.data(), secondContent.size()),
+              secondContent.size());
+    EXPECT_EQ(first->read(firstContent.data() + 5, firstContent.size() - 5),
+              firstContent.size() - 5);
+    EXPECT_EQ(firstContent, secondContent);
+    EXPECT_EQ(firstContent, "Hello, World!\nThis is a test file.");
+}
+
+TEST_F(ZipReaderTest, RejectsInvalidMemorySources) {
+    xlsxcsv::core::ZipReader reader;
+    EXPECT_THROW(reader.open(xlsxcsv::core::ByteVector{}),
+                 xlsxcsv::core::XlsxError);
+    EXPECT_THROW(reader.open(
+                     xlsxcsv::core::ByteVector{'n', 'o', 't', 'z', 'i', 'p'}),
+                 xlsxcsv::core::XlsxError);
+
+    auto truncated = readBytes(testZipPath);
+    truncated.resize(truncated.size() / 2);
+    EXPECT_THROW(reader.open(std::move(truncated)), xlsxcsv::core::XlsxError);
+    EXPECT_FALSE(reader.isOpen());
+}
+
+TEST_F(ZipReaderTest, EnforcesMemoryArchiveSizeLimit) {
+    auto bytes = readBytes(testZipPath);
+    xlsxcsv::core::ZipSecurityLimits limits;
+    limits.maxArchiveSize = bytes.size() - 1;
+    xlsxcsv::core::ZipReader reader(limits);
+    EXPECT_THROW(reader.open(std::move(bytes)), xlsxcsv::core::XlsxError);
+    EXPECT_FALSE(reader.isOpen());
+}
+
+TEST_F(ZipReaderTest, AppliesSecurityChecksToMemorySources) {
+    auto suspicious = readBytes(testZipPath);
+    replaceBytes(suspicious, "test.txt", "../x.txt");
+    xlsxcsv::core::ZipReader suspiciousReader;
+    EXPECT_THROW(suspiciousReader.open(std::move(suspicious)),
+                 xlsxcsv::core::XlsxError);
+
+    auto encrypted = readBytes(testZipPath);
+    markEntriesEncrypted(encrypted);
+    xlsxcsv::core::ZipReader encryptedReader;
+    EXPECT_THROW(encryptedReader.open(std::move(encrypted)),
+                 xlsxcsv::core::XlsxError);
+}
+
+TEST_F(ZipReaderTest, MovesOpenMemoryReader) {
+    xlsxcsv::core::ZipReader source;
+    source.open(readBytes(testZipPath));
+    xlsxcsv::core::ZipReader destination(std::move(source));
+    EXPECT_TRUE(destination.isOpen());
+    EXPECT_EQ(destination.readEntryAsString("test.txt"),
+              "Hello, World!\nThis is a test file.");
 }
 
 TEST_F(ZipReaderTest, ReadNonExistentEntry) {

@@ -22,11 +22,29 @@ public:
         // Open the ZIP file using our secure ZipReader
         m_zipReader.open(path);
         
-        // Parse the OPC package structure
-        parseContentTypes();
-        parseMainRelationships();
-        
-        m_isOpen = true;
+        try {
+            parseContentTypes();
+            parseMainRelationships();
+            m_isOpen = true;
+        } catch (...) {
+            close();
+            throw;
+        }
+    }
+
+    void open(ByteVector data) {
+        if (m_zipReader.isOpen()) {
+            close();
+        }
+        m_zipReader.open(std::move(data));
+        try {
+            parseContentTypes();
+            parseMainRelationships();
+            m_isOpen = true;
+        } catch (...) {
+            close();
+            throw;
+        }
     }
     
     void close() {
@@ -236,6 +254,10 @@ OpcPackage& OpcPackage::operator=(OpcPackage&&) noexcept = default;
 
 void OpcPackage::open(const std::string& path) {
     m_impl->open(path);
+}
+
+void OpcPackage::open(ByteVector data) {
+    m_impl->open(std::move(data));
 }
 
 void OpcPackage::close() {
