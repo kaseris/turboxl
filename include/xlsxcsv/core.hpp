@@ -46,6 +46,7 @@ struct ZipSecurityLimits {
     size_t maxEntries = 10000;
     size_t maxEntrySize = 256 * 1024 * 1024; // 256MB
     size_t maxTotalUncompressed = 2ULL * 1024 * 1024 * 1024; // 2GB
+    size_t maxArchiveSize = 512ULL * 1024 * 1024; // 512MB, memory sources only
 };
 
 // ZIP entry information
@@ -69,6 +70,7 @@ public:
     ZipReader& operator=(ZipReader&&) noexcept;
     
     void open(const std::string& path);
+    void open(ByteVector data);
     void close();
     bool isOpen() const;
     
@@ -97,6 +99,7 @@ public:
     OpcPackage& operator=(OpcPackage&&) noexcept;
     
     void open(const std::string& path);
+    void open(ByteVector data);
     void close();
     bool isOpen() const;
     
