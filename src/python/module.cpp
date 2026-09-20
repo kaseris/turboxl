@@ -37,7 +37,7 @@ bool profileTypedTimings() {
 
 } // namespace
 
-NB_MODULE(turboxl, m) {
+NB_MODULE(_turboxl, m) {
     m.doc() = "Fast XLSX to CSV converter (C++ core with Python bindings)";
     
     // Enums

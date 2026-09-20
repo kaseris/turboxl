@@ -48,12 +48,15 @@ class ReleaseTests(unittest.TestCase):
                 for python, abi in [('cp310', 'cp310'), ('cp311', 'cp311'), ('cp312', 'abi3')]:
                     path = directory / f'turboxl-{version}-{python}-{abi}-{platform}.whl'
                     with zipfile.ZipFile(path, 'w') as wheel:
-                        wheel.writestr('turboxl.pyd' if platform == 'win_amd64' else 'turboxl.so', b'fixture')
+                        extension = 'turboxl/_turboxl.pyd' if platform == 'win_amd64' else 'turboxl/_turboxl.so'
+                        wheel.writestr(extension, b'fixture')
+                        wheel.writestr('turboxl/__init__.py', b'from ._turboxl import *\n')
                         wheel.writestr(f'turboxl-{version}.dist-info/METADATA', meta)
                         wheel.writestr(f'turboxl-{version}.dist-info/licenses/LICENSE', b'MIT')
                     wheels.append(path)
             required = ['CMakeLists.txt', 'pyproject.toml', 'README.md', 'LICENSE', 'PKG-INFO',
-                        'src/python/module.cpp', 'include/xlsxcsv.hpp', 'cmake/turboxlConfig.cmake.in',
+                        'src/python/module.cpp', 'src/python/turboxl/__init__.py',
+                        'include/xlsxcsv.hpp', 'cmake/turboxlConfig.cmake.in',
                         'tools/wheels/fixtures.py', 'tools/wheels/smoke_test.py', 'tools/ci/constraints.txt',
                         'tools/ci/install_deps.sh', 'tests/fixture_config.hpp.in', 'tests/fixture_helpers.hpp']
             with tarfile.open(directory / f'turboxl-{version}.tar.gz', 'w:gz') as archive:

@@ -232,7 +232,10 @@ Artifacts:
 
 ## Python Wheel
 
-TurboXL ships a PEP 517/518 build powered by scikit-build-core. The wheel builds the C++ core and Python extension in Release mode using CMake.
+TurboXL ships a PEP 517/518 build powered by scikit-build-core. The wheel
+installs a regular `turboxl` Python package backed by the native
+`turboxl._turboxl` extension, built in Release mode using CMake. Existing
+`import turboxl` calls continue to use the same public API.
 
 ### Python prerequisites
 
@@ -339,7 +342,7 @@ Each gets CPython 3.10 and 3.11 wheels plus a CPython 3.12 ABI3 wheel, tested on
 
 Python package versions come from the CMake `project()` version, including in
 source archives without Git metadata. Wheels use portable CPU flags and Release
-IPO; native Debug tests do not. Python wheels contain the extension and runtime
+IPO; native Debug tests do not. Python wheels contain the package, extension, and runtime
 libraries; a normal CMake install still supplies native development files.
 The platform dependency scripts live in `tools/ci/`. CI pins Python build tools
 using `tools/ci/constraints.txt`; Homebrew and distro packages remain rolling

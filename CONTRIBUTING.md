@@ -29,6 +29,8 @@ documentation agree.
 - Add or update native tests under `tests/` for C++ behavior.
 - Keep the public C++ API in `include/xlsxcsv.hpp` and the Python bindings in
   `src/python/module.cpp` consistent when a feature affects both interfaces.
+- Keep `src/python/turboxl/__init__.py` re-exports synchronized with the native
+  bindings so installed-package imports remain backward compatible.
 - Update `README.md` for public API, behavior, compatibility, or build changes.
 - Preserve the read-only conversion scope documented in the README.
 - Add representative XLSX fixtures through the existing fixture helpers rather
