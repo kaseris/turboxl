@@ -120,13 +120,27 @@ enum class DateSystem {
     Date1904 = 1   // Mac Excel date system
 };
 
+enum class SheetKind {
+    Worksheet,
+    Chartsheet,
+    Other
+};
+
+enum class SheetVisibility {
+    Visible,
+    Hidden,
+    VeryHidden
+};
+
 // Sheet information structure
 struct SheetInfo {
     std::string name;           // Sheet name
     std::string relationshipId; // Relationship ID (r:id)
     std::string target;         // Target path (e.g., "worksheets/sheet1.xml")
-    int sheetId;                // Sheet ID number
-    bool visible;               // Sheet visibility
+    int sheetId = 0;            // Sheet ID number
+    SheetKind kind = SheetKind::Other;
+    SheetVisibility visibility = SheetVisibility::Visible;
+    bool visible = true;        // Compatibility alias for visibility == Visible
 };
 
 // Workbook properties

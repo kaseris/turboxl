@@ -62,9 +62,11 @@ public:
                                   return sheet.name == name;
                               });
         
-        if (it != m_sheets.end()) {
-            return *it;
+        if (it == m_sheets.end()) return std::nullopt;
+        if (it->kind != SheetKind::Worksheet) {
+            throw XlsxError("Sheet is not a worksheet: " + name);
         }
+        return *it;
         
         return std::nullopt;
     }
@@ -74,18 +76,24 @@ public:
             throw XlsxError("Workbook is not open");
         }
         
-        if (index < 0 || static_cast<size_t>(index) >= m_sheets.size()) {
-            return std::nullopt;
+        if (index < 0) return std::nullopt;
+        int worksheetIndex = 0;
+        for (const auto& sheet : m_sheets) {
+            if (sheet.kind != SheetKind::Worksheet) continue;
+            if (worksheetIndex == index) return sheet;
+            ++worksheetIndex;
         }
-        
-        return m_sheets[index];
+        return std::nullopt;
     }
     
     size_t getSheetCount() const {
         if (!m_isOpen) {
             return 0;
         }
-        return m_sheets.size();
+        return static_cast<size_t>(std::count_if(
+            m_sheets.begin(), m_sheets.end(), [](const SheetInfo& sheet) {
+                return sheet.kind == SheetKind::Worksheet;
+            }));
     }
     
     const WorkbookProperties& getProperties() const {
@@ -203,14 +211,16 @@ private:
         }
         
         // Check visibility state
-        sheet.visible = true; // Default to visible
+        sheet.visibility = SheetVisibility::Visible;
         if (state) {
             std::string stateValue = reinterpret_cast<const char*>(state);
-            if (stateValue == "hidden" || stateValue == "veryHidden") {
-                sheet.visible = false;
+            if (stateValue == "hidden") sheet.visibility = SheetVisibility::Hidden;
+            if (stateValue == "veryHidden") {
+                sheet.visibility = SheetVisibility::VeryHidden;
             }
             xmlFree(state);
         }
+        sheet.visible = sheet.visibility == SheetVisibility::Visible;
         
         m_sheets.push_back(sheet);
     }
@@ -279,6 +289,15 @@ private:
             auto it = m_relationships.find(sheet.relationshipId);
             if (it != m_relationships.end()) {
                 sheet.target = it->second.target;
+                const auto separator = it->second.type.find_last_of('/');
+                const auto type = it->second.type.substr(separator + 1);
+                if (type == "worksheet") {
+                    sheet.kind = SheetKind::Worksheet;
+                } else if (type == "chartsheet") {
+                    sheet.kind = SheetKind::Chartsheet;
+                } else {
+                    sheet.kind = SheetKind::Other;
+                }
             } else {
                 throw XlsxError("Relationship not found for sheet: " + sheet.name + " (r:id=" + sheet.relationshipId + ")");
             }

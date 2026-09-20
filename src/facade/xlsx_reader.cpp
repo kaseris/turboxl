@@ -130,36 +130,16 @@ std::string readSheetToCsv(
         }
         t_shared = msSince(t);
         
-        // Determine which sheet to parse
-        std::optional<xlsxcsv::core::SheetInfo> targetSheet;
-        auto sheets = workbook.getSheets();
-        
-        if (std::holds_alternative<std::string>(sheetSelector)) {
-            // Find sheet by name
-            std::string sheetName = std::get<std::string>(sheetSelector);
-            targetSheet = workbook.findSheet(sheetName);
-            if (!targetSheet.has_value()) {
-                throw std::runtime_error("Sheet not found: " + sheetName);
-            }
-        } else {
-            // Find sheet by index
-            int sheetIndex = std::get<int>(sheetSelector);
-            if (sheetIndex == -1) {
-                // Use first sheet
-                if (!sheets.empty()) {
-                    targetSheet = sheets[0];
-                }
-            } else if (sheetIndex >= 0 && static_cast<size_t>(sheetIndex) < sheets.size()) {
-                targetSheet = sheets[static_cast<size_t>(sheetIndex)];
-            }
-            
-            if (!targetSheet.has_value()) {
-                throw std::runtime_error("Sheet index out of range: " + std::to_string(sheetIndex));
-            }
-        }
+        const auto targetSheet = selectSheet(workbook, sheetSelector);
         
         if (!targetSheet.has_value()) {
-            throw std::runtime_error("No sheets found in workbook");
+            if (std::holds_alternative<std::string>(sheetSelector)) {
+                throw std::runtime_error(
+                    "Sheet not found: " + std::get<std::string>(sheetSelector));
+            }
+            throw std::runtime_error(
+                "Sheet index out of range: " +
+                std::to_string(std::get<int>(sheetSelector)));
         }
         
         // Phase 5: Parse sheet content to CSV
@@ -328,6 +308,28 @@ std::vector<SheetMetadata> getSheetList(const std::string& xlsxPath) {
             metadata.sheetId = sheet.sheetId;
             metadata.visible = sheet.visible;
             metadata.target = sheet.target;
+            switch (sheet.kind) {
+                case core::SheetKind::Worksheet:
+                    metadata.kind = SheetKind::Worksheet;
+                    break;
+                case core::SheetKind::Chartsheet:
+                    metadata.kind = SheetKind::Chartsheet;
+                    break;
+                case core::SheetKind::Other:
+                    metadata.kind = SheetKind::Other;
+                    break;
+            }
+            switch (sheet.visibility) {
+                case core::SheetVisibility::Visible:
+                    metadata.visibility = SheetVisibility::Visible;
+                    break;
+                case core::SheetVisibility::Hidden:
+                    metadata.visibility = SheetVisibility::Hidden;
+                    break;
+                case core::SheetVisibility::VeryHidden:
+                    metadata.visibility = SheetVisibility::VeryHidden;
+                    break;
+            }
             result.push_back(metadata);
         }
         

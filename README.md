@@ -147,6 +147,11 @@ csv_data = turboxl.read_sheet_to_csv(
     options=options,
 )
 
+# Inspect every workbook entry. Integer sheet selectors count worksheets only;
+# chartsheets and other entry kinds remain visible here as metadata.
+for sheet in turboxl.get_sheet_list("data.xlsx"):
+    print(sheet.name, sheet.kind, sheet.visibility)
+
 # Save to file
 with open("output.csv", "w", encoding="utf-8") as f:
     f.write(csv_data)
