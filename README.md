@@ -124,9 +124,9 @@ The raw report is committed at
 [`benchmarks/results/typed/macos-arm64-260920.json`](benchmarks/results/typed/macos-arm64-260920.json).
 
 The bounded-extraction change was rechecked on the same machine against a
-fresh pre-change run. Median total times were 0.0892s, 0.0847s, and 0.0237s;
-these were respectively 2.9%, 5.3%, and 5.2% faster than the baseline. TurboXL
-retained advantages of 39.8%, 37.0%, and 18.2% over calamine, so both the 10%
+fresh pre-change run. Median total times were 0.0902s, 0.0882s, and 0.0237s;
+these were respectively 1.8%, 1.3%, and 5.3% faster than the baseline. TurboXL
+retained advantages of 41.0%, 36.5%, and 18.2% over calamine, so both the 10%
 comparison gate and the maximum 5% regression gate passed. The candidate
 report is committed at
 [`benchmarks/results/typed/macos-arm64-260921-issue103.json`](benchmarks/results/typed/macos-arm64-260921-issue103.json).
