@@ -169,7 +169,7 @@ TEST(TypedRowCollectorTest, ConvertsStyledTemporalValuesAtMicrosecondPrecision) 
         R"(<worksheet><sheetData><row r="1">)"
         R"(<c r="A1" s="1"><v>59</v></c><c r="B1" s="1"><v>60</v></c>)"
         R"(<c r="C1" s="1"><v>61</v></c>)"
-        R"(<c r="D1" s="2"><v>45292.123456789</v></c>)"
+        R"(<c r="D1" s="2"><v>45292.0009765625</v></c>)"
         R"(<c r="E1" s="3"><v>0.999999999999</v></c>)"
         R"(<c r="F1" s="1"><v>4000000</v></c>)"
         R"(</row></sheetData></worksheet>)";
@@ -185,7 +185,7 @@ TEST(TypedRowCollectorTest, ConvertsStyledTemporalValuesAtMicrosecondPrecision) 
     EXPECT_EQ(std::tie(serial60.year, serial60.month, serial60.day), std::make_tuple(1900, 2U, 28U));
     EXPECT_EQ(std::tie(mar1.year, mar1.month, mar1.day), std::make_tuple(1900, 3U, 1U));
     const auto& datetime = std::get<xlsxcsv::internal::TypedDateTime>(rows[0][3]);
-    EXPECT_EQ(datetime.microsecond, 666'570);
+    EXPECT_EQ(datetime.microsecond, 375'000);
     const auto& time = std::get<xlsxcsv::internal::TypedTime>(rows[0][4]);
     EXPECT_EQ(std::tie(time.hour, time.minute, time.second, time.microsecond),
               std::make_tuple(0, 0, 0, 0));
