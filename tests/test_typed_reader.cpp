@@ -9,6 +9,7 @@
 namespace {
 
 using xlsxcsv::internal::TypedRowCollector;
+using xlsxcsv::internal::TypedReadOptions;
 using xlsxcsv::internal::TypedWorksheet;
 
 TypedWorksheet parseXml(const std::string& xml, TypedRowCollector& collector) {
@@ -69,6 +70,61 @@ TEST(TypedRowCollectorTest, EmptyPhysicalRowIsRetained) {
     EXPECT_DOUBLE_EQ(std::get<double>(rows[1][2]), 7.0);
 }
 
+TEST(TypedRowCollectorTest, CropsToUsedRangeAndPreservesInternalHoles) {
+    const std::string xml =
+        R"(<worksheet><sheetData><row r="3"><c r="C3"><v>1</v></c></row>)"
+        R"(<row r="5"><c r="E5" t="inlineStr"><is><t>end</t></is></c></row>)"
+        R"(</sheetData></worksheet>)";
+    TypedReadOptions options;
+    options.skipEmptyArea = true;
+    TypedRowCollector collector(nullptr, options);
+    const auto rows = parseXml(xml, collector);
+
+    ASSERT_EQ(rows.size(), 3U);
+    ASSERT_EQ(rows.front().size(), 3U);
+    EXPECT_DOUBLE_EQ(std::get<double>(rows[0][0]), 1.0);
+    EXPECT_TRUE(std::holds_alternative<std::monostate>(rows[1][1]));
+    EXPECT_EQ(std::get<std::string>(rows[2][2]), "end");
+}
+
+TEST(TypedRowCollectorTest, CroppedFarCellDoesNotAllocateFromOrigin) {
+    const std::string xml =
+        R"(<worksheet><sheetData><row r="1048576"><c r="XFD1048576"><v>7</v></c>)"
+        R"(</row></sheetData></worksheet>)";
+    TypedReadOptions options;
+    options.skipEmptyArea = true;
+    options.maxCells = 1;
+    TypedRowCollector collector(nullptr, options);
+    const auto rows = parseXml(xml, collector);
+
+    ASSERT_EQ(rows.size(), 1U);
+    ASSERT_EQ(rows[0].size(), 1U);
+    EXPECT_DOUBLE_EQ(std::get<double>(rows[0][0]), 7.0);
+}
+
+TEST(TypedRowCollectorTest, FarCellFailsBeforeDenseAllocation) {
+    const std::string xml =
+        R"(<worksheet><sheetData><row r="1048576"><c r="XFD1048576"><v>7</v></c>)"
+        R"(</row></sheetData></worksheet>)";
+    TypedReadOptions options;
+    options.maxCells = 10'000'000;
+    TypedRowCollector collector(nullptr, options);
+    try {
+        ASSERT_TRUE(parseFastXml(xml, collector));
+        FAIL() << "Expected the dense cell limit to fail";
+    } catch (const std::runtime_error& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("1048576 x 16384"), std::string::npos);
+        EXPECT_NE(message.find("max_cells=10000000"), std::string::npos);
+    }
+}
+
+TEST(TypedRowCollectorTest, RejectsZeroCellLimit) {
+    TypedReadOptions options;
+    options.maxCells = 0;
+    EXPECT_THROW(TypedRowCollector(nullptr, options), std::invalid_argument);
+}
+
 TEST(TypedRowCollectorTest, ReportsMalformedWorksheet) {
     const std::string xml = R"(<worksheet><sheetData><row r="1"><c r="A1"><v>1</v></c>)";
     TypedRowCollector collector;
@@ -112,6 +168,49 @@ TEST(FastTypedSheetReaderTest, HandlesEmptyRowsAndCells) {
     ASSERT_EQ(rows.front().size(), 4U);
     EXPECT_TRUE(std::holds_alternative<std::monostate>(rows[2][1]));
     EXPECT_EQ(std::get<std::string>(rows[2][3]), "");
+}
+
+TEST(FastTypedSheetReaderTest, NrowsStopsBeforeMalformedTail) {
+    const std::string xml =
+        R"(<worksheet><sheetData><row r="1"><c r="A1"><v>1</v></c></row>)"
+        R"(<row r="2"><c r="A2"><v>this tail is never closed)";
+    TypedReadOptions options;
+    options.nrows = 1;
+    TypedRowCollector fastCollector(nullptr, options);
+    ASSERT_TRUE(parseFastXml(xml, fastCollector));
+    const auto fastRows = fastCollector.takeRows();
+    ASSERT_EQ(fastRows.size(), 1U);
+    EXPECT_DOUBLE_EQ(std::get<double>(fastRows[0][0]), 1.0);
+
+    TypedRowCollector fallbackCollector(nullptr, options);
+    const auto fallbackRows = parseXml(xml, fallbackCollector);
+    EXPECT_TRUE(fallbackCollector.getErrors().empty());
+    ASSERT_EQ(fallbackRows.size(), 1U);
+    EXPECT_DOUBLE_EQ(std::get<double>(fallbackRows[0][0]), 1.0);
+}
+
+TEST(FastTypedSheetReaderTest, NrowsCountsMissingPhysicalRows) {
+    const std::string xml =
+        R"(<worksheet><sheetData><row r="1"><c r="A1"><v>1</v></c></row>)"
+        R"(<row r="5"><c r="Z5"><v>99</v></c></row></sheetData></worksheet>)";
+    TypedReadOptions options;
+    options.nrows = 3;
+    TypedRowCollector collector(nullptr, options);
+    ASSERT_TRUE(parseFastXml(xml, collector));
+    const auto rows = collector.takeRows();
+
+    ASSERT_EQ(rows.size(), 3U);
+    ASSERT_EQ(rows[0].size(), 1U);
+    EXPECT_DOUBLE_EQ(std::get<double>(rows[0][0]), 1.0);
+    EXPECT_TRUE(std::holds_alternative<std::monostate>(rows[2][0]));
+}
+
+TEST(FastTypedSheetReaderTest, ZeroRowsDoesNotReadXml) {
+    TypedReadOptions options;
+    options.nrows = 0;
+    TypedRowCollector collector(nullptr, options);
+    EXPECT_TRUE(parseFastXml("", collector));
+    EXPECT_TRUE(collector.takeRows().empty());
 }
 
 TEST(FastTypedSheetReaderTest, DeclinesUnsupportedOrMalformedXml) {

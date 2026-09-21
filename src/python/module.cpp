@@ -1,5 +1,6 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/map.h>
+#include <nanobind/stl/optional.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/variant.h>
 #include <nanobind/stl/vector.h>
@@ -8,6 +9,7 @@
 #include "typed_reader.hpp"
 
 #include <chrono>
+#include <cstdint>
 #include <cstdlib>
 #include <iostream>
 
@@ -189,14 +191,29 @@ NB_MODULE(_turboxl, m) {
     // public owning Workbook/Sheet API is tracked separately.
     m.def("_read_sheet_to_python",
         [](const std::string& xlsx_path,
-           const std::variant<std::string, int>& sheet) -> nb::list {
+           const std::variant<std::string, int>& sheet,
+           bool skip_empty_area,
+           const std::optional<std::int64_t>& nrows,
+           std::int64_t max_cells) -> nb::list {
+            if (nrows && *nrows < 0) {
+                throw nb::value_error("nrows must be non-negative or None");
+            }
+            if (max_cells <= 0) {
+                throw nb::value_error("max_cells must be greater than zero");
+            }
+            xlsxcsv::internal::TypedReadOptions options;
+            options.skipEmptyArea = skip_empty_area;
+            if (nrows) options.nrows = static_cast<std::size_t>(*nrows);
+            options.maxCells = static_cast<std::size_t>(max_cells);
+
             using Clock = std::chrono::steady_clock;
             const auto totalStart = Clock::now();
             xlsxcsv::internal::TypedWorksheet nativeRows;
             const auto nativeStart = Clock::now();
             {
                 nb::gil_scoped_release gil;
-                nativeRows = xlsxcsv::internal::readSheetToTyped(xlsx_path, sheet);
+                nativeRows = xlsxcsv::internal::readSheetToTyped(
+                    xlsx_path, sheet, options);
             }
             const auto nativeEnd = Clock::now();
 
@@ -228,6 +245,10 @@ NB_MODULE(_turboxl, m) {
         },
         nb::arg("xlsx_path"),
         nb::arg("sheet") = 0,
-        "Private benchmark-only typed worksheet extraction path"
+        nb::kw_only(),
+        nb::arg("skip_empty_area") = false,
+        nb::arg("nrows") = nb::none(),
+        nb::arg("max_cells") = 10'000'000,
+        "Private benchmark-only bounded typed worksheet extraction path"
     );
 }
