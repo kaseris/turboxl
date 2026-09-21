@@ -5,6 +5,7 @@
 #include "typed_reader.hpp"
 
 #include <string>
+#include <tuple>
 
 namespace {
 
@@ -22,6 +23,14 @@ TypedWorksheet parseXml(const std::string& xml, TypedRowCollector& collector) {
 bool parseFastXml(const std::string& xml, TypedRowCollector& collector) {
     const std::vector<std::uint8_t> bytes(xml.begin(), xml.end());
     return xlsxcsv::internal::tryParseTypedWorksheetFast(bytes, collector);
+}
+
+xlsxcsv::core::StylesRegistry integrationStyles() {
+    xlsxcsv::core::OpcPackage package;
+    package.open(INTEGRATION_XLSX);
+    xlsxcsv::core::StylesRegistry styles;
+    styles.parse(package);
+    return styles;
 }
 
 TEST(TypedRowCollectorTest, PreservesCoordinatesAndPrimitiveValues) {
@@ -42,7 +51,7 @@ TEST(TypedRowCollectorTest, PreservesCoordinatesAndPrimitiveValues) {
     EXPECT_TRUE(std::holds_alternative<std::monostate>(rows[0][0]));
     EXPECT_TRUE(std::holds_alternative<std::monostate>(rows[1][0]));
     EXPECT_EQ(std::get<std::string>(rows[1][1]), "text");
-    EXPECT_EQ(std::get<std::string>(rows[1][2]), "#N/A");
+    EXPECT_TRUE(std::holds_alternative<std::monostate>(rows[1][2]));
     EXPECT_TRUE(std::get<bool>(rows[1][3]));
     EXPECT_DOUBLE_EQ(std::get<double>(rows[3][0]), 42.5);
 }
@@ -67,7 +76,7 @@ TEST(TypedRowCollectorTest, EmptyPhysicalRowIsRetained) {
     ASSERT_EQ(rows.size(), 2U);
     ASSERT_EQ(rows[0].size(), 3U);
     EXPECT_TRUE(std::holds_alternative<std::monostate>(rows[0][2]));
-    EXPECT_DOUBLE_EQ(std::get<double>(rows[1][2]), 7.0);
+    EXPECT_EQ(std::get<std::int64_t>(rows[1][2]), 7);
 }
 
 TEST(TypedRowCollectorTest, CropsToUsedRangeAndPreservesInternalHoles) {
@@ -82,7 +91,7 @@ TEST(TypedRowCollectorTest, CropsToUsedRangeAndPreservesInternalHoles) {
 
     ASSERT_EQ(rows.size(), 3U);
     ASSERT_EQ(rows.front().size(), 3U);
-    EXPECT_DOUBLE_EQ(std::get<double>(rows[0][0]), 1.0);
+    EXPECT_EQ(std::get<std::int64_t>(rows[0][0]), 1);
     EXPECT_TRUE(std::holds_alternative<std::monostate>(rows[1][1]));
     EXPECT_EQ(std::get<std::string>(rows[2][2]), "end");
 }
@@ -99,7 +108,7 @@ TEST(TypedRowCollectorTest, CroppedFarCellDoesNotAllocateFromOrigin) {
 
     ASSERT_EQ(rows.size(), 1U);
     ASSERT_EQ(rows[0].size(), 1U);
-    EXPECT_DOUBLE_EQ(std::get<double>(rows[0][0]), 7.0);
+    EXPECT_EQ(std::get<std::int64_t>(rows[0][0]), 7);
 }
 
 TEST(TypedRowCollectorTest, FarCellFailsBeforeDenseAllocation) {
@@ -130,6 +139,75 @@ TEST(TypedRowCollectorTest, ReportsMalformedWorksheet) {
     TypedRowCollector collector;
     (void)parseXml(xml, collector);
     EXPECT_FALSE(collector.getErrors().empty());
+}
+
+TEST(TypedRowCollectorTest, ConvertsPandasCompatiblePrimitiveScalars) {
+    const std::string xml =
+        R"(<worksheet><sheetData><row r="1">)"
+        R"(<c r="A1"><v>42</v></c><c r="B1"><v>42.5</v></c>)"
+        R"(<c r="C1" t="b"><v>1</v></c><c r="D1" t="e"><v>#N/A</v></c>)"
+        R"(<c r="E1" t="str"><f>1+1</f><v>cached</v></c>)"
+        R"(<c r="F1"><f>1+1</f></c><c r="G1"><v>1e20</v></c>)"
+        R"(</row></sheetData></worksheet>)";
+    TypedRowCollector collector;
+    ASSERT_TRUE(parseFastXml(xml, collector));
+    const auto rows = collector.takeRows();
+
+    ASSERT_EQ(rows.size(), 1U);
+    EXPECT_EQ(std::get<std::int64_t>(rows[0][0]), 42);
+    EXPECT_DOUBLE_EQ(std::get<double>(rows[0][1]), 42.5);
+    EXPECT_TRUE(std::get<bool>(rows[0][2]));
+    EXPECT_TRUE(std::holds_alternative<std::monostate>(rows[0][3]));
+    EXPECT_EQ(std::get<std::string>(rows[0][4]), "cached");
+    EXPECT_TRUE(std::holds_alternative<std::monostate>(rows[0][5]));
+    EXPECT_DOUBLE_EQ(std::get<double>(rows[0][6]), 1e20);
+}
+
+TEST(TypedRowCollectorTest, ConvertsStyledTemporalValuesAtMicrosecondPrecision) {
+    auto styles = integrationStyles();
+    const std::string xml =
+        R"(<worksheet><sheetData><row r="1">)"
+        R"(<c r="A1" s="1"><v>59</v></c><c r="B1" s="1"><v>60</v></c>)"
+        R"(<c r="C1" s="1"><v>61</v></c>)"
+        R"(<c r="D1" s="2"><v>45292.123456789</v></c>)"
+        R"(<c r="E1" s="3"><v>0.999999999999</v></c>)"
+        R"(<c r="F1" s="1"><v>4000000</v></c>)"
+        R"(</row></sheetData></worksheet>)";
+    TypedRowCollector collector(
+        nullptr, {}, &styles, xlsxcsv::core::DateSystem::Date1900);
+    ASSERT_TRUE(parseFastXml(xml, collector));
+    const auto rows = collector.takeRows();
+
+    const auto& feb28 = std::get<xlsxcsv::internal::TypedDateTime>(rows[0][0]);
+    const auto& serial60 = std::get<xlsxcsv::internal::TypedDateTime>(rows[0][1]);
+    const auto& mar1 = std::get<xlsxcsv::internal::TypedDateTime>(rows[0][2]);
+    EXPECT_EQ(std::tie(feb28.year, feb28.month, feb28.day), std::make_tuple(1900, 2U, 28U));
+    EXPECT_EQ(std::tie(serial60.year, serial60.month, serial60.day), std::make_tuple(1900, 2U, 28U));
+    EXPECT_EQ(std::tie(mar1.year, mar1.month, mar1.day), std::make_tuple(1900, 3U, 1U));
+    const auto& datetime = std::get<xlsxcsv::internal::TypedDateTime>(rows[0][3]);
+    EXPECT_EQ(datetime.microsecond, 666'570);
+    const auto& time = std::get<xlsxcsv::internal::TypedTime>(rows[0][4]);
+    EXPECT_EQ(std::tie(time.hour, time.minute, time.second, time.microsecond),
+              std::make_tuple(0, 0, 0, 0));
+    EXPECT_EQ(std::get<std::int64_t>(rows[0][5]), 4'000'000);
+}
+
+TEST(TypedRowCollectorTest, Supports1904DatesAndCellDataFallback) {
+    auto styles = integrationStyles();
+    TypedRowCollector collector(
+        nullptr, {}, &styles, xlsxcsv::core::DateSystem::Date1904);
+    xlsxcsv::core::RowData row;
+    row.rowNumber = 1;
+    xlsxcsv::core::CellData cell;
+    cell.coordinate = {1, 1};
+    cell.type = xlsxcsv::core::CellType::Number;
+    cell.value = 59.0;
+    cell.styleIndex = 1;
+    row.cells.push_back(cell);
+    collector.handleRow(row);
+    const auto rows = collector.takeRows();
+    const auto& date = std::get<xlsxcsv::internal::TypedDateTime>(rows[0][0]);
+    EXPECT_EQ(std::tie(date.year, date.month, date.day), std::make_tuple(1904, 2U, 29U));
 }
 
 TEST(FastTypedSheetReaderTest, ParsesNamespacedPrimitiveCellsAndEntities) {
@@ -180,13 +258,13 @@ TEST(FastTypedSheetReaderTest, NrowsStopsBeforeMalformedTail) {
     ASSERT_TRUE(parseFastXml(xml, fastCollector));
     const auto fastRows = fastCollector.takeRows();
     ASSERT_EQ(fastRows.size(), 1U);
-    EXPECT_DOUBLE_EQ(std::get<double>(fastRows[0][0]), 1.0);
+    EXPECT_EQ(std::get<std::int64_t>(fastRows[0][0]), 1);
 
     TypedRowCollector fallbackCollector(nullptr, options);
     const auto fallbackRows = parseXml(xml, fallbackCollector);
     EXPECT_TRUE(fallbackCollector.getErrors().empty());
     ASSERT_EQ(fallbackRows.size(), 1U);
-    EXPECT_DOUBLE_EQ(std::get<double>(fallbackRows[0][0]), 1.0);
+    EXPECT_EQ(std::get<std::int64_t>(fallbackRows[0][0]), 1);
 }
 
 TEST(FastTypedSheetReaderTest, NrowsCountsMissingPhysicalRows) {
@@ -201,7 +279,7 @@ TEST(FastTypedSheetReaderTest, NrowsCountsMissingPhysicalRows) {
 
     ASSERT_EQ(rows.size(), 3U);
     ASSERT_EQ(rows[0].size(), 1U);
-    EXPECT_DOUBLE_EQ(std::get<double>(rows[0][0]), 1.0);
+    EXPECT_EQ(std::get<std::int64_t>(rows[0][0]), 1);
     EXPECT_TRUE(std::holds_alternative<std::monostate>(rows[2][0]));
 }
 
@@ -228,14 +306,23 @@ TEST(FastTypedSheetReaderTest, DeclinesUnsupportedOrMalformedXml) {
     EXPECT_FALSE(parseFastXml(R"(<not-a-worksheet/>)", wrongRootCollector));
 }
 
-TEST(TypedReaderIntegrationTest, ResolvesSharedStringsAndKeepsRawNumbers) {
+TEST(TypedReaderIntegrationTest, ResolvesSharedStringsNumbersAndDates) {
     const auto rows = xlsxcsv::internal::readSheetToTyped(INTEGRATION_XLSX, "Data");
     ASSERT_EQ(rows.size(), 1U);
     ASSERT_EQ(rows[0].size(), 4U);
     EXPECT_EQ(std::get<std::string>(rows[0][0]), "caf\xc3\xa9, \"quoted\"");
-    EXPECT_DOUBLE_EQ(std::get<double>(rows[0][1]), 42.0);
-    EXPECT_DOUBLE_EQ(std::get<double>(rows[0][2]), 45306.0);
-    EXPECT_DOUBLE_EQ(std::get<double>(rows[0][3]), 45306.57326388889);
+    EXPECT_EQ(std::get<std::int64_t>(rows[0][1]), 42);
+    const auto& date = std::get<xlsxcsv::internal::TypedDateTime>(rows[0][2]);
+    EXPECT_EQ(date.year, 2024);
+    EXPECT_EQ(date.month, 1U);
+    EXPECT_EQ(date.day, 15U);
+    const auto& datetime = std::get<xlsxcsv::internal::TypedDateTime>(rows[0][3]);
+    EXPECT_EQ(datetime.year, 2024);
+    EXPECT_EQ(datetime.month, 1U);
+    EXPECT_EQ(datetime.day, 15U);
+    EXPECT_EQ(datetime.hour, 13);
+    EXPECT_EQ(datetime.minute, 45);
+    EXPECT_EQ(datetime.second, 30);
 }
 
 TEST(TypedReaderIntegrationTest, ProducesRectangularSparseWorksheet) {

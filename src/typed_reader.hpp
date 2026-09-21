@@ -4,6 +4,7 @@
 #include "core/primitive_cell_handler.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
@@ -12,7 +13,31 @@
 
 namespace xlsxcsv::internal {
 
-using TypedCellValue = std::variant<std::monostate, bool, double, std::string>;
+struct TypedDateTime {
+    int year;
+    unsigned month;
+    unsigned day;
+    int hour;
+    int minute;
+    int second;
+    int microsecond;
+};
+
+struct TypedTime {
+    int hour;
+    int minute;
+    int second;
+    int microsecond;
+};
+
+struct PendingStyledNumber {
+    double value;
+    int styleIndex;
+};
+
+using TypedCellValue = std::variant<
+    std::monostate, bool, std::int64_t, double, std::string,
+    TypedDateTime, TypedTime, PendingStyledNumber>;
 using TypedRow = std::vector<TypedCellValue>;
 using TypedWorksheet = std::vector<TypedRow>;
 
@@ -29,7 +54,9 @@ class TypedRowCollector final : public core::SheetRowHandler,
 public:
     explicit TypedRowCollector(
         const core::SharedStringsProvider* sharedStrings = nullptr,
-        TypedReadOptions options = {});
+        TypedReadOptions options = {},
+        const core::StylesRegistry* styles = nullptr,
+        core::DateSystem dateSystem = core::DateSystem::Date1900);
     ~TypedRowCollector() override;
 
     TypedRowCollector(const TypedRowCollector&) = delete;
@@ -48,13 +75,17 @@ public:
         int rowNumber, bool hidden, std::size_t columnReserveHint) override;
     void addEmpty(int column) override;
     void addBoolean(int column, bool value) override;
-    void addNumber(int column, double value) override;
+    void addNumber(int column, double value, int styleIndex) override;
+    void addError(int column) override;
     void addString(int column, std::string&& value) override;
     void addSharedString(int column, std::size_t index) override;
     void endPrimitiveRow() override;
 
     bool shouldParseRow(int rowNumber) const override;
     bool shouldContinueParsing() const override;
+
+    bool hasStyledNumbers() const;
+    void setStyles(const core::StylesRegistry* styles);
 
     TypedWorksheet takeRows();
     const std::vector<std::string>& getErrors() const;

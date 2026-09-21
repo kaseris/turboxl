@@ -1,6 +1,9 @@
 #include "typed_reader.hpp"
 
 #include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <cstdint>
 #include <limits>
 #include <sstream>
 #include <utility>
@@ -9,14 +12,93 @@ namespace xlsxcsv::internal {
 
 namespace {
 
+constexpr std::int64_t MicrosecondsPerDay = 86'400'000'000LL;
+
+TypedCellValue numericValue(double value) {
+    constexpr double Int64Lower = -9'223'372'036'854'775'808.0;
+    constexpr double Int64Upper = 9'223'372'036'854'775'808.0;
+    if (value >= Int64Lower && value < Int64Upper) {
+        const auto integer = static_cast<std::int64_t>(value);
+        if (static_cast<double>(integer) == value) return integer;
+    }
+    return value;
+}
+
+std::optional<std::int64_t> roundedMicroseconds(double value) {
+    if (!std::isfinite(value)) return std::nullopt;
+    const long double micros =
+        static_cast<long double>(value) * static_cast<long double>(MicrosecondsPerDay);
+    if (micros < static_cast<long double>(std::numeric_limits<std::int64_t>::min()) ||
+        micros > static_cast<long double>(std::numeric_limits<std::int64_t>::max())) {
+        return std::nullopt;
+    }
+    return static_cast<std::int64_t>(std::llround(micros));
+}
+
+TypedCellValue convertNumber(
+    double value, int styleIndex, const core::StylesRegistry* styles,
+    core::DateSystem dateSystem) {
+    if (styleIndex <= 0 || !std::isfinite(value)) return numericValue(value);
+    if (!styles) return PendingStyledNumber{value, styleIndex};
+    const auto format = styles->getNumberFormatTypeForStyle(styleIndex);
+    if (format != core::NumberFormatType::Date &&
+        format != core::NumberFormatType::DateTime &&
+        format != core::NumberFormatType::Time) {
+        return numericValue(value);
+    }
+
+    const auto rounded = roundedMicroseconds(value);
+    if (!rounded) return numericValue(value);
+    if (format == core::NumberFormatType::Time) {
+        if (value < 0.0 || value >= 1.0) return numericValue(value);
+        const auto timeMicros = *rounded % MicrosecondsPerDay;
+        const auto seconds = timeMicros / 1'000'000;
+        return TypedTime{
+            static_cast<int>(seconds / 3600),
+            static_cast<int>((seconds % 3600) / 60),
+            static_cast<int>(seconds % 60),
+            static_cast<int>(timeMicros % 1'000'000)};
+    }
+
+    std::int64_t serialDay = *rounded / MicrosecondsPerDay;
+    std::int64_t microsOfDay = *rounded % MicrosecondsPerDay;
+    if (microsOfDay < 0) {
+        microsOfDay += MicrosecondsPerDay;
+        --serialDay;
+    }
+    if (dateSystem == core::DateSystem::Date1900) {
+        if (serialDay == 60) serialDay = 59;
+        else if (serialDay > 60) --serialDay;
+    }
+    const auto epoch = dateSystem == core::DateSystem::Date1904
+        ? std::chrono::sys_days{std::chrono::year{1904}/1/1}
+        : std::chrono::sys_days{std::chrono::year{1899}/12/31};
+    const std::chrono::year_month_day date{epoch + std::chrono::days{serialDay}};
+    const int year = static_cast<int>(date.year());
+    if (!date.ok() || year < 1 || year > 9999) return numericValue(value);
+    const auto seconds = microsOfDay / 1'000'000;
+    return TypedDateTime{
+        year, static_cast<unsigned>(date.month()), static_cast<unsigned>(date.day()),
+        static_cast<int>(seconds / 3600),
+        static_cast<int>((seconds % 3600) / 60),
+        static_cast<int>(seconds % 60),
+        static_cast<int>(microsOfDay % 1'000'000)};
+}
+
 TypedCellValue convertCell(const core::CellData& cell,
                            const core::SharedStringsProvider* sharedStrings,
+                           const core::StylesRegistry* styles,
+                           core::DateSystem dateSystem,
                            std::vector<std::string>& errors) {
-    if (cell.isEmpty()) {
+    if (cell.isEmpty() || cell.type == core::CellType::Error) {
         return std::monostate{};
     }
     if (cell.type == core::CellType::SharedString && cell.isSharedStringIndex()) {
         if (sharedStrings) {
+            if (auto view = sharedStrings->tryGetStringView(
+                    static_cast<std::size_t>(cell.getSharedStringIndex()))) {
+                return std::string(*view);
+            }
             auto value = sharedStrings->tryGetString(
                 static_cast<std::size_t>(cell.getSharedStringIndex()));
             if (value) {
@@ -32,7 +114,8 @@ TypedCellValue convertCell(const core::CellData& cell,
         return std::get<bool>(cell.value);
     }
     if (std::holds_alternative<double>(cell.value)) {
-        return std::get<double>(cell.value);
+        return convertNumber(
+            std::get<double>(cell.value), cell.styleIndex, styles, dateSystem);
     }
     if (std::holds_alternative<std::string>(cell.value)) {
         return std::get<std::string>(cell.value);
@@ -57,8 +140,11 @@ public:
 
     explicit Impl(
         const core::SharedStringsProvider* sharedStrings,
+        const core::StylesRegistry* styles,
+        core::DateSystem dateSystem,
         TypedReadOptions options)
-        : sharedStrings(sharedStrings), options(std::move(options)) {
+        : sharedStrings(sharedStrings), styles(styles), dateSystem(dateSystem),
+          options(std::move(options)) {
         if (this->options.maxCells == 0) {
             throw std::invalid_argument("max_cells must be greater than zero");
         }
@@ -197,9 +283,12 @@ public:
             errors.push_back("Invalid cell coordinate: " + cell.coordinate.toReference());
             return;
         }
+        if (cell.type == core::CellType::Number && cell.styleIndex > 0) {
+            hasStyledNumbers = true;
+        }
         addValue(
             cell.coordinate.column,
-            convertCell(cell, sharedStrings, errors));
+            convertCell(cell, sharedStrings, styles, dateSystem, errors));
     }
 
     void finishRow() {
@@ -236,6 +325,7 @@ public:
                     output[column - *cropMinColumn] = std::move(value);
                 }
             }
+            resolveStyledNumbers();
             return;
         }
 
@@ -252,9 +342,24 @@ public:
             if (rowIndex < rows.size()) rows[rowIndex] = std::move(stored.values);
         }
         for (auto& row : rows) row.resize(columnCount);
+        resolveStyledNumbers();
+    }
+
+    void resolveStyledNumbers() {
+        for (auto& row : rows) {
+            for (auto& value : row) {
+                if (!std::holds_alternative<PendingStyledNumber>(value)) continue;
+                const auto pending = std::get<PendingStyledNumber>(value);
+                value = styles
+                    ? convertNumber(pending.value, pending.styleIndex, styles, dateSystem)
+                    : numericValue(pending.value);
+            }
+        }
     }
 
     const core::SharedStringsProvider* sharedStrings;
+    const core::StylesRegistry* styles;
+    core::DateSystem dateSystem;
     TypedReadOptions options;
     TypedWorksheet rows;
     std::vector<DenseStoredRow> denseRows;
@@ -273,13 +378,17 @@ public:
     bool completed = false;
     mutable bool limitBoundaryObserved = false;
     bool finalized = false;
+    bool hasStyledNumbers = false;
     std::vector<std::string> errors;
 };
 
 TypedRowCollector::TypedRowCollector(
     const core::SharedStringsProvider* sharedStrings,
-    TypedReadOptions options)
-    : m_impl(std::make_unique<Impl>(sharedStrings, std::move(options))) {}
+    TypedReadOptions options,
+    const core::StylesRegistry* styles,
+    core::DateSystem dateSystem)
+    : m_impl(std::make_unique<Impl>(
+          sharedStrings, styles, dateSystem, std::move(options))) {}
 
 TypedRowCollector::~TypedRowCollector() = default;
 TypedRowCollector::TypedRowCollector(TypedRowCollector&&) noexcept = default;
@@ -327,8 +436,14 @@ void TypedRowCollector::addBoolean(int column, bool value) {
     m_impl->addValue(column, value);
 }
 
-void TypedRowCollector::addNumber(int column, double value) {
-    m_impl->addValue(column, value);
+void TypedRowCollector::addNumber(int column, double value, int styleIndex) {
+    if (styleIndex > 0) m_impl->hasStyledNumbers = true;
+    m_impl->addValue(
+        column, convertNumber(value, styleIndex, m_impl->styles, m_impl->dateSystem));
+}
+
+void TypedRowCollector::addError(int column) {
+    m_impl->addValue(column, std::monostate{});
 }
 
 void TypedRowCollector::addString(int column, std::string&& value) {
@@ -337,6 +452,10 @@ void TypedRowCollector::addString(int column, std::string&& value) {
 
 void TypedRowCollector::addSharedString(int column, std::size_t index) {
     if (m_impl->sharedStrings) {
+        if (auto view = m_impl->sharedStrings->tryGetStringView(index)) {
+            m_impl->addValue(column, std::string(*view));
+            return;
+        }
         auto value = m_impl->sharedStrings->tryGetString(index);
         if (value) {
             m_impl->addValue(column, std::move(*value));
@@ -358,6 +477,14 @@ bool TypedRowCollector::shouldParseRow(int rowNumber) const {
 
 bool TypedRowCollector::shouldContinueParsing() const {
     return !m_impl->completed;
+}
+
+bool TypedRowCollector::hasStyledNumbers() const {
+    return m_impl->hasStyledNumbers;
+}
+
+void TypedRowCollector::setStyles(const core::StylesRegistry* styles) {
+    m_impl->styles = styles;
 }
 
 TypedWorksheet TypedRowCollector::takeRows() {

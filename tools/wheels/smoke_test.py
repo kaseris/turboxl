@@ -1,5 +1,6 @@
 """Exercise the installed extension, never a module from the source tree."""
 from pathlib import Path
+from datetime import datetime, time
 import struct
 import sys
 import tempfile
@@ -20,8 +21,36 @@ def main():
         assert turboxl.read_sheet_to_csv(filename) == '"café, ""quoted""",42,2024-01-15,2024-01-15T13:45:30\n'
         assert turboxl.read_sheet_to_csv(filename, 1) == 'secret\n'
         typed = turboxl._read_sheet_to_python(filename, 0)
-        assert typed == [['café, "quoted"', 42.0, 45306.0, 45306.57326388889]]
-        assert isinstance(typed[0][1], float)
+        assert typed == [[
+            'café, "quoted"',
+            42,
+            datetime(2024, 1, 15),
+            datetime(2024, 1, 15, 13, 45, 30),
+        ]]
+        assert isinstance(typed[0][1], int)
+        scalar_path = Path(tmp) / 'scalars.xlsx'
+        workbook(scalar_path, scalars=True)
+        scalar_rows = turboxl._read_sheet_to_python(str(scalar_path), 'Data')
+        assert scalar_rows == [
+            [None, True, 42, 42.5, 'text', None, None],
+            [
+                datetime(1900, 2, 28),
+                datetime(1900, 2, 28),
+                datetime(1900, 3, 1),
+                datetime(2024, 1, 1, 2, 57, 46, 666570),
+                time(0, 0),
+                4_000_000,
+                42,
+            ],
+        ]
+        mac_epoch_path = Path(tmp) / 'scalars-1904.xlsx'
+        workbook(mac_epoch_path, date1904=True, scalars=True)
+        mac_rows = turboxl._read_sheet_to_python(str(mac_epoch_path), 'Data')
+        assert mac_rows[1][:3] == [
+            datetime(1904, 2, 29),
+            datetime(1904, 3, 1),
+            datetime(1904, 3, 2),
+        ]
         sparse_typed = turboxl._read_sheet_to_python(filename, 'Sparse')
         assert len(sparse_typed) == 50
         assert all(len(row) == 26 for row in sparse_typed)
