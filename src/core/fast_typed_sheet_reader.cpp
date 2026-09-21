@@ -327,6 +327,7 @@ std::string normalizedSheetPath(std::string path) {
 bool tryParseTypedWorksheetFast(
     const std::vector<std::uint8_t>& bytes,
     TypedRowCollector& collector) {
+    if (!collector.shouldContinueParsing()) return true;
     if (bytes.empty()) return false;
     const std::string_view xml(
         reinterpret_cast<const char*>(bytes.data()), bytes.size());
@@ -389,6 +390,7 @@ bool tryParseTypedWorksheetFast(
                     !parsePositiveInt(rowReference, rowNumber)) {
                     return false;
                 }
+                if (!collector.shouldParseRow(rowNumber)) return true;
                 std::size_t reserveHint = 0;
                 std::string_view spans;
                 if (findAttribute(token.raw, "spans", spans)) {
@@ -447,6 +449,7 @@ bool tryParseTypedWorksheetFast(
                 if (inCell) return false;
                 collector.endPrimitiveRow();
                 inRow = false;
+                if (!collector.shouldContinueParsing()) return true;
             } else if (inSheetData && token.name == "sheetData") {
                 if (inRow || inCell) return false;
                 inSheetData = false;
@@ -463,6 +466,7 @@ bool tryReadTypedWorksheetFast(
     const core::OpcPackage& package,
     const std::string& sheetPath,
     TypedRowCollector& collector) {
+    if (!collector.shouldContinueParsing()) return true;
     const auto bytes = package.getZipReader().readEntry(normalizedSheetPath(sheetPath));
     return tryParseTypedWorksheetFast(bytes, collector);
 }

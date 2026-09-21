@@ -87,7 +87,13 @@ def worker(args: argparse.Namespace) -> int:
     if args.engine == "turboxl":
         import turboxl
 
-        rows = turboxl._read_sheet_to_python(args.xlsx, 0)
+        rows = turboxl._read_sheet_to_python(
+            args.xlsx,
+            0,
+            skip_empty_area=args.skip_empty_area,
+            nrows=args.nrows,
+            max_cells=args.max_cells,
+        )
         distribution = "turboxl"
     else:
         import python_calamine
@@ -97,7 +103,10 @@ def worker(args: argparse.Namespace) -> int:
         sheet = workbook.get_sheet_by_index(0)
         phases["load_seconds"] = time.perf_counter() - load_started
         materialize_started = time.perf_counter()
-        rows = sheet.to_python(skip_empty_area=False)
+        rows = sheet.to_python(
+            skip_empty_area=args.skip_empty_area,
+            nrows=args.nrows,
+        )
         phases["materialize_seconds"] = time.perf_counter() - materialize_started
         distribution = "python-calamine"
     elapsed = time.perf_counter() - started
@@ -127,21 +136,32 @@ def parse_turboxl_timings(stderr: str) -> dict[str, float]:
 
 
 def run_worker(
-    python: str, script: Path, fixture: Path, engine: str
+    python: str,
+    script: Path,
+    fixture: Path,
+    engine: str,
+    args: argparse.Namespace,
 ) -> dict[str, Any]:
     environment = os.environ.copy()
     if engine == "turboxl":
         environment["TURBOXL_PROFILE_TYPED_TIMINGS"] = "1"
+    command = [
+        python,
+        str(script),
+        "--worker",
+        "--engine",
+        engine,
+        "--xlsx",
+        str(fixture),
+        "--max-cells",
+        str(args.max_cells),
+    ]
+    if args.skip_empty_area:
+        command.append("--skip-empty-area")
+    if args.nrows is not None:
+        command.extend(["--nrows", str(args.nrows)])
     completed = subprocess.run(
-        [
-            python,
-            str(script),
-            "--worker",
-            "--engine",
-            engine,
-            "--xlsx",
-            str(fixture),
-        ],
+        command,
         capture_output=True,
         text=True,
         env=environment,
@@ -183,11 +203,55 @@ def median(values: list[dict[str, Any]]) -> float:
     return statistics.median(float(value["seconds"]) for value in values)
 
 
+def git_revision() -> str:
+    completed = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return completed.stdout.strip() if completed.returncode == 0 else "unknown"
+
+
+def load_baseline(args: argparse.Namespace) -> dict[str, Any] | None:
+    if not args.baseline_json:
+        return None
+    baseline = json.loads(Path(args.baseline_json).read_text())
+    expected = {
+        "platform": platform.platform(),
+        "machine": platform.machine(),
+        "python": platform.python_version(),
+        "rows": args.rows,
+        "warmups": args.warmups,
+        "rounds": args.rounds,
+    }
+    actual = baseline.get("environment", {})
+    mismatches = [
+        key for key, value in expected.items() if actual.get(key) != value
+    ]
+    if actual.get("skip_empty_area", False) != args.skip_empty_area:
+        mismatches.append("skip_empty_area")
+    if actual.get("nrows") != args.nrows:
+        mismatches.append("nrows")
+    if mismatches:
+        raise ValueError(
+            "baseline environment differs for: " + ", ".join(mismatches)
+        )
+    return baseline
+
+
 def controller(args: argparse.Namespace) -> int:
     if args.rows < 1 or args.rounds < 1 or args.warmups < 0:
         raise ValueError("rows and rounds must be positive; warmups cannot be negative")
+    if args.nrows is not None and args.nrows < 0:
+        raise ValueError("nrows cannot be negative")
+    if args.max_cells < 1:
+        raise ValueError("max-cells must be positive")
+    if args.max_regression < 0:
+        raise ValueError("max-regression cannot be negative")
     script = Path(__file__).resolve()
     fixtures = generate_fixtures(args, script)
+    baseline = load_baseline(args)
     report: dict[str, Any] = {
         "environment": {
             "platform": platform.platform(),
@@ -196,24 +260,29 @@ def controller(args: argparse.Namespace) -> int:
             "rows": args.rows,
             "warmups": args.warmups,
             "rounds": args.rounds,
+            "skip_empty_area": args.skip_empty_area,
+            "nrows": args.nrows,
+            "max_cells": args.max_cells,
+            "git_revision": git_revision(),
         },
         "families": {},
     }
     all_parity = True
     all_gate = True
+    all_no_regression = True
 
     for family, fixture in fixtures.items():
         print(f"\n{family}: {fixture.name} ({fixture.stat().st_size / 1024 / 1024:.1f} MiB)")
         for warmup in range(args.warmups):
             order = ENGINES if warmup % 2 == 0 else tuple(reversed(ENGINES))
             for engine in order:
-                run_worker(args.python, script, fixture, engine)
+                run_worker(args.python, script, fixture, engine, args)
 
         results: dict[str, list[dict[str, Any]]] = {engine: [] for engine in ENGINES}
         for round_number in range(args.rounds):
             order = ENGINES if round_number % 2 == 0 else tuple(reversed(ENGINES))
             for engine in order:
-                result = run_worker(args.python, script, fixture, engine)
+                result = run_worker(args.python, script, fixture, engine, args)
                 results[engine].append(result)
                 print(
                     f"  round={round_number + 1} engine={engine:<8} "
@@ -237,7 +306,7 @@ def controller(args: argparse.Namespace) -> int:
             f"calamine_median={calamine_median:.4f}s advantage={advantage:.1%} "
             f"gate={passes_gate}"
         )
-        report["families"][family] = {
+        family_report = {
             "fixture": fixture.name,
             "parity": parity,
             "turboxl_median_seconds": turbo_median,
@@ -246,15 +315,39 @@ def controller(args: argparse.Namespace) -> int:
             "passes_10_percent_gate": passes_gate,
             "results": results,
         }
+        if baseline:
+            baseline_median = float(
+                baseline["families"][family]["turboxl_median_seconds"]
+            )
+            regression = (turbo_median - baseline_median) / baseline_median
+            passes_regression = regression <= args.max_regression
+            family_report["baseline_turboxl_median_seconds"] = baseline_median
+            family_report["turboxl_regression"] = regression
+            family_report["passes_regression_gate"] = passes_regression
+            all_no_regression = all_no_regression and passes_regression
+            print(
+                f"  baseline={baseline_median:.4f}s regression={regression:.1%} "
+                f"regression_gate={passes_regression}"
+            )
+        report["families"][family] = family_report
         all_parity = all_parity and parity
         all_gate = all_gate and passes_gate
 
     report["exact_compatible_value_parity"] = all_parity
     report["typed_adapter_may_proceed"] = all_gate
+    report["max_regression"] = args.max_regression
+    report["no_performance_regression"] = all_no_regression
     if args.json_output:
         Path(args.json_output).write_text(json.dumps(report, indent=2) + "\n")
-    print(f"\noverall parity={all_parity} typed_adapter_may_proceed={all_gate}")
-    return 0 if all_parity else 3
+    print(
+        f"\noverall parity={all_parity} typed_adapter_may_proceed={all_gate} "
+        f"no_performance_regression={all_no_regression}"
+    )
+    if not all_parity:
+        return 3
+    if not all_gate:
+        return 4
+    return 0 if all_no_regression else 5
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -265,6 +358,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--warmups", type=int, default=2)
     parser.add_argument("--rounds", type=int, default=9)
     parser.add_argument("--json-output")
+    parser.add_argument("--skip-empty-area", action="store_true")
+    parser.add_argument("--nrows", type=int)
+    parser.add_argument("--max-cells", type=int, default=10_000_000)
+    parser.add_argument("--baseline-json")
+    parser.add_argument("--max-regression", type=float, default=0.05)
     parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--engine", choices=ENGINES, help=argparse.SUPPRESS)
     parser.add_argument("--xlsx", help=argparse.SUPPRESS)

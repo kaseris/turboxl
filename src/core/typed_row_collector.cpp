@@ -1,6 +1,8 @@
 #include "typed_reader.hpp"
 
 #include <algorithm>
+#include <limits>
+#include <sstream>
 #include <utility>
 
 namespace xlsxcsv::internal {
@@ -43,89 +45,241 @@ TypedCellValue convertCell(const core::CellData& cell,
 
 class TypedRowCollector::Impl {
 public:
-    explicit Impl(const core::SharedStringsProvider* sharedStrings)
-        : sharedStrings(sharedStrings) {}
+    struct DenseStoredRow {
+        int number;
+        TypedRow values;
+    };
+
+    struct SparseStoredRow {
+        int number;
+        std::vector<std::pair<std::size_t, TypedCellValue>> values;
+    };
+
+    explicit Impl(
+        const core::SharedStringsProvider* sharedStrings,
+        TypedReadOptions options)
+        : sharedStrings(sharedStrings), options(std::move(options)) {
+        if (this->options.maxCells == 0) {
+            throw std::invalid_argument("max_cells must be greater than zero");
+        }
+        completed = this->options.nrows && *this->options.nrows == 0;
+    }
+
+    static std::size_t inclusiveSpan(std::size_t first, std::size_t last) {
+        if (last < first || last - first == std::numeric_limits<std::size_t>::max()) {
+            throw std::runtime_error("Worksheet dense range dimensions overflow");
+        }
+        return last - first + 1;
+    }
+
+    void checkCellLimit(std::size_t height, std::size_t width) const {
+        if (height == 0 || width == 0) return;
+        const bool overflow = width > std::numeric_limits<std::size_t>::max() / height;
+        const std::size_t cells = overflow ? 0 : height * width;
+        if (overflow || cells > options.maxCells) {
+            std::ostringstream message;
+            message << "Worksheet dense range requires " << height << " x " << width
+                    << " = ";
+            if (overflow) message << "overflow";
+            else message << cells;
+            message << " cells, exceeding max_cells=" << options.maxCells;
+            throw std::runtime_error(message.str());
+        }
+    }
+
+    std::size_t cropEndRow() const {
+        if (!options.nrows || !cropOriginRow) {
+            return std::numeric_limits<std::size_t>::max();
+        }
+        const auto count = *options.nrows;
+        if (count == 0) return *cropOriginRow - 1;
+        if (*cropOriginRow > std::numeric_limits<std::size_t>::max() - (count - 1)) {
+            return std::numeric_limits<std::size_t>::max();
+        }
+        return *cropOriginRow + count - 1;
+    }
+
+    bool shouldParseRow(int rowNumber) const {
+        if (completed || rowNumber <= 0) return false;
+        if (!options.nrows) return true;
+        const auto row = static_cast<std::size_t>(rowNumber);
+        const bool allowed = !options.skipEmptyArea
+            ? row <= *options.nrows
+            : !cropOriginRow || row <= cropEndRow();
+        if (!allowed) limitBoundaryObserved = true;
+        return allowed;
+    }
 
     void beginRow(int rowNumber) {
         if (rowNumber <= 0) {
             errors.emplace_back("Worksheet row number must be positive");
-            currentRow = nullptr;
+            rowOpen = false;
             return;
         }
-        if (rowNumber <= lastPhysicalRow) {
+        if (rowNumber <= lastSeenRow) {
             errors.push_back(
                 "Worksheet rows are not in ascending order at row " +
                 std::to_string(rowNumber));
-            currentRow = nullptr;
+            rowOpen = false;
             return;
         }
-        while (lastPhysicalRow + 1 < rowNumber) {
-            rows.emplace_back();
-            ++lastPhysicalRow;
+        lastSeenRow = rowNumber;
+        if (!shouldParseRow(rowNumber)) {
+            completed = true;
+            rowOpen = false;
+            return;
         }
-        rows.emplace_back();
-        currentRow = &rows.back();
         currentRowNumber = rowNumber;
-        lastPhysicalRow = rowNumber;
+        pendingReserve = 0;
+        rowOpen = true;
     }
 
     void reserveColumns(std::size_t hint) {
-        if (currentRow && hint > 0) {
-            currentRow->reserve(hint);
-        }
+        if (!rowOpen || options.skipEmptyArea || hint == 0) return;
+        const auto height = static_cast<std::size_t>(currentRowNumber);
+        pendingReserve = std::min(
+            {hint, options.maxCells / height, static_cast<std::size_t>(16'384)});
     }
 
     void addValue(int columnNumber, TypedCellValue&& value) {
-        if (!currentRow || columnNumber <= 0) {
+        if (!rowOpen || columnNumber <= 0) {
             errors.emplace_back("Invalid primitive cell column");
             return;
         }
+        const auto row = static_cast<std::size_t>(currentRowNumber);
         const auto column = static_cast<std::size_t>(columnNumber);
-        if (currentRow->size() < column) {
-            currentRow->resize(column);
+
+        if (options.skipEmptyArea) {
+            const auto nextMinRow = cropMinRow ? std::min(*cropMinRow, row) : row;
+            const auto nextMaxRow = cropMaxRow ? std::max(*cropMaxRow, row) : row;
+            const auto nextMinColumn = cropMinColumn ? std::min(*cropMinColumn, column) : column;
+            const auto nextMaxColumn = cropMaxColumn ? std::max(*cropMaxColumn, column) : column;
+            if (!cropOriginRow) cropOriginRow = row;
+            if (row > cropEndRow()) {
+                completed = true;
+                rowOpen = false;
+                return;
+            }
+            checkCellLimit(
+                inclusiveSpan(nextMinRow, nextMaxRow),
+                inclusiveSpan(nextMinColumn, nextMaxColumn));
+            if (sparseRows.empty() || sparseRows.back().number != currentRowNumber) {
+                sparseRows.push_back({currentRowNumber, {}});
+            }
+            sparseRows.back().values.emplace_back(column, std::move(value));
+            cropMinRow = nextMinRow;
+            cropMaxRow = nextMaxRow;
+            cropMinColumn = nextMinColumn;
+            cropMaxColumn = nextMaxColumn;
+            columnCount = inclusiveSpan(*cropMinColumn, *cropMaxColumn);
+            return;
         }
-        (*currentRow)[column - 1] = std::move(value);
-        columnCount = std::max(columnCount, column);
+
+        const auto nextLastRow = std::max(lastCellRow, row);
+        const auto nextColumnCount = std::max(columnCount, column);
+        checkCellLimit(nextLastRow, nextColumnCount);
+        if (denseRows.empty() || denseRows.back().number != currentRowNumber) {
+            denseRows.push_back({currentRowNumber, {}});
+            if (pendingReserve > 0) denseRows.back().values.reserve(pendingReserve);
+        }
+        auto& current = denseRows.back().values;
+        if (current.size() < column) current.resize(column);
+        current[column - 1] = std::move(value);
+        lastCellRow = nextLastRow;
+        columnCount = nextColumnCount;
     }
 
     void addCell(const core::CellData& cell) {
-        if (!currentRow) {
+        if (!rowOpen) {
             return;
         }
         if (cell.coordinate.row != currentRowNumber || cell.coordinate.column <= 0) {
             errors.push_back("Invalid cell coordinate: " + cell.coordinate.toReference());
             return;
         }
-        const auto column = static_cast<std::size_t>(cell.coordinate.column);
-        if (currentRow->size() < column) {
-            currentRow->resize(column);
+        addValue(
+            cell.coordinate.column,
+            convertCell(cell, sharedStrings, errors));
+    }
+
+    void finishRow() {
+        if (!rowOpen) return;
+        rowOpen = false;
+        if (!options.nrows) return;
+        const auto row = static_cast<std::size_t>(currentRowNumber);
+        if (!options.skipEmptyArea) {
+            completed = row >= *options.nrows;
+        } else if (cropOriginRow) {
+            completed = row >= cropEndRow();
         }
-        (*currentRow)[column - 1] = convertCell(cell, sharedStrings, errors);
-        columnCount = std::max(columnCount, column);
     }
 
     void finalize() {
-        if (finalized) {
+        if (finalized) return;
+        finalized = true;
+
+        if (options.skipEmptyArea) {
+            if (!cropMinRow || !cropMaxRow || !cropMinColumn || !cropMaxColumn) return;
+            auto outputMaxRow = *cropMaxRow;
+            if (options.nrows &&
+                (limitBoundaryObserved ||
+                 static_cast<std::size_t>(lastSeenRow) >= cropEndRow())) {
+                outputMaxRow = std::max(outputMaxRow, cropEndRow());
+            }
+            const auto height = inclusiveSpan(*cropMinRow, outputMaxRow);
+            const auto width = inclusiveSpan(*cropMinColumn, *cropMaxColumn);
+            checkCellLimit(height, width);
+            rows.assign(height, TypedRow(width));
+            for (auto& stored : sparseRows) {
+                auto& output = rows[static_cast<std::size_t>(stored.number) - *cropMinRow];
+                for (auto& [column, value] : stored.values) {
+                    output[column - *cropMinColumn] = std::move(value);
+                }
+            }
             return;
         }
-        for (auto& row : rows) {
-            row.resize(columnCount);
+
+        if (lastCellRow == 0 || columnCount == 0) return;
+        auto outputLastRow = std::max(
+            lastCellRow, static_cast<std::size_t>(lastSeenRow));
+        if (options.nrows && limitBoundaryObserved) {
+            outputLastRow = std::max(outputLastRow, *options.nrows);
         }
-        finalized = true;
+        checkCellLimit(outputLastRow, columnCount);
+        rows.assign(outputLastRow, TypedRow{});
+        for (auto& stored : denseRows) {
+            const auto rowIndex = static_cast<std::size_t>(stored.number - 1);
+            if (rowIndex < rows.size()) rows[rowIndex] = std::move(stored.values);
+        }
+        for (auto& row : rows) row.resize(columnCount);
     }
 
     const core::SharedStringsProvider* sharedStrings;
+    TypedReadOptions options;
     TypedWorksheet rows;
-    TypedRow* currentRow = nullptr;
+    std::vector<DenseStoredRow> denseRows;
+    std::vector<SparseStoredRow> sparseRows;
+    std::optional<std::size_t> cropOriginRow;
+    std::optional<std::size_t> cropMinRow;
+    std::optional<std::size_t> cropMaxRow;
+    std::optional<std::size_t> cropMinColumn;
+    std::optional<std::size_t> cropMaxColumn;
     int currentRowNumber = 0;
-    int lastPhysicalRow = 0;
+    int lastSeenRow = 0;
+    std::size_t lastCellRow = 0;
     std::size_t columnCount = 0;
+    std::size_t pendingReserve = 0;
+    bool rowOpen = false;
+    bool completed = false;
+    mutable bool limitBoundaryObserved = false;
     bool finalized = false;
     std::vector<std::string> errors;
 };
 
-TypedRowCollector::TypedRowCollector(const core::SharedStringsProvider* sharedStrings)
-    : m_impl(std::make_unique<Impl>(sharedStrings)) {}
+TypedRowCollector::TypedRowCollector(
+    const core::SharedStringsProvider* sharedStrings,
+    TypedReadOptions options)
+    : m_impl(std::make_unique<Impl>(sharedStrings, std::move(options))) {}
 
 TypedRowCollector::~TypedRowCollector() = default;
 TypedRowCollector::TypedRowCollector(TypedRowCollector&&) noexcept = default;
@@ -136,7 +290,7 @@ void TypedRowCollector::handleRow(const core::RowData& row) {
     for (const auto& cell : row.cells) {
         m_impl->addCell(cell);
     }
-    m_impl->currentRow = nullptr;
+    m_impl->finishRow();
 }
 
 void TypedRowCollector::handleError(const std::string& message) {
@@ -156,7 +310,7 @@ void TypedRowCollector::handleCell(core::CellData&& cell) {
 }
 
 void TypedRowCollector::endRow() {
-    m_impl->currentRow = nullptr;
+    m_impl->finishRow();
 }
 
 void TypedRowCollector::beginPrimitiveRow(
@@ -195,7 +349,15 @@ void TypedRowCollector::addSharedString(int column, std::size_t index) {
 }
 
 void TypedRowCollector::endPrimitiveRow() {
-    m_impl->currentRow = nullptr;
+    m_impl->finishRow();
+}
+
+bool TypedRowCollector::shouldParseRow(int rowNumber) const {
+    return m_impl->shouldParseRow(rowNumber);
+}
+
+bool TypedRowCollector::shouldContinueParsing() const {
+    return !m_impl->completed;
 }
 
 TypedWorksheet TypedRowCollector::takeRows() {

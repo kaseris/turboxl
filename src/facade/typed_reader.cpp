@@ -34,8 +34,12 @@ std::string joinErrors(const std::vector<std::string>& errors) {
 
 TypedWorksheet readSheetToTyped(
     const std::string& xlsxPath,
-    const std::variant<std::string, int>& sheetSelector) {
+    const std::variant<std::string, int>& sheetSelector,
+    const TypedReadOptions& options) {
     try {
+        if (options.maxCells == 0) {
+            throw std::invalid_argument("max_cells must be greater than zero");
+        }
         core::OpcPackage package;
         package.open(xlsxPath);
 
@@ -52,6 +56,7 @@ TypedWorksheet readSheetToTyped(
                 "Sheet index out of range: " +
                 std::to_string(std::get<int>(sheetSelector)));
         }
+        if (options.nrows && *options.nrows == 0) return {};
 
         core::SharedStringsProvider sharedStrings;
         try {
@@ -61,13 +66,13 @@ TypedWorksheet readSheetToTyped(
         }
 
         const auto* strings = sharedStrings.isOpen() ? &sharedStrings : nullptr;
-        TypedRowCollector fastCollector(strings);
+        TypedRowCollector fastCollector(strings, options);
         if (tryReadTypedWorksheetFast(package, sheet->target, fastCollector) &&
             fastCollector.getErrors().empty()) {
             return fastCollector.takeRows();
         }
 
-        TypedRowCollector fallbackCollector(strings);
+        TypedRowCollector fallbackCollector(strings, options);
         core::SheetStreamReader reader;
         reader.parseSheet(package, sheet->target, fallbackCollector, strings);
         if (!fallbackCollector.getErrors().empty()) {

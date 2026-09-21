@@ -83,6 +83,12 @@ python tools/benchmark_typed.py --rows 60000 --warmups 2 --rounds 9 \
   --json-output typed-benchmark-results.json
 ```
 
+For a performance-sensitive change, first capture the same command on the
+unmodified base commit, then run the candidate with
+`--baseline-json <base-result.json>`. The comparison fails if any typed fixture
+loses the existing 10% advantage over calamine or regresses more than 5% from
+the same-machine baseline.
+
 ### 4. Open and merge a pull request
 
 Explain the user-visible behavior, important implementation choices, and the

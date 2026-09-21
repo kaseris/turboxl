@@ -21,4 +21,14 @@ public:
     virtual void endPrimitiveRow() = 0;
 };
 
+// Internal opt-in control used by bounded consumers. SheetStreamReader checks
+// it after each physical row so a consumer can finish without scanning the
+// remainder of the worksheet XML.
+class WorksheetRowControl {
+public:
+    virtual ~WorksheetRowControl() = default;
+    virtual bool shouldParseRow(int rowNumber) const = 0;
+    virtual bool shouldContinueParsing() const = 0;
+};
+
 } // namespace xlsxcsv::internal

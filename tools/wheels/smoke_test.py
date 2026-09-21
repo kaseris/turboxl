@@ -27,6 +27,30 @@ def main():
         assert all(len(row) == 26 for row in sparse_typed)
         assert sparse_typed[4][3] == 'gap'
         assert sparse_typed[49][25] == 'far'
+        assert turboxl._read_sheet_to_python(filename, 'Sparse', nrows=0) == []
+        bounded_typed = turboxl._read_sheet_to_python(
+            filename, 'Sparse', nrows=5
+        )
+        assert len(bounded_typed) == 5
+        assert all(len(row) == 4 for row in bounded_typed)
+        cropped_typed = turboxl._read_sheet_to_python(
+            filename, 'Sparse', skip_empty_area=True
+        )
+        assert len(cropped_typed) == 50
+        assert all(len(row) == 26 for row in cropped_typed)
+        try:
+            turboxl._read_sheet_to_python(filename, 'Sparse', max_cells=10)
+        except RuntimeError as error:
+            assert 'max_cells=10' in str(error)
+        else:
+            raise AssertionError('Accepted typed extraction above max_cells')
+        for kwargs in ({'nrows': -1}, {'max_cells': 0}):
+            try:
+                turboxl._read_sheet_to_python(filename, 'Sparse', **kwargs)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError(f'Accepted invalid typed options: {kwargs}')
         output = Path(tmp) / 'conversion.csv'
         output.write_text('old')
         turboxl.read_sheet_to_file(filename, output)

@@ -152,9 +152,11 @@ private:
                           const StylesRegistry* styles) {
         
         WorksheetMetadata metadata;
+        auto* rowControl = dynamic_cast<internal::WorksheetRowControl*>(&handler);
+        bool intentionallyStopped = rowControl && !rowControl->shouldContinueParsing();
         
-        int ret;
-        while ((ret = xmlTextReaderRead(reader)) == 1) {
+        int ret = intentionallyStopped ? 0 : 1;
+        while (!intentionallyStopped && (ret = xmlTextReaderRead(reader)) == 1) {
             const char* name = reinterpret_cast<const char*>(xmlTextReaderConstName(reader));
             int nodeType = xmlTextReaderNodeType(reader);
             
@@ -162,8 +164,24 @@ private:
             
             if (nodeType == XML_READER_TYPE_ELEMENT) {
                 if (strcmp(name, "row") == 0) {
+                    xmlChar* rowReference = xmlTextReaderGetAttribute(
+                        reader, reinterpret_cast<const xmlChar*>("r"));
+                    int rowNumber = 0;
+                    const bool hasRowNumber = rowReference &&
+                        parseInt(reinterpret_cast<const char*>(rowReference), rowNumber) &&
+                        rowNumber > 0;
+                    if (rowReference) xmlFree(rowReference);
+                    if (rowControl && hasRowNumber &&
+                        !rowControl->shouldParseRow(rowNumber)) {
+                        intentionallyStopped = true;
+                        break;
+                    }
                     // Parse row element
                     parseRow(reader, handler, sharedStrings, styles);
+                    if (rowControl && !rowControl->shouldContinueParsing()) {
+                        intentionallyStopped = true;
+                        break;
+                    }
                 } else if (strcmp(name, "mergeCells") == 0) {
                     // Parse merged cells section
                     parseMergedCells(reader, metadata);
@@ -181,7 +199,7 @@ private:
         // Send metadata to handler before processing is complete
         handler.handleWorksheetMetadata(metadata);
         
-        if (ret != 0) {
+        if (ret != 0 && !intentionallyStopped) {
             throw std::runtime_error("XML parsing error in worksheet");
         }
     }

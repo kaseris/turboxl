@@ -69,11 +69,19 @@ optimizations, arena-based shared strings, and chunked ZIP reading.
 
 ### Typed worksheet vertical-slice result
 
-Issue #100 added a private, path-based typed extraction slice to measure the
-cost of producing rectangular Python `list[list]` data before committing to a
-pandas adapter. This is benchmark scaffolding, not a supported public API;
+Issues #100 and #103 provide a private, path-based typed extraction slice to
+measure the cost of producing rectangular Python `list[list]` data before
+committing to a pandas adapter. The extractor can crop to the used range, stop
+at a physical-row limit, and rejects dense results above 10,000,000 cells by
+default. This is benchmark scaffolding, not a supported public API;
 `_read_sheet_to_python` may change or disappear as the owning Workbook/Sheet
 API is built.
+
+The private helper accepts keyword-only `skip_empty_area`, `nrows`, and
+`max_cells` arguments. With `skip_empty_area=False`, output is anchored at A1;
+with it enabled, leading empty rows and columns are removed. Missing rows and
+columns inside the selected rectangle remain present, and every returned row
+has the same width.
 
 The September 20, 2026 run used macOS 15.7.4 on arm64, CPython 3.14.7,
 TurboXL 0.3.0 from this checkout, and python-calamine 0.8.2. Each deterministic
@@ -102,8 +110,26 @@ python tools/benchmark_typed.py \
   --json-output typed-benchmark-results.json
 ```
 
+To reject a median slowdown greater than 5% on any fixture family, capture a
+same-machine result before the change and pass it back as the baseline:
+
+```bash
+python tools/benchmark_typed.py \
+  --rows 60000 --warmups 2 --rounds 9 \
+  --baseline-json typed-benchmark-baseline.json \
+  --json-output typed-benchmark-results.json
+```
+
 The raw report is committed at
 [`benchmarks/results/typed/macos-arm64-260920.json`](benchmarks/results/typed/macos-arm64-260920.json).
+
+The bounded-extraction change was rechecked on the same machine against a
+fresh pre-change run. Median total times were 0.0892s, 0.0847s, and 0.0237s;
+these were respectively 2.9%, 5.3%, and 5.2% faster than the baseline. TurboXL
+retained advantages of 39.8%, 37.0%, and 18.2% over calamine, so both the 10%
+comparison gate and the maximum 5% regression gate passed. The candidate
+report is committed at
+[`benchmarks/results/typed/macos-arm64-260921-issue103.json`](benchmarks/results/typed/macos-arm64-260921-issue103.json).
 
 ## What It Does
 
