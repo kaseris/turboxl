@@ -44,6 +44,7 @@ def main():
             else:
                 raise AssertionError('Workbook max_cells was not enforced')
             assert limited.get_sheet_by_name('Data').to_python() == typed
+            limited.close()
         try:
             workbook_api.get_sheet_by_index(0)
         except RuntimeError:
