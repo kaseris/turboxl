@@ -15,7 +15,8 @@ public:
         int rowNumber, bool hidden, std::size_t columnReserveHint) = 0;
     virtual void addEmpty(int column) = 0;
     virtual void addBoolean(int column, bool value) = 0;
-    virtual void addNumber(int column, double value) = 0;
+    virtual void addNumber(int column, double value, int styleIndex) = 0;
+    virtual void addError(int column) = 0;
     virtual void addString(int column, std::string&& value) = 0;
     virtual void addSharedString(int column, std::size_t index) = 0;
     virtual void endPrimitiveRow() = 0;

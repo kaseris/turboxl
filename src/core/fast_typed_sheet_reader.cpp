@@ -181,6 +181,12 @@ bool parsePositiveInt(std::string_view text, int& value) {
     return error == std::errc{} && end == text.data() + text.size() && value > 0;
 }
 
+bool parseNonnegativeInt(std::string_view text, int& value) {
+    if (text.empty()) return false;
+    const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+    return error == std::errc{} && end == text.data() + text.size() && value >= 0;
+}
+
 bool parseColumn(std::string_view reference, int& column) {
     column = 0;
     std::size_t position = 0;
@@ -271,6 +277,7 @@ bool emitCell(
     TypedRowCollector& collector,
     int column,
     core::CellType type,
+    int styleIndex,
     bool hasValue,
     std::string&& value) {
     if (column <= 0) return false;
@@ -288,7 +295,7 @@ bool emitCell(
             if (end != value.data() + value.size()) {
                 collector.addEmpty(column);
             } else {
-                collector.addNumber(column, number);
+                collector.addNumber(column, number, styleIndex);
             }
             return true;
         }
@@ -304,6 +311,8 @@ bool emitCell(
             return true;
         }
         case core::CellType::Error:
+            collector.addError(column);
+            return true;
         case core::CellType::String:
         case core::CellType::InlineString:
         case core::CellType::Unknown:
@@ -364,6 +373,7 @@ bool tryParseTypedWorksheetFast(
     int previousRow = 0;
     int rowNumber = 0;
     int column = 0;
+    int styleIndex = 0;
     core::CellType type = core::CellType::Unknown;
     std::string value;
     std::vector<std::string_view> elements;
@@ -414,6 +424,12 @@ bool tryParseTypedWorksheetFast(
                     return false;
                 }
                 type = parseType(token.raw);
+                std::string_view style;
+                styleIndex = 0;
+                if (findAttribute(token.raw, "s", style) &&
+                    !parseNonnegativeInt(style, styleIndex)) {
+                    return false;
+                }
                 value.clear();
                 hasValue = false;
                 inCell = !token.empty;
@@ -440,7 +456,10 @@ bool tryParseTypedWorksheetFast(
             } else if (inCell && token.name == "t") {
                 captureInlineText = false;
             } else if (inCell && token.name == "c") {
-                if (!emitCell(collector, column, type, hasValue, std::move(value))) return false;
+                if (!emitCell(
+                        collector, column, type, styleIndex, hasValue, std::move(value))) {
+                    return false;
+                }
                 value.clear();
                 inCell = false;
                 captureValue = false;

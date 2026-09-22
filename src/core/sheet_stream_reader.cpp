@@ -310,6 +310,7 @@ private:
     void parsePrimitiveCell(
         xmlTextReaderPtr reader, internal::PrimitiveCellHandler& handler) {
         int column = 0;
+        int styleIndex = 0;
         CellType type = CellType::Number;
 
         if (xmlTextReaderMoveToFirstAttribute(reader) == 1) {
@@ -322,6 +323,13 @@ private:
 
                 if (attrName[0] == 'r' && attrName[1] == '\0') {
                     parseCellColumn(attrValue, column);
+                } else if (attrName[0] == 's' && attrName[1] == '\0') {
+                    const char* end = attrValue + std::strlen(attrValue);
+                    const auto [parsedEnd, error] =
+                        std::from_chars(attrValue, end, styleIndex);
+                    if (error != std::errc{} || parsedEnd != end || styleIndex < 0) {
+                        styleIndex = 0;
+                    }
                 } else if (attrName[0] == 't' && attrName[1] == '\0') {
                     if (attrValue[0] == 'b' && attrValue[1] == '\0') {
                         type = CellType::Boolean;
@@ -357,7 +365,8 @@ private:
 
             if (nodeType == XML_READER_TYPE_ELEMENT && std::strcmp(name, "v") == 0) {
                 std::string value = readElementText(reader);
-                emitPrimitiveValue(handler, column, type, std::move(value));
+                emitPrimitiveValue(
+                    handler, column, type, styleIndex, std::move(value));
                 emitted = true;
             } else if (nodeType == XML_READER_TYPE_ELEMENT && std::strcmp(name, "is") == 0) {
                 handler.addString(column, parseInlineString(reader));
@@ -373,6 +382,7 @@ private:
         internal::PrimitiveCellHandler& handler,
         int column,
         CellType type,
+        int styleIndex,
         std::string&& value) {
         if (value.empty()) {
             handler.addEmpty(column);
@@ -387,7 +397,7 @@ private:
                 char* parsedEnd = nullptr;
                 const double number = std::strtod(begin, &parsedEnd);
                 if (parsedEnd == begin + value.size()) {
-                    handler.addNumber(column, number);
+                    handler.addNumber(column, number, styleIndex);
                 } else {
                     handler.addEmpty(column);
                 }
@@ -406,6 +416,8 @@ private:
                 return;
             }
             case CellType::Error:
+                handler.addError(column);
+                return;
             case CellType::String:
             case CellType::InlineString:
             case CellType::Unknown:

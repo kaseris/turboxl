@@ -83,6 +83,15 @@ with it enabled, leading empty rows and columns are removed. Missing rows and
 columns inside the selected rectangle remain present, and every returned row
 has the same width.
 
+Cells are materialized with pandas-compatible Python scalars: empty and Excel
+error cells become `None`, exact integral numbers become `int`, other numbers
+remain `float`, and text and booleans become `str` and `bool`. Styled Excel
+dates and datetimes become `datetime.datetime`, while styled times become
+`datetime.time`; cached formula results are returned without evaluating
+formulas. Both Excel date epochs are supported at microsecond precision, with
+1900 serial 60 normalized to `1900-02-28`. Styled temporal values outside
+Python's representable range remain numeric.
+
 The September 20, 2026 run used macOS 15.7.4 on arm64, CPython 3.14.7,
 TurboXL 0.3.0 from this checkout, and python-calamine 0.8.2. Each deterministic
 fixture contained 60,000 data rows. Results are medians of nine measurements

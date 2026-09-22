@@ -17,18 +17,36 @@ namespace nb = nanobind;
 
 namespace {
 
-nb::object boxTypedValue(const xlsxcsv::internal::TypedCellValue& value) {
-    if (std::holds_alternative<std::monostate>(value)) {
-        return nb::none();
+nb::object boxTypedValue(
+    const xlsxcsv::internal::TypedCellValue& value,
+    const nb::object& datetimeType,
+    const nb::object& timeType) {
+    switch (value.index()) {
+        case 0:
+            return nb::none();
+        case 1:
+            return nb::bool_(std::get<1>(value));
+        case 2:
+            return nb::int_(std::get<2>(value));
+        case 3:
+            return nb::float_(std::get<3>(value));
+        case 4: {
+            const auto& text = std::get<4>(value);
+            return nb::str(text.data(), text.size());
+        }
+        case 5: {
+            const auto& date = std::get<5>(value);
+            return datetimeType(
+                date.year, date.month, date.day, date.hour, date.minute,
+                date.second, date.microsecond);
+        }
+        case 6: {
+            const auto& time = std::get<6>(value);
+            return timeType(time.hour, time.minute, time.second, time.microsecond);
+        }
+        default:
+            return nb::float_(std::get<7>(value).value);
     }
-    if (std::holds_alternative<bool>(value)) {
-        return nb::bool_(std::get<bool>(value));
-    }
-    if (std::holds_alternative<double>(value)) {
-        return nb::float_(std::get<double>(value));
-    }
-    const auto& text = std::get<std::string>(value);
-    return nb::str(text.data(), text.size());
 }
 
 bool profileTypedTimings() {
@@ -41,6 +59,9 @@ bool profileTypedTimings() {
 
 NB_MODULE(_turboxl, m) {
     m.doc() = "Fast XLSX to CSV converter (C++ core with Python bindings)";
+    const nb::object datetimeModule = nb::module_::import_("datetime");
+    const nb::object datetimeType = datetimeModule.attr("datetime");
+    const nb::object timeType = datetimeModule.attr("time");
     
     // Enums
     nb::enum_<xlsxcsv::CsvOptions::Newline>(m, "Newline")
@@ -190,7 +211,7 @@ NB_MODULE(_turboxl, m) {
     // Private vertical-slice API used only by the typed-path benchmark. The
     // public owning Workbook/Sheet API is tracked separately.
     m.def("_read_sheet_to_python",
-        [](const std::string& xlsx_path,
+        [datetimeType, timeType](const std::string& xlsx_path,
            const std::variant<std::string, int>& sheet,
            bool skip_empty_area,
            const std::optional<std::int64_t>& nrows,
@@ -218,13 +239,26 @@ NB_MODULE(_turboxl, m) {
             const auto nativeEnd = Clock::now();
 
             const auto boxingStart = Clock::now();
-            nb::list rows;
-            for (const auto& nativeRow : nativeRows) {
-                nb::list row;
-                for (const auto& value : nativeRow) {
-                    row.append(boxTypedValue(value));
+            nb::list rows = nb::steal<nb::list>(
+                PyList_New(static_cast<Py_ssize_t>(nativeRows.size())));
+            for (std::size_t rowIndex = 0; rowIndex < nativeRows.size(); ++rowIndex) {
+                const auto& nativeRow = nativeRows[rowIndex];
+                nb::list row = nb::steal<nb::list>(
+                    PyList_New(static_cast<Py_ssize_t>(nativeRow.size())));
+                for (std::size_t column = 0; column < nativeRow.size(); ++column) {
+                    auto boxed = boxTypedValue(
+                        nativeRow[column], datetimeType, timeType);
+                    if (PyList_SetItem(
+                            row.ptr(), static_cast<Py_ssize_t>(column),
+                            boxed.release().ptr()) < 0) {
+                        throw nb::python_error();
+                    }
                 }
-                rows.append(std::move(row));
+                if (PyList_SetItem(
+                        rows.ptr(), static_cast<Py_ssize_t>(rowIndex),
+                        row.release().ptr()) < 0) {
+                    throw nb::python_error();
+                }
             }
             const auto boxingEnd = Clock::now();
 

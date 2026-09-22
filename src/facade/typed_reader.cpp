@@ -66,18 +66,38 @@ TypedWorksheet readSheetToTyped(
         }
 
         const auto* strings = sharedStrings.isOpen() ? &sharedStrings : nullptr;
-        TypedRowCollector fastCollector(strings, options);
+        TypedRowCollector fastCollector(
+            strings, options, nullptr, workbook.getDateSystem());
         if (tryReadTypedWorksheetFast(package, sheet->target, fastCollector) &&
             fastCollector.getErrors().empty()) {
+            core::StylesRegistry styles;
+            if (fastCollector.hasStyledNumbers()) {
+                try {
+                    styles.parse(package, core::StylesRegistry::ParseMode::CsvOnly);
+                    fastCollector.setStyles(&styles);
+                } catch (const core::XlsxError&) {
+                    // Workbooks without styles.xml are valid.
+                }
+            }
             return fastCollector.takeRows();
         }
 
-        TypedRowCollector fallbackCollector(strings, options);
+        TypedRowCollector fallbackCollector(
+            strings, options, nullptr, workbook.getDateSystem());
         core::SheetStreamReader reader;
         reader.parseSheet(package, sheet->target, fallbackCollector, strings);
         if (!fallbackCollector.getErrors().empty()) {
             throw std::runtime_error(
                 "Sheet parsing errors: " + joinErrors(fallbackCollector.getErrors()));
+        }
+        core::StylesRegistry styles;
+        if (fallbackCollector.hasStyledNumbers()) {
+            try {
+                styles.parse(package, core::StylesRegistry::ParseMode::CsvOnly);
+                fallbackCollector.setStyles(&styles);
+            } catch (const core::XlsxError&) {
+                // Workbooks without styles.xml are valid.
+            }
         }
         return fallbackCollector.takeRows();
     } catch (const core::XlsxError& error) {
