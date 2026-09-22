@@ -80,21 +80,40 @@ std::optional<core::SheetInfo> TypedWorkbookSession::sheetByIndex(int index) con
 
 void TypedWorkbookSession::ensureSharedStrings() {
     if (m_sharedStringsInitialized) return;
-    m_sharedStringsInitialized = true;
-    if (m_package.getZipReader().hasEntry("xl/sharedStrings.xml")) m_sharedStrings.parse(m_package);
+    try {
+        if (m_package.getZipReader().hasEntry("xl/sharedStrings.xml")) {
+            m_sharedStrings.parse(m_package);
+        }
+        m_sharedStringsInitialized = true;
+    } catch (...) {
+        // A failed lazy parse must not leave a partially initialized provider
+        // behind or make a later read silently skip shared strings.
+        m_sharedStrings.close();
+        throw;
+    }
 }
 
 void TypedWorkbookSession::ensureStyles() {
     if (m_stylesInitialized) return;
-    m_stylesInitialized = true;
-    if (m_package.getZipReader().hasEntry("xl/styles.xml"))
-        m_styles.parse(m_package, core::StylesRegistry::ParseMode::CsvOnly);
+    try {
+        if (m_package.getZipReader().hasEntry("xl/styles.xml")) {
+            m_styles.parse(m_package, core::StylesRegistry::ParseMode::CsvOnly);
+        }
+        m_stylesInitialized = true;
+    } catch (...) {
+        // Keep retries deterministic after malformed optional style data.
+        m_styles.close();
+        throw;
+    }
 }
 
 TypedWorksheet TypedWorkbookSession::read(const core::SheetInfo& sheet, TypedReadOptions options) {
     std::lock_guard lock(m_mutex);
     if (!m_open) throw std::runtime_error("Workbook is closed");
-    if (options.maxCells == 0) options.maxCells = m_maxCells;
+    // The limit belongs to the workbook session.  Python's public Sheet API
+    // deliberately has no per-read override, so never fall back to a separate
+    // TypedReadOptions default here.
+    options.maxCells = m_maxCells;
     if (options.maxCells == 0) throw std::invalid_argument("max_cells must be greater than zero");
     if (options.nrows && *options.nrows == 0) return {};
     ensureSharedStrings();

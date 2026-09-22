@@ -145,11 +145,32 @@ NB_MODULE(_turboxl, m) {
             xlsxcsv::internal::TypedReadOptions options;
             options.skipEmptyArea = skipEmptyArea;
             if (nrows) options.nrows = static_cast<std::size_t>(*nrows);
+            using Clock = std::chrono::steady_clock;
+            const auto totalStart = Clock::now();
             xlsxcsv::internal::TypedWorksheet rows;
+            const auto nativeStart = Clock::now();
             { nb::gil_scoped_release release; rows = self.session->read(self.info, options); }
-            return boxTypedWorksheet(rows, datetimeType, timeType);
+            const auto nativeEnd = Clock::now();
+            const auto boxingStart = Clock::now();
+            auto result = boxTypedWorksheet(rows, datetimeType, timeType);
+            const auto boxingEnd = Clock::now();
+            if (profileTypedTimings()) {
+                const auto milliseconds = [](auto duration) {
+                    return std::chrono::duration<double, std::milli>(duration).count();
+                };
+                const std::size_t columns = rows.empty() ? 0 : rows.front().size();
+                std::cerr
+                    << "turboxl_typed_timing_ms"
+                    << " native=" << milliseconds(nativeEnd - nativeStart)
+                    << " boxing=" << milliseconds(boxingEnd - boxingStart)
+                    << " total=" << milliseconds(boxingEnd - totalStart)
+                    << " rows=" << rows.size()
+                    << " columns=" << columns << '\n';
+            }
+            return result;
         }, nb::kw_only(), nb::arg("skip_empty_area") = false, nb::arg("nrows") = nb::none(),
-        "Return dense rows of Python scalar values. Raises RuntimeError after close().");
+        "Return dense rectangular rows of Python scalar values. The workbook's "
+        "max_cells limit applies to every call; raises RuntimeError after close().");
 
     nb::class_<PyWorkbook>(m, "Workbook")
         .def_prop_ro("sheet_names", [](const PyWorkbook& self) {

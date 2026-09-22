@@ -34,6 +34,16 @@ def main():
             assert workbook_api.sheet_names == ['Data', 'Hidden', 'VeryHidden', 'Sparse']
             assert workbook_api.get_sheet_by_index(0).to_python() == typed
             assert len(workbook_api.sheets_metadata) == 6
+            # The configured workbook limit, rather than the collector default,
+            # must protect every public Sheet read.
+            limited = turboxl.load_workbook(path, max_cells=10)
+            try:
+                limited.get_sheet_by_name('Sparse').to_python()
+            except RuntimeError as error:
+                assert 'max_cells=10' in str(error)
+            else:
+                raise AssertionError('Workbook max_cells was not enforced')
+            assert limited.get_sheet_by_name('Data').to_python() == typed
         try:
             workbook_api.get_sheet_by_index(0)
         except RuntimeError:
@@ -48,9 +58,32 @@ def main():
         original_position = stream.tell()
         assert turboxl.load_workbook(stream).get_sheet_by_index(0).to_python() == typed
         assert stream.tell() == original_position and not stream.closed
+        class PathLike:
+            def __fspath__(self):
+                return filename
+        assert turboxl.load_workbook(PathLike()).get_sheet_by_index(0).to_python() == typed
+        for source in (io.StringIO('not a workbook'), object()):
+            try:
+                turboxl.load_workbook(source)
+            except (TypeError, RuntimeError):
+                pass
+            else:
+                raise AssertionError(f'Accepted invalid workbook source: {source!r}')
         retained = turboxl.load_workbook(archive).get_sheet_by_name('Data')
         gc.collect()
         assert retained.to_python() == typed
+        closed = turboxl.load_workbook(archive)
+        closed_sheet = closed.get_sheet_by_index(0)
+        materialized = closed_sheet.to_python()
+        closed.close()
+        closed.close()
+        assert materialized == typed
+        try:
+            closed_sheet.to_python()
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError('Retained Sheet accepted a read after close')
         scalar_path = Path(tmp) / 'scalars.xlsx'
         workbook(scalar_path, scalars=True)
         scalar_rows = turboxl._read_sheet_to_python(str(scalar_path), 'Data')

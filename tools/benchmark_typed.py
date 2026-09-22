@@ -20,10 +20,35 @@ from typing import Any
 
 FAMILIES = ("dense-inline", "dense-shared", "sparse-mixed")
 ENGINES = ("turboxl", "calamine")
+TURBOXL_MODES = ("private-path", "workbook-path", "workbook-bytesio")
 TIMING_PREFIX = "turboxl_typed_timing_ms "
 
 
 def peak_rss_mib() -> float | None:
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            class ProcessMemoryCounters(ctypes.Structure):
+                _fields_ = [
+                    ("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD),
+                    ("PeakWorkingSetSize", ctypes.c_size_t),
+                    ("WorkingSetSize", ctypes.c_size_t), ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                    ("PagefileUsage", ctypes.c_size_t), ("PeakPagefileUsage", ctypes.c_size_t),
+                ]
+
+            counters = ProcessMemoryCounters(cb=ctypes.sizeof(ProcessMemoryCounters))
+            if ctypes.windll.psapi.GetProcessMemoryInfo(
+                ctypes.windll.kernel32.GetCurrentProcess(), ctypes.byref(counters), counters.cb
+            ):
+                return float(counters.PeakWorkingSetSize) / (1024.0 * 1024.0)
+        except (AttributeError, OSError):
+            return None
+        return None
     try:
         import resource
     except ImportError:
@@ -87,13 +112,29 @@ def worker(args: argparse.Namespace) -> int:
     if args.engine == "turboxl":
         import turboxl
 
-        rows = turboxl._read_sheet_to_python(
-            args.xlsx,
-            0,
-            skip_empty_area=args.skip_empty_area,
-            nrows=args.nrows,
-            max_cells=args.max_cells,
-        )
+        if args.turboxl_mode == "private-path":
+            rows = turboxl._read_sheet_to_python(
+                args.xlsx, 0, skip_empty_area=args.skip_empty_area,
+                nrows=args.nrows, max_cells=args.max_cells,
+            )
+        else:
+            import io
+
+            source_started = time.perf_counter()
+            source: object = args.xlsx
+            if args.turboxl_mode == "workbook-bytesio":
+                source = io.BytesIO(Path(args.xlsx).read_bytes())
+            phases["source_seconds"] = time.perf_counter() - source_started
+            load_started = time.perf_counter()
+            workbook = turboxl.load_workbook(source, max_cells=args.max_cells)
+            phases["load_seconds"] = time.perf_counter() - load_started
+            materialize_started = time.perf_counter()
+            try:
+                rows = workbook.get_sheet_by_index(0).to_python(
+                    skip_empty_area=args.skip_empty_area, nrows=args.nrows)
+            finally:
+                workbook.close()
+            phases["materialize_seconds"] = time.perf_counter() - materialize_started
         distribution = "turboxl"
     else:
         import python_calamine
@@ -155,6 +196,8 @@ def run_worker(
         str(fixture),
         "--max-cells",
         str(args.max_cells),
+        "--turboxl-mode",
+        args.turboxl_mode,
     ]
     if args.skip_empty_area:
         command.append("--skip-empty-area")
@@ -233,6 +276,8 @@ def load_baseline(args: argparse.Namespace) -> dict[str, Any] | None:
         mismatches.append("skip_empty_area")
     if actual.get("nrows") != args.nrows:
         mismatches.append("nrows")
+    if actual.get("turboxl_mode", "private-path") != args.turboxl_mode:
+        mismatches.append("turboxl_mode")
     if mismatches:
         raise ValueError(
             "baseline environment differs for: " + ", ".join(mismatches)
@@ -262,6 +307,7 @@ def controller(args: argparse.Namespace) -> int:
             "rounds": args.rounds,
             "skip_empty_area": args.skip_empty_area,
             "nrows": args.nrows,
+            "turboxl_mode": args.turboxl_mode,
             "max_cells": args.max_cells,
             "git_revision": git_revision(),
         },
@@ -300,7 +346,12 @@ def controller(args: argparse.Namespace) -> int:
             == representative["calamine"]["sha256"]
         )
         advantage = (calamine_median - turbo_median) / calamine_median
-        passes_gate = parity and advantage >= 0.10
+        # The original private-path mode is the performance gate for the
+        # conditional pandas work. Public workbook modes document their timing
+        # and memory costs, but only require exact-compatible parity.
+        passes_gate = parity and (
+            args.turboxl_mode != "private-path" or advantage >= 0.10
+        )
         print(
             f"  parity={parity} turbo_median={turbo_median:.4f}s "
             f"calamine_median={calamine_median:.4f}s advantage={advantage:.1%} "
@@ -334,18 +385,21 @@ def controller(args: argparse.Namespace) -> int:
         all_gate = all_gate and passes_gate
 
     report["exact_compatible_value_parity"] = all_parity
-    report["typed_adapter_may_proceed"] = all_gate
+    report["typed_adapter_may_proceed"] = (
+        all_gate if args.turboxl_mode == "private-path" else None
+    )
     report["max_regression"] = args.max_regression
     report["no_performance_regression"] = all_no_regression
     if args.json_output:
         Path(args.json_output).write_text(json.dumps(report, indent=2) + "\n")
+    adapter_gate = all_gate if args.turboxl_mode == "private-path" else "not-measured"
     print(
-        f"\noverall parity={all_parity} typed_adapter_may_proceed={all_gate} "
+        f"\noverall parity={all_parity} typed_adapter_may_proceed={adapter_gate} "
         f"no_performance_regression={all_no_regression}"
     )
     if not all_parity:
         return 3
-    if not all_gate:
+    if args.turboxl_mode == "private-path" and not all_gate:
         return 4
     return 0 if all_no_regression else 5
 
@@ -361,6 +415,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--skip-empty-area", action="store_true")
     parser.add_argument("--nrows", type=int)
     parser.add_argument("--max-cells", type=int, default=10_000_000)
+    parser.add_argument("--turboxl-mode", choices=TURBOXL_MODES,
+                        default="private-path",
+                        help="TurboXL entry point to measure; public modes record source and open time.")
     parser.add_argument("--baseline-json")
     parser.add_argument("--max-regression", type=float, default=0.05)
     parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)

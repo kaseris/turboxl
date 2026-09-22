@@ -154,6 +154,13 @@ jobs:
           --include-file-output --profile-turboxl
           --json-output performance-results.json
           --require-turboxl-not-slower
+      - name: Check public typed workbook parity
+        shell: bash
+        run: |
+          python tools/benchmark_typed.py --rows 60000 --warmups 2 --rounds 9 \
+            --turboxl-mode workbook-path --json-output typed-workbook-path-results.json
+          python tools/benchmark_typed.py --rows 60000 --warmups 2 --rounds 9 \
+            --turboxl-mode workbook-bytesio --json-output typed-workbook-bytesio-results.json
       - name: Publish performance summary
         if: always()
         shell: bash
@@ -161,10 +168,15 @@ jobs:
           if [[ -f performance-results.json ]]; then
             cat performance-results.json >> "$GITHUB_STEP_SUMMARY"
           fi
+          for report in typed-workbook-*-results.json; do
+            [[ -f "$report" ]] && cat "$report" >> "$GITHUB_STEP_SUMMARY"
+          done
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: performance-results-windows-x64
-          path: performance-results.json
+          path: |
+            performance-results.json
+            typed-workbook-*-results.json
           if-no-files-found: warn
           retention-days: 30

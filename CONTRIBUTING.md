@@ -89,6 +89,20 @@ unmodified base commit, then run the candidate with
 loses the existing 10% advantage over calamine or regresses more than 5% from
 the same-machine baseline.
 
+The public workbook entry points have separate parity and memory reporting.
+They do not replace the private typed-path performance gate:
+
+```bash
+python tools/benchmark_typed.py --rows 60000 --warmups 2 --rounds 9 \
+  --turboxl-mode workbook-path --json-output typed-workbook-path-results.json
+python tools/benchmark_typed.py --rows 60000 --warmups 2 --rounds 9 \
+  --turboxl-mode workbook-bytesio --json-output typed-workbook-bytesio-results.json
+```
+
+Both reports must show exact-compatible value parity. They record source,
+open, materialization, native, boxing, total time, and peak memory without
+introducing a separate public-input speed threshold.
+
 ### 4. Open and merge a pull request
 
 Explain the user-visible behavior, important implementation choices, and the
