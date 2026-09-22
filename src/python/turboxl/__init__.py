@@ -31,9 +31,11 @@ def load_workbook(source, max_cells=10_000_000):
     ``source`` may be a path, ``os.PathLike``, bytes-like XLSX archive, or a
     seekable binary stream. Stream contents are read once and its cursor is
     restored before parsing; the stream is never closed. ``max_cells`` limits
-    each ``Sheet.to_python`` result. Use the returned object as a context
-    manager or call ``close()``; retained sheets remain usable if only the
-    Workbook wrapper is collected, but explicit close invalidates them.
+    the dense result of every ``Sheet.to_python`` call, not total process
+    memory. Use the returned object as a context manager or call ``close()``;
+    retained sheets remain usable if only the Workbook wrapper is collected,
+    but explicit close invalidates them. Invalid sources raise ``TypeError``;
+    malformed archives and reads after close raise ``RuntimeError``.
     """
     if isinstance(max_cells, bool) or not isinstance(max_cells, int):
         raise TypeError("max_cells must be an integer")

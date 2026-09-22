@@ -78,6 +78,7 @@ import turboxl
 with turboxl.load_workbook(Path("report.xlsx")) as workbook:
     print(workbook.sheet_names)  # worksheets, including hidden worksheets
     rows = workbook.get_sheet_by_name("Data").to_python(nrows=100)
+    totals = workbook.get_sheet_by_name("Totals").to_python()
 ```
 
 `load_workbook` accepts paths, `os.PathLike`, workbook bytes and seekable
@@ -89,6 +90,35 @@ kinds for inspection, while name and index lookup select worksheets only.
 `skip_empty_area` and `nrows`; `max_cells` on `load_workbook` limits each read.
 Call `close()` or use a context manager when done. Reads and lookups after
 close raise `RuntimeError` and retained sheets are also invalidated.
+
+Use the typed API when a consumer needs rectangular Python values from one or
+more sheets. Use the streaming CSV API for conversion or very large worksheets
+where creating a dense `list[list]` would be wasteful. `max_cells` limits each
+dense typed result (10,000,000 by default); it does not bound process memory.
+ZIP archive safety limits still apply independently. Missing worksheet names
+raise `KeyError`, invalid worksheet indexes raise `IndexError`, and malformed
+archives or closed-workbook operations raise `RuntimeError`.
+
+Typed reads are XLSX-only and read-only. Formula cells return their cached
+value; formulas are not evaluated. Encrypted workbooks, charts as typed data,
+and merged-cell propagation are unsupported. Empty and Excel error cells are
+`None`; numbers are `int` when exact or `float` otherwise; styled dates and
+times are `datetime.datetime` and `datetime.time`. The 1900 and 1904 date
+systems are supported, including Excel serial 60 normalization.
+
+Bytes and caller-owned streams work the same way:
+
+```python
+import io
+import turboxl
+
+payload = open("report.xlsx", "rb").read()
+stream = io.BytesIO(payload)
+stream.seek(7)
+with turboxl.load_workbook(stream, max_cells=1_000_000) as workbook:
+    rows = workbook.get_sheet_by_index(0).to_python(skip_empty_area=True)
+assert stream.tell() == 7  # TurboXL never closes or consumes caller streams
+```
 
 ### Typed worksheet benchmark
 
@@ -130,7 +160,8 @@ All three fixture families produced identical rectangular shapes and compatible
 scalar values. The typed-only worksheet scanner retained the existing libxml2
 reader as a compatibility fallback and achieved the required 10% median speed
 advantage on every family. The performance gate therefore passes and the
-conditional pandas-adapter work in #108 may proceed.
+conditional pandas-adapter work in #108 remains gated on #107's release-ready
+parity and compatibility coverage.
 
 Reproduce the run with:
 

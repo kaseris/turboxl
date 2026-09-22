@@ -336,6 +336,21 @@ TEST(TypedReaderIntegrationTest, ProducesRectangularSparseWorksheet) {
     EXPECT_EQ(std::get<std::string>(rows[49][25]), "far");
 }
 
+TEST(TypedReaderIntegrationTest, SessionLimitAppliesToEveryReadAndCanRecover) {
+    xlsxcsv::internal::TypedWorkbookSession session(INTEGRATION_XLSX, 10);
+    const auto sparse = session.sheetByName("Sparse");
+    const auto data = session.sheetByName("Data");
+    ASSERT_TRUE(sparse.has_value());
+    ASSERT_TRUE(data.has_value());
+
+    // TypedReadOptions defaults to 10M cells. The session's smaller limit must
+    // still win for public Workbook/Sheet reads backed by this session.
+    EXPECT_THROW(session.read(*sparse, {}), std::runtime_error);
+    const auto rows = session.read(*data, {});
+    ASSERT_EQ(rows.size(), 1U);
+    ASSERT_EQ(rows.front().size(), 4U);
+}
+
 TEST(TypedReaderIntegrationTest, RejectsInvalidSheetSelectors) {
     EXPECT_THROW(
         xlsxcsv::internal::readSheetToTyped(INTEGRATION_XLSX, "Missing"),
