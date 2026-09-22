@@ -365,7 +365,7 @@ if(BUILD_PYTHON)
         RUNTIME DESTINATION turboxl COMPONENT python
         ARCHIVE DESTINATION turboxl COMPONENT python
     )
-    install(FILES src/python/turboxl/__init__.py
+    install(FILES src/python/turboxl/__init__.py src/python/turboxl/pandas.py
         DESTINATION turboxl COMPONENT python
     )
 endif()

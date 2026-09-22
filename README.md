@@ -120,6 +120,40 @@ with turboxl.load_workbook(stream, max_cells=1_000_000) as workbook:
 assert stream.tell() == 7  # TurboXL never closes or consumes caller streams
 ```
 
+### pandas `read_excel` integration
+
+Install the optional dependency and register the engine explicitly in each
+Python process:
+
+```bash
+python -m pip install 'turboxl[pandas]'
+```
+
+```python
+import pandas as pd
+import turboxl.pandas
+
+turboxl.pandas.register()
+frame = pd.read_excel("report.xlsx", engine="turboxl",
+                      engine_kwargs={"max_cells": 1_000_000})
+with pd.ExcelFile("report.xlsx", engine="turboxl") as excel:
+    first = excel.parse(0)
+    second = excel.parse("Other")
+```
+
+Registration is idempotent and refuses to replace another provider of the
+`turboxl` engine. Importing `turboxl` alone never imports pandas or changes
+its engine registry. This adapter supports pandas 2.2, 2.3, and 3.0 through
+pandas' **private** Excel reader API; a future pandas version may require an
+adapter update. TurboXL remains XLSX-only. pandas handles paths, URLs, and
+`storage_options`; use `io.BytesIO(xlsx_bytes)` to pass archive bytes to
+`read_excel`. A caller-owned stream stays open after the read.
+
+TurboXL returns `None` for both blank and Excel error cells. pandas therefore
+cannot recover their distinction with options such as
+`keep_default_na=False`. Other `read_excel` processing, including headers,
+`skiprows`, `usecols`, dtypes, converters, and dates, is performed by pandas.
+
 ### Typed worksheet benchmark
 
 Issues #100 and #103 provide a private, path-based typed extraction slice to
@@ -159,9 +193,9 @@ alternated between rounds.
 All three fixture families produced identical rectangular shapes and compatible
 scalar values. The typed-only worksheet scanner retained the existing libxml2
 reader as a compatibility fallback and achieved the required 10% median speed
-advantage on every family. The performance gate therefore passes and the
-conditional pandas-adapter work in #108 remains gated on #107's release-ready
-parity and compatibility coverage.
+advantage on every family. The performance gate therefore passes, and #107's
+merged parity and compatibility coverage allows the explicit pandas adapter
+in #108.
 
 Reproduce the run with:
 

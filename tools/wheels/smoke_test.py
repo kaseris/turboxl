@@ -36,15 +36,14 @@ def main():
             assert len(workbook_api.sheets_metadata) == 6
             # The configured workbook limit, rather than the collector default,
             # must protect every public Sheet read.
-            limited = turboxl.load_workbook(path, max_cells=10)
-            try:
-                limited.get_sheet_by_name('Sparse').to_python()
-            except RuntimeError as error:
-                assert 'max_cells=10' in str(error)
-            else:
-                raise AssertionError('Workbook max_cells was not enforced')
-            assert limited.get_sheet_by_name('Data').to_python() == typed
-            limited.close()
+            with turboxl.load_workbook(path, max_cells=10) as limited:
+                try:
+                    limited.get_sheet_by_name('Sparse').to_python()
+                except RuntimeError as error:
+                    assert 'max_cells=10' in str(error)
+                else:
+                    raise AssertionError('Workbook max_cells was not enforced')
+                assert limited.get_sheet_by_name('Data').to_python() == typed
         try:
             workbook_api.get_sheet_by_index(0)
         except RuntimeError:
