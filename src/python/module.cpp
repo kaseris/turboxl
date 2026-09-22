@@ -248,13 +248,17 @@ NB_MODULE(_turboxl, m) {
                 for (std::size_t column = 0; column < nativeRow.size(); ++column) {
                     auto boxed = boxTypedValue(
                         nativeRow[column], datetimeType, timeType);
-                    PyList_SET_ITEM(
-                        row.ptr(), static_cast<Py_ssize_t>(column),
-                        boxed.release().ptr());
+                    if (PyList_SetItem(
+                            row.ptr(), static_cast<Py_ssize_t>(column),
+                            boxed.release().ptr()) < 0) {
+                        throw nb::python_error();
+                    }
                 }
-                PyList_SET_ITEM(
-                    rows.ptr(), static_cast<Py_ssize_t>(rowIndex),
-                    row.release().ptr());
+                if (PyList_SetItem(
+                        rows.ptr(), static_cast<Py_ssize_t>(rowIndex),
+                        row.release().ptr()) < 0) {
+                    throw nb::python_error();
+                }
             }
             const auto boxingEnd = Clock::now();
 
