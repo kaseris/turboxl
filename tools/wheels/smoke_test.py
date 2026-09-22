@@ -1,6 +1,8 @@
 """Exercise the installed extension, never a module from the source tree."""
 from pathlib import Path
 from datetime import datetime, time
+import gc
+import io
 import struct
 import sys
 import tempfile
@@ -28,6 +30,27 @@ def main():
             datetime(2024, 1, 15, 13, 45, 30),
         ]]
         assert isinstance(typed[0][1], int)
+        with turboxl.load_workbook(path) as workbook_api:
+            assert workbook_api.sheet_names == ['Data', 'Hidden', 'VeryHidden', 'Sparse']
+            assert workbook_api.get_sheet_by_index(0).to_python() == typed
+            assert len(workbook_api.sheets_metadata) == 6
+        try:
+            workbook_api.get_sheet_by_index(0)
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError('Closed workbook accepted lookup')
+        archive = path.read_bytes()
+        for source in (archive, bytearray(archive), memoryview(archive)):
+            assert turboxl.load_workbook(source).get_sheet_by_name('Data').to_python() == typed
+        stream = io.BytesIO(archive)
+        stream.seek(3)
+        original_position = stream.tell()
+        assert turboxl.load_workbook(stream).get_sheet_by_index(0).to_python() == typed
+        assert stream.tell() == original_position and not stream.closed
+        retained = turboxl.load_workbook(archive).get_sheet_by_name('Data')
+        gc.collect()
+        assert retained.to_python() == typed
         scalar_path = Path(tmp) / 'scalars.xlsx'
         workbook(scalar_path, scalars=True)
         scalar_rows = turboxl._read_sheet_to_python(str(scalar_path), 'Data')
