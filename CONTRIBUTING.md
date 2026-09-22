@@ -70,6 +70,11 @@ python -m build --sdist --no-isolation
 python -m twine check --strict dist/*
 ```
 
+For pandas-adapter changes, run `tools/wheels/test_pandas_engine.py` against an
+installed wheel with pandas 2.2, 2.3, and 3.0. CI repeats this on Linux,
+Windows, macOS arm64, and macOS Intel; Windows checks must release file handles
+immediately after successful reads and exceptions.
+
 Run the narrower test or benchmark for the code you touched as well. The full
 wheel matrix is intentionally left to GitHub Actions because it covers four
 platform targets and all supported Python variants.
@@ -116,6 +121,8 @@ until the required **CI passed** check succeeds. That check covers:
   Silicon;
 - one source distribution and 12 wheels across the four supported platform
   targets;
+- installed-wheel pandas 2.2, 2.3, and 3.0 integration checks on all four
+  platforms, including Windows file-handle cleanup;
 - package, wheel inventory, and stable-ABI validation; and
 - Windows output-parity and performance checks against pinned
   `python-calamine`.

@@ -52,8 +52,8 @@ def validate(directory, version, platform=None):
             metadata(wheel.read(meta[0]), version)
             if any(n.startswith(('include/', 'lib/', 'bin/')) or n.endswith(('.a', '.lib', '.h', '.hpp', '.cmake')) for n in names):
                 raise ValueError(f'Native development files in {path.name}')
-            if 'turboxl/__init__.py' not in names:
-                raise ValueError(f'Missing Python package in {path.name}')
+            if not {'turboxl/__init__.py', 'turboxl/pandas.py'} <= set(names):
+                raise ValueError(f'Missing Python package or pandas adapter in {path.name}')
             if not any(n.startswith('turboxl/_turboxl') and n.endswith(('.so', '.pyd')) for n in names):
                 raise ValueError(f'Missing extension in {path.name}')
             if not any('license' in n.lower() for n in names):
@@ -70,6 +70,7 @@ def validate(directory, version, platform=None):
             names = {n.removeprefix(prefix) for n in archive.getnames()}
             required = {'CMakeLists.txt', 'pyproject.toml', 'README.md', 'LICENSE', 'PKG-INFO',
                         'src/python/module.cpp', 'src/python/turboxl/__init__.py',
+                        'src/python/turboxl/pandas.py', 'tools/wheels/test_pandas_engine.py',
                         'include/xlsxcsv.hpp', 'cmake/turboxlConfig.cmake.in',
                         'tools/wheels/fixtures.py', 'tools/wheels/smoke_test.py', 'tools/ci/constraints.txt',
                         'tools/ci/install_deps.sh', 'tests/fixture_config.hpp.in', 'tests/fixture_helpers.hpp'}

@@ -99,8 +99,48 @@ jobs:
           path: wheelhouse/*.whl
           if-no-files-found: error
           retention-days: 30
+  pandas-integration:
+    needs: wheels
+    name: pandas ${{ matrix.platform }} / ${{ matrix.pandas }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux-x64, windows-x64, macos-arm64, macos-x64]
+        pandas: ['2.2.3', '2.3.3', '3.0.0']
+        include:
+          - platform: linux-x64
+            runner: ubuntu-24.04
+          - platform: windows-x64
+            runner: windows-2022
+          - platform: macos-arm64
+            runner: macos-15
+          - platform: macos-x64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: wheels-${{ matrix.platform }}
+          path: wheelhouse
+      - name: Install pandas and comparison readers
+        shell: bash
+        run: >-
+          python -m pip install -c tools/ci/constraints.txt
+          wheelhouse/*cp312-abi3-*.whl
+          "pandas==${{ matrix.pandas }}" openpyxl==3.1.5 python-calamine==0.8.2
+      - name: Test installed wheel outside source tree
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP"
+          python "$GITHUB_WORKSPACE/tools/wheels/test_pandas_engine.py"
   validate:
-    needs: [sdist, wheels]
+    needs: [sdist, wheels, pandas-integration]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

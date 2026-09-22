@@ -51,11 +51,13 @@ class ReleaseTests(unittest.TestCase):
                         extension = 'turboxl/_turboxl.pyd' if platform == 'win_amd64' else 'turboxl/_turboxl.so'
                         wheel.writestr(extension, b'fixture')
                         wheel.writestr('turboxl/__init__.py', b'from ._turboxl import *\n')
+                        wheel.writestr('turboxl/pandas.py', b'fixture')
                         wheel.writestr(f'turboxl-{version}.dist-info/METADATA', meta)
                         wheel.writestr(f'turboxl-{version}.dist-info/licenses/LICENSE', b'MIT')
                     wheels.append(path)
             required = ['CMakeLists.txt', 'pyproject.toml', 'README.md', 'LICENSE', 'PKG-INFO',
                         'src/python/module.cpp', 'src/python/turboxl/__init__.py',
+                        'src/python/turboxl/pandas.py', 'tools/wheels/test_pandas_engine.py',
                         'include/xlsxcsv.hpp', 'cmake/turboxlConfig.cmake.in',
                         'tools/wheels/fixtures.py', 'tools/wheels/smoke_test.py', 'tools/ci/constraints.txt',
                         'tools/ci/install_deps.sh', 'tests/fixture_config.hpp.in', 'tests/fixture_helpers.hpp']

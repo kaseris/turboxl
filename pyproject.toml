@@ -30,6 +30,7 @@ keywords = ["xlsx", "csv", "excel", "converter", "fast", "c++"]
 dependencies = []
 
 [project.optional-dependencies]
+pandas = ["pandas>=2.2,<3.1"]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
