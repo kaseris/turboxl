@@ -9,16 +9,6 @@ namespace xlsxcsv::internal {
 
 namespace {
 
-std::optional<core::SheetInfo> selectSheet(
-    const core::Workbook& workbook,
-    const std::variant<std::string, int>& selector) {
-    if (std::holds_alternative<std::string>(selector)) {
-        return workbook.findSheet(std::get<std::string>(selector));
-    }
-    const int index = std::get<int>(selector);
-    return workbook.findSheet(index == -1 ? 0 : index);
-}
-
 std::string joinErrors(const std::vector<std::string>& errors) {
     std::ostringstream message;
     for (std::size_t index = 0; index < errors.size(); ++index) {
@@ -32,6 +22,98 @@ std::string joinErrors(const std::vector<std::string>& errors) {
 
 } // namespace
 
+TypedWorkbookSession::TypedWorkbookSession(const std::string& path, std::size_t maxCells)
+    : m_maxCells(maxCells) {
+    if (maxCells == 0) throw std::invalid_argument("max_cells must be greater than zero");
+    m_package.open(path);
+    open();
+}
+
+TypedWorkbookSession::TypedWorkbookSession(core::ByteVector data, std::size_t maxCells)
+    : m_maxCells(maxCells) {
+    if (maxCells == 0) throw std::invalid_argument("max_cells must be greater than zero");
+    m_package.open(std::move(data));
+    open();
+}
+
+TypedWorkbookSession::~TypedWorkbookSession() { close(); }
+
+void TypedWorkbookSession::open() {
+    try {
+        m_workbook.open(m_package);
+        m_open = true;
+    } catch (...) { m_package.close(); throw; }
+}
+
+bool TypedWorkbookSession::isOpen() const {
+    std::lock_guard lock(m_mutex);
+    return m_open;
+}
+
+void TypedWorkbookSession::close() {
+    std::lock_guard lock(m_mutex);
+    if (!m_open) return;
+    m_styles.close();
+    m_sharedStrings.close();
+    m_workbook.close();
+    m_package.close();
+    m_open = false;
+}
+
+std::vector<core::SheetInfo> TypedWorkbookSession::sheets() const {
+    std::lock_guard lock(m_mutex);
+    if (!m_open) throw std::runtime_error("Workbook is closed");
+    return m_workbook.getSheets();
+}
+
+std::optional<core::SheetInfo> TypedWorkbookSession::sheetByName(const std::string& name) const {
+    std::lock_guard lock(m_mutex);
+    if (!m_open) throw std::runtime_error("Workbook is closed");
+    return m_workbook.findSheet(name);
+}
+
+std::optional<core::SheetInfo> TypedWorkbookSession::sheetByIndex(int index) const {
+    std::lock_guard lock(m_mutex);
+    if (!m_open) throw std::runtime_error("Workbook is closed");
+    return m_workbook.findSheet(index);
+}
+
+void TypedWorkbookSession::ensureSharedStrings() {
+    if (m_sharedStringsInitialized) return;
+    m_sharedStringsInitialized = true;
+    if (m_package.getZipReader().hasEntry("xl/sharedStrings.xml")) m_sharedStrings.parse(m_package);
+}
+
+void TypedWorkbookSession::ensureStyles() {
+    if (m_stylesInitialized) return;
+    m_stylesInitialized = true;
+    if (m_package.getZipReader().hasEntry("xl/styles.xml"))
+        m_styles.parse(m_package, core::StylesRegistry::ParseMode::CsvOnly);
+}
+
+TypedWorksheet TypedWorkbookSession::read(const core::SheetInfo& sheet, TypedReadOptions options) {
+    std::lock_guard lock(m_mutex);
+    if (!m_open) throw std::runtime_error("Workbook is closed");
+    if (options.maxCells == 0) options.maxCells = m_maxCells;
+    if (options.maxCells == 0) throw std::invalid_argument("max_cells must be greater than zero");
+    if (options.nrows && *options.nrows == 0) return {};
+    ensureSharedStrings();
+    const auto* strings = m_sharedStrings.isOpen() ? &m_sharedStrings : nullptr;
+    TypedRowCollector fast(strings, options, nullptr, m_workbook.getDateSystem());
+    if (tryReadTypedWorksheetFast(m_package, sheet.target, fast) && fast.getErrors().empty()) {
+        if (fast.hasStyledNumbers()) ensureStyles();
+        if (m_styles.isOpen()) fast.setStyles(&m_styles);
+        return fast.takeRows();
+    }
+    TypedRowCollector fallback(strings, options, nullptr, m_workbook.getDateSystem());
+    core::SheetStreamReader reader;
+    reader.parseSheet(m_package, sheet.target, fallback, strings);
+    if (!fallback.getErrors().empty()) throw std::runtime_error("Sheet parsing errors: " + joinErrors(fallback.getErrors()));
+    if (fallback.hasStyledNumbers()) ensureStyles();
+    if (m_styles.isOpen()) fallback.setStyles(&m_styles);
+    return fallback.takeRows();
+}
+
 TypedWorksheet readSheetToTyped(
     const std::string& xlsxPath,
     const std::variant<std::string, int>& sheetSelector,
@@ -40,13 +122,10 @@ TypedWorksheet readSheetToTyped(
         if (options.maxCells == 0) {
             throw std::invalid_argument("max_cells must be greater than zero");
         }
-        core::OpcPackage package;
-        package.open(xlsxPath);
-
-        core::Workbook workbook;
-        workbook.open(package);
-
-        const auto sheet = selectSheet(workbook, sheetSelector);
+        TypedWorkbookSession session(xlsxPath, options.maxCells);
+        const auto sheet = std::holds_alternative<std::string>(sheetSelector)
+            ? session.sheetByName(std::get<std::string>(sheetSelector))
+            : session.sheetByIndex(std::get<int>(sheetSelector) == -1 ? 0 : std::get<int>(sheetSelector));
         if (!sheet) {
             if (std::holds_alternative<std::string>(sheetSelector)) {
                 throw std::runtime_error(
@@ -56,50 +135,7 @@ TypedWorksheet readSheetToTyped(
                 "Sheet index out of range: " +
                 std::to_string(std::get<int>(sheetSelector)));
         }
-        if (options.nrows && *options.nrows == 0) return {};
-
-        core::SharedStringsProvider sharedStrings;
-        try {
-            sharedStrings.parse(package);
-        } catch (const core::XlsxError&) {
-            // Workbooks without sharedStrings.xml are valid.
-        }
-
-        const auto* strings = sharedStrings.isOpen() ? &sharedStrings : nullptr;
-        TypedRowCollector fastCollector(
-            strings, options, nullptr, workbook.getDateSystem());
-        if (tryReadTypedWorksheetFast(package, sheet->target, fastCollector) &&
-            fastCollector.getErrors().empty()) {
-            core::StylesRegistry styles;
-            if (fastCollector.hasStyledNumbers()) {
-                try {
-                    styles.parse(package, core::StylesRegistry::ParseMode::CsvOnly);
-                    fastCollector.setStyles(&styles);
-                } catch (const core::XlsxError&) {
-                    // Workbooks without styles.xml are valid.
-                }
-            }
-            return fastCollector.takeRows();
-        }
-
-        TypedRowCollector fallbackCollector(
-            strings, options, nullptr, workbook.getDateSystem());
-        core::SheetStreamReader reader;
-        reader.parseSheet(package, sheet->target, fallbackCollector, strings);
-        if (!fallbackCollector.getErrors().empty()) {
-            throw std::runtime_error(
-                "Sheet parsing errors: " + joinErrors(fallbackCollector.getErrors()));
-        }
-        core::StylesRegistry styles;
-        if (fallbackCollector.hasStyledNumbers()) {
-            try {
-                styles.parse(package, core::StylesRegistry::ParseMode::CsvOnly);
-                fallbackCollector.setStyles(&styles);
-            } catch (const core::XlsxError&) {
-                // Workbooks without styles.xml are valid.
-            }
-        }
-        return fallbackCollector.takeRows();
+        return session.read(*sheet, options);
     } catch (const core::XlsxError& error) {
         throw std::runtime_error("XLSX parsing error: " + std::string(error.what()));
     } catch (const std::exception& error) {

@@ -67,15 +67,37 @@ and [`tools/cloud_benchmark.py`](tools/cloud_benchmark.py):
 Implementation features include zlib-ng support, release-mode compiler
 optimizations, arena-based shared strings, and chunked ZIP reading.
 
-### Typed worksheet vertical-slice result
+### Typed workbook API
+
+Open an XLSX once when reading typed values from several worksheets:
+
+```python
+from pathlib import Path
+import turboxl
+
+with turboxl.load_workbook(Path("report.xlsx")) as workbook:
+    print(workbook.sheet_names)  # worksheets, including hidden worksheets
+    rows = workbook.get_sheet_by_name("Data").to_python(nrows=100)
+```
+
+`load_workbook` accepts paths, `os.PathLike`, workbook bytes and seekable
+binary streams. Streams are read once and restored to their original cursor;
+they are never closed. `sheets_metadata` includes chartsheets and other sheet
+kinds for inspection, while name and index lookup select worksheets only.
+`Sheet.to_python()` returns rectangular rows containing `None`, `bool`, `int`,
+`float`, `str`, `datetime.datetime`, and `datetime.time`. It accepts
+`skip_empty_area` and `nrows`; `max_cells` on `load_workbook` limits each read.
+Call `close()` or use a context manager when done. Reads and lookups after
+close raise `RuntimeError` and retained sheets are also invalidated.
+
+### Typed worksheet benchmark
 
 Issues #100 and #103 provide a private, path-based typed extraction slice to
 measure the cost of producing rectangular Python `list[list]` data before
 committing to a pandas adapter. The extractor can crop to the used range, stop
 at a physical-row limit, and rejects dense results above 10,000,000 cells by
-default. This is benchmark scaffolding, not a supported public API;
-`_read_sheet_to_python` may change or disappear as the owning Workbook/Sheet
-API is built.
+default. `_read_sheet_to_python` remains benchmark scaffolding; use
+`load_workbook` for the supported public API.
 
 The private helper accepts keyword-only `skip_empty_area`, `nrows`, and
 `max_cells` arguments. With `skip_empty_area=False`, output is anchored at A1;

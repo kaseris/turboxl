@@ -12,6 +12,8 @@
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <memory>
+#include <limits>
 
 namespace nb = nanobind;
 
@@ -53,6 +55,37 @@ bool profileTypedTimings() {
     const char* value = std::getenv("TURBOXL_PROFILE_TYPED_TIMINGS");
     return value && (value[0] == '1' || value[0] == 't' || value[0] == 'T' ||
                      value[0] == 'y' || value[0] == 'Y');
+}
+
+nb::list boxTypedWorksheet(const xlsxcsv::internal::TypedWorksheet& rows,
+                           const nb::object& datetimeType, const nb::object& timeType) {
+    nb::list result = nb::steal<nb::list>(PyList_New(static_cast<Py_ssize_t>(rows.size())));
+    for (std::size_t i = 0; i < rows.size(); ++i) {
+        nb::list row = nb::steal<nb::list>(PyList_New(static_cast<Py_ssize_t>(rows[i].size())));
+        for (std::size_t j = 0; j < rows[i].size(); ++j) {
+            auto value = boxTypedValue(rows[i][j], datetimeType, timeType);
+            if (PyList_SetItem(row.ptr(), static_cast<Py_ssize_t>(j), value.release().ptr()) < 0)
+                throw nb::python_error();
+        }
+        if (PyList_SetItem(result.ptr(), static_cast<Py_ssize_t>(i), row.release().ptr()) < 0)
+            throw nb::python_error();
+    }
+    return result;
+}
+
+struct PySheet {
+    std::shared_ptr<xlsxcsv::internal::TypedWorkbookSession> session;
+    xlsxcsv::core::SheetInfo info;
+};
+
+struct PyWorkbook {
+    std::shared_ptr<xlsxcsv::internal::TypedWorkbookSession> session;
+};
+
+xlsxcsv::SheetMetadata metadata(const xlsxcsv::core::SheetInfo& sheet) {
+    return {sheet.name, sheet.sheetId, sheet.visible, sheet.target,
+            static_cast<xlsxcsv::SheetKind>(sheet.kind),
+            static_cast<xlsxcsv::SheetVisibility>(sheet.visibility)};
 }
 
 } // namespace
@@ -104,6 +137,64 @@ NB_MODULE(_turboxl, m) {
             return "SheetMetadata(name='" + s.name + "', sheet_id=" + std::to_string(s.sheetId) + 
                    ", visible=" + (s.visible ? "True" : "False") + ")";
         });
+
+    nb::class_<PySheet>(m, "Sheet")
+        .def("to_python", [datetimeType, timeType](const PySheet& self, bool skipEmptyArea,
+                const std::optional<std::int64_t>& nrows) {
+            if (nrows && *nrows < 0) throw nb::value_error("nrows must be non-negative or None");
+            xlsxcsv::internal::TypedReadOptions options;
+            options.skipEmptyArea = skipEmptyArea;
+            if (nrows) options.nrows = static_cast<std::size_t>(*nrows);
+            xlsxcsv::internal::TypedWorksheet rows;
+            { nb::gil_scoped_release release; rows = self.session->read(self.info, options); }
+            return boxTypedWorksheet(rows, datetimeType, timeType);
+        }, nb::kw_only(), nb::arg("skip_empty_area") = false, nb::arg("nrows") = nb::none(),
+        "Return dense rows of Python scalar values. Raises RuntimeError after close().");
+
+    nb::class_<PyWorkbook>(m, "Workbook")
+        .def_prop_ro("sheet_names", [](const PyWorkbook& self) {
+            nb::list names;
+            for (const auto& sheet : self.session->sheets())
+                if (sheet.kind == xlsxcsv::core::SheetKind::Worksheet)
+                    names.append(nb::str(sheet.name.data(), sheet.name.size()));
+            return names;
+        })
+        .def_prop_ro("sheets_metadata", [](const PyWorkbook& self) {
+            std::vector<xlsxcsv::SheetMetadata> result;
+            for (const auto& sheet : self.session->sheets()) result.push_back(metadata(sheet));
+            return result;
+        })
+        .def("get_sheet_by_name", [](const PyWorkbook& self, const std::string& name) {
+            auto sheet = self.session->sheetByName(name);
+            if (!sheet) throw nb::key_error(("Worksheet not found: " + name).c_str());
+            return PySheet{self.session, *sheet};
+        }, nb::arg("name"))
+        .def("get_sheet_by_index", [](const PyWorkbook& self, std::int64_t index) {
+            if (index < 0 || index > std::numeric_limits<int>::max()) throw nb::index_error("Worksheet index out of range");
+            auto sheet = self.session->sheetByIndex(static_cast<int>(index));
+            if (!sheet) throw nb::index_error("Worksheet index out of range");
+            return PySheet{self.session, *sheet};
+        }, nb::arg("index"))
+        .def("close", [](const PyWorkbook& self) { self.session->close(); })
+        .def("__enter__", [](const PyWorkbook& self) -> const PyWorkbook& {
+            if (!self.session->isOpen()) throw std::runtime_error("Workbook is closed"); return self;
+        }, nb::rv_policy::reference_internal)
+        .def("__exit__", [](const PyWorkbook& self, nb::args) {
+            self.session->close(); return false;
+        });
+
+    m.def("_load_workbook_path", [](const std::string& path, std::int64_t maxCells) {
+        if (maxCells <= 0) throw nb::value_error("max_cells must be greater than zero");
+        auto session = std::make_shared<xlsxcsv::internal::TypedWorkbookSession>(path, static_cast<std::size_t>(maxCells));
+        return PyWorkbook{std::move(session)};
+    }, nb::arg("path"), nb::arg("max_cells") = 10'000'000);
+    m.def("_load_workbook_bytes", [](nb::bytes input, std::int64_t maxCells) {
+        if (maxCells <= 0) throw nb::value_error("max_cells must be greater than zero");
+        const auto* data = reinterpret_cast<const std::uint8_t*>(input.c_str());
+        xlsxcsv::core::ByteVector bytes(data, data + input.size());
+        auto session = std::make_shared<xlsxcsv::internal::TypedWorkbookSession>(std::move(bytes), static_cast<std::size_t>(maxCells));
+        return PyWorkbook{std::move(session)};
+    }, nb::arg("data"), nb::arg("max_cells") = 10'000'000);
     
     // CsvOptions struct
     nb::class_<xlsxcsv::CsvOptions>(m, "CsvOptions")
