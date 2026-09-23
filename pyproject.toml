@@ -42,8 +42,8 @@ dev = [
 [tool.scikit-build]
 wheel.py-api = "cp312"
 install.components = ["python"]
-sdist.include = ["src/python/turboxl/*.py", "tools/ci/*.py", "tools/ci/*.txt", "tools/ci/*.sh", "tools/ci/*.ps1", "tools/wheels/*.py", "tools/generate_benchmark_fixture.py", "tools/benchmark_parity.py", "tools/benchmark_typed.py", "benchmarks/**", "tests/**", "cmake/**"]
-sdist.exclude = ["build*/**", "out/**", "dist/**", "**/__pycache__/**", "**/*.pyc"]
+sdist.include = ["src/python/turboxl/*.py", "tools/ci/*.py", "tools/ci/*.txt", "tools/ci/*.sh", "tools/ci/*.ps1", "tools/wheels/*.py", "tools/generate_benchmark_fixture.py", "tools/benchmark_parity.py", "tools/benchmark_typed.py", "tools/benchmark_pandas.py", "tools/azure_benchmark_once.sh", "tools/cloud_benchmark.py", "benchmarks/main.cpp", "benchmarks/turboxl-large-benchmark.xlsx", "benchmarks/results/**", "benchmarks/corpus/*.json", "benchmarks/corpus/*.md", "tests/**", "cmake/**"]
+sdist.exclude = ["build*/**", "out/**", "dist/**", "benchmarks/corpus/files/**", "**/__pycache__/**", "**/*.pyc"]
 cmake.build-type = "Release"
 cmake.define = { BUILD_PYTHON = "ON", BUILD_TESTS = "OFF", BUILD_CLI = "OFF", BUILD_BENCHMARKS = "OFF", TURBOXL_PORTABLE_BUILD = "ON", TURBOXL_ENABLE_NATIVE_OPTIMIZATION = "OFF", TURBOXL_ENABLE_IPO = "ON" }
 
