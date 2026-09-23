@@ -75,6 +75,12 @@ installed wheel with pandas 2.2, 2.3, and 3.0. CI repeats this on Linux,
 Windows, macOS arm64, and macOS Intel; Windows checks must release file handles
 immediately after successful reads and exceptions.
 
+For an upstream pandas compatibility review, use
+`tools/ci/run_pandas_upstream.py` with the candidate wheel. It fetches pinned
+pandas source tags, patches only the XLSX reader parametrization in a temporary
+test environment, and records upstream results and explicit network-fixture
+exclusions. Keep its JSON report with the review evidence.
+
 Run the narrower test or benchmark for the code you touched as well. The full
 wheel matrix is intentionally left to GitHub Actions because it covers four
 platform targets and all supported Python variants.
@@ -107,6 +113,15 @@ python tools/benchmark_typed.py --rows 60000 --warmups 2 --rounds 9 \
 Both reports must show exact-compatible value parity. They record source,
 open, materialization, native, boxing, total time, and peak memory without
 introducing a separate public-input speed threshold.
+
+For end-to-end pandas engine comparisons, fetch the frozen real-workbook corpus
+with `tools/ci/fetch_pandas_corpus.py benchmarks/corpus/pandas-real.json`, then
+run `tools/benchmark_pandas.py --manifest benchmarks/corpus/pandas-real.json
+--wheel /path/to/candidate.whl --warmups 2 --rounds 9 --json-output /path/to/run.json`
+twice, sequentially, in a clean environment with pandas 3.0.0 and
+python-calamine 0.8.2. The raw reports include exact DataFrame parity and the
+median per-workbook advantage. Corpus files are local inputs and excluded from
+the sdist; the manifest and fetch tool are distributed.
 
 ### 4. Open and merge a pull request
 

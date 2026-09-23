@@ -1,0 +1,2246 @@
+{
+  "environment": {
+    "platform": "macOS-15.7.4-arm64-arm-64bit",
+    "machine": "arm64",
+    "processor": "arm",
+    "cloud_provider": null,
+    "cloud_region": null,
+    "cloud_vm_size": null,
+    "python": "3.12.11",
+    "pandas": "3.0.0",
+    "calamine": "0.8.2",
+    "turboxl": "0.3.0",
+    "wheel_sha256": "4937f623b490d55680a42869c29f312ce0d9443e67e857464633e4cd16f8d48e",
+    "git_revision": "",
+    "git_dirty": false,
+    "warmups": 2,
+    "rounds": 9
+  },
+  "workbooks": [
+    {
+      "id": "abs-national",
+      "path": "files/abs-national.xlsx",
+      "sha256": "e14341a754c97751c8e2b5a4226d3733ee156160e52f532047059be6d4040f86",
+      "source": "https://www.abs.gov.au/statistics/people/population/national-state-and-territory-population/dec-2025/31010do001_202512.xlsx",
+      "download_url": "https://www.abs.gov.au/statistics/people/population/national-state-and-territory-population/dec-2025/31010do001_202512.xlsx",
+      "publisher": "Australian Bureau of Statistics",
+      "license": "CC BY 4.0",
+      "kind": "real",
+      "sheet_name": "Table_1",
+      "read_options": {
+        "header": null
+      },
+      "samples": {
+        "turboxl": [
+          {
+            "seconds": 0.018231291993288323,
+            "peak_rss_mib": 69.078125,
+            "shape": [
+              32,
+              10
+            ]
+          },
+          {
+            "seconds": 0.018372457998339087,
+            "peak_rss_mib": 69.546875,
+            "shape": [
+              32,
+              10
+            ]
+          },
+          {
+            "seconds": 0.018378374981693923,
+            "peak_rss_mib": 69.015625,
+            "shape": [
+              32,
+              10
+            ]
+          },
+          {
+            "seconds": 0.018211124988738447,
+            "peak_rss_mib": 69.15625,
+            "shape": [
+              32,
+              10
+            ]
+          },
+          {
+            "seconds": 0.018148083006963134,
+            "peak_rss_mib": 69.1875,
+            "shape": [
+              32,
+              10
+            ]
+          },
+          {
+            "seconds": 0.028370499989250675,
+            "peak_rss_mib": 70.421875,
+            "shape": [
+              32,
+              10
+            ]
+          },
+          {
+            "seconds": 0.020609333005268127,
+            "peak_rss_mib": 70.328125,
+            "shape": [
+              32,
+              10
+            ]
+          },
+          {
+            "seconds": 0.018926125019788742,
+            "peak_rss_mib": 69.828125,
+            "shape": [
+              32,
+              10
+            ]
+          },
+          {
+            "seconds": 0.018092999991495162,
+            "peak_rss_mib": 69.25,
+            "shape": [
+              32,
+              10
+            ]
+          }
+        ],
+        "calamine": [
+          {
+            "seconds": 0.00287612498505041,
+            "peak_rss_mib": 69.390625,
+            "shape": [
+              32,
+              10
+            ]
+          },
+          {
+            "seconds": 0.0026234579854644835,
+            "peak_rss_mib": 68.734375,
+            "shape": [
+              32,
+              10
+            ]
+          },
+          {
+            "seconds": 0.0027978330035693944,
+            "peak_rss_mib": 69.359375,
+            "shape": [
+              32,
+              10
+            ]
+          },
+          {
+            "seconds": 0.0027669169940054417,
+            "peak_rss_mib": 69.109375,
+            "shape": [
+              32,
+              10
+            ]
+          },
+          {
+            "seconds": 0.002599833009298891,
+            "peak_rss_mib": 69.265625,
+            "shape": [
+              32,
+              10
+            ]
+          },
+          {
+            "seconds": 0.003054708009585738,
+            "peak_rss_mib": 70.265625,
+            "shape": [
+              32,
+              10
+            ]
+          },
+          {
+            "seconds": 0.0053707080078311265,
+            "peak_rss_mib": 70.265625,
+            "shape": [
+              32,
+              10
+            ]
+          },
+          {
+            "seconds": 0.0030334579932969064,
+            "peak_rss_mib": 69.296875,
+            "shape": [
+              32,
+              10
+            ]
+          },
+          {
+            "seconds": 0.0027568750083446503,
+            "peak_rss_mib": 68.96875,
+            "shape": [
+              32,
+              10
+            ]
+          }
+        ]
+      },
+      "medians": {
+        "turboxl": 0.018372457998339087,
+        "calamine": 0.0027978330035693944
+      },
+      "advantage": -5.566674270730253,
+      "parity": true,
+      "mismatch": null
+    },
+    {
+      "id": "abs-age-sex",
+      "path": "files/abs-age-sex.xlsx",
+      "sha256": "71f6993327c4e764e7ce701129ddee6ed70d6d304a187c1944243bc3914d3a19",
+      "source": "https://www.abs.gov.au/statistics/people/population/national-state-and-territory-population/dec-2025/31010do002_202512.xlsx",
+      "download_url": "https://www.abs.gov.au/statistics/people/population/national-state-and-territory-population/dec-2025/31010do002_202512.xlsx",
+      "publisher": "Australian Bureau of Statistics",
+      "license": "CC BY 4.0",
+      "kind": "real",
+      "sheet_name": "Table_7",
+      "read_options": {
+        "header": null
+      },
+      "samples": {
+        "turboxl": [
+          {
+            "seconds": 0.022478625003714114,
+            "peak_rss_mib": 69.625,
+            "shape": [
+              334,
+              10
+            ]
+          },
+          {
+            "seconds": 0.021777541027404368,
+            "peak_rss_mib": 70.34375,
+            "shape": [
+              334,
+              10
+            ]
+          },
+          {
+            "seconds": 0.02250699998694472,
+            "peak_rss_mib": 70.25,
+            "shape": [
+              334,
+              10
+            ]
+          },
+          {
+            "seconds": 0.021078583027701825,
+            "peak_rss_mib": 69.765625,
+            "shape": [
+              334,
+              10
+            ]
+          },
+          {
+            "seconds": 0.022796542005380616,
+            "peak_rss_mib": 69.40625,
+            "shape": [
+              334,
+              10
+            ]
+          },
+          {
+            "seconds": 0.022010457993019372,
+            "peak_rss_mib": 69.859375,
+            "shape": [
+              334,
+              10
+            ]
+          },
+          {
+            "seconds": 0.020509291993221268,
+            "peak_rss_mib": 69.46875,
+            "shape": [
+              334,
+              10
+            ]
+          },
+          {
+            "seconds": 0.02204079198418185,
+            "peak_rss_mib": 69.65625,
+            "shape": [
+              334,
+              10
+            ]
+          },
+          {
+            "seconds": 0.020721291017252952,
+            "peak_rss_mib": 69.484375,
+            "shape": [
+              334,
+              10
+            ]
+          }
+        ],
+        "calamine": [
+          {
+            "seconds": 0.009567041997797787,
+            "peak_rss_mib": 70.65625,
+            "shape": [
+              334,
+              10
+            ]
+          },
+          {
+            "seconds": 0.03124012501211837,
+            "peak_rss_mib": 70.34375,
+            "shape": [
+              334,
+              10
+            ]
+          },
+          {
+            "seconds": 0.010657874983735383,
+            "peak_rss_mib": 69.453125,
+            "shape": [
+              334,
+              10
+            ]
+          },
+          {
+            "seconds": 0.016663416987285018,
+            "peak_rss_mib": 70.234375,
+            "shape": [
+              334,
+              10
+            ]
+          },
+          {
+            "seconds": 0.010615082981530577,
+            "peak_rss_mib": 69.9375,
+            "shape": [
+              334,
+              10
+            ]
+          },
+          {
+            "seconds": 0.009978208981920034,
+            "peak_rss_mib": 69.859375,
+            "shape": [
+              334,
+              10
+            ]
+          },
+          {
+            "seconds": 0.009928541985573247,
+            "peak_rss_mib": 70.015625,
+            "shape": [
+              334,
+              10
+            ]
+          },
+          {
+            "seconds": 0.009964249999029562,
+            "peak_rss_mib": 69.703125,
+            "shape": [
+              334,
+              10
+            ]
+          },
+          {
+            "seconds": 0.010160499979974702,
+            "peak_rss_mib": 69.453125,
+            "shape": [
+              334,
+              10
+            ]
+          }
+        ]
+      },
+      "medians": {
+        "turboxl": 0.022010457993019372,
+        "calamine": 0.010160499979974702
+      },
+      "advantage": -1.1662770568770942,
+      "parity": true,
+      "mismatch": null
+    },
+    {
+      "id": "abs-standard-population",
+      "path": "files/abs-standard-population.xlsx",
+      "sha256": "51b9d56b3535050cd189248a9ff1ea626f1731b7a4a4dec07dc8ca2c30280438",
+      "source": "https://www.abs.gov.au/statistics/people/population/national-state-and-territory-population/dec-2025/31010DO003_200106.xlsx",
+      "download_url": "https://www.abs.gov.au/statistics/people/population/national-state-and-territory-population/dec-2025/31010DO003_200106.xlsx",
+      "publisher": "Australian Bureau of Statistics",
+      "license": "CC BY 4.0",
+      "kind": "real",
+      "sheet_name": "Table_1",
+      "read_options": {
+        "header": null
+      },
+      "samples": {
+        "turboxl": [
+          {
+            "seconds": 0.006298332998994738,
+            "peak_rss_mib": 68.890625,
+            "shape": [
+              109,
+              2
+            ]
+          },
+          {
+            "seconds": 0.00615529200877063,
+            "peak_rss_mib": 68.9375,
+            "shape": [
+              109,
+              2
+            ]
+          },
+          {
+            "seconds": 0.006331582990242168,
+            "peak_rss_mib": 68.5625,
+            "shape": [
+              109,
+              2
+            ]
+          },
+          {
+            "seconds": 0.006372625008225441,
+            "peak_rss_mib": 68.90625,
+            "shape": [
+              109,
+              2
+            ]
+          },
+          {
+            "seconds": 0.006152000016300008,
+            "peak_rss_mib": 69.109375,
+            "shape": [
+              109,
+              2
+            ]
+          },
+          {
+            "seconds": 0.007906542014097795,
+            "peak_rss_mib": 69.875,
+            "shape": [
+              109,
+              2
+            ]
+          },
+          {
+            "seconds": 0.0084314169944264,
+            "peak_rss_mib": 69.859375,
+            "shape": [
+              109,
+              2
+            ]
+          },
+          {
+            "seconds": 0.007400041009532288,
+            "peak_rss_mib": 69.265625,
+            "shape": [
+              109,
+              2
+            ]
+          },
+          {
+            "seconds": 0.00625266699353233,
+            "peak_rss_mib": 69.375,
+            "shape": [
+              109,
+              2
+            ]
+          }
+        ],
+        "calamine": [
+          {
+            "seconds": 0.002552874997491017,
+            "peak_rss_mib": 69.234375,
+            "shape": [
+              109,
+              2
+            ]
+          },
+          {
+            "seconds": 0.0026730410172604024,
+            "peak_rss_mib": 68.875,
+            "shape": [
+              109,
+              2
+            ]
+          },
+          {
+            "seconds": 0.0024750000156927854,
+            "peak_rss_mib": 69.65625,
+            "shape": [
+              109,
+              2
+            ]
+          },
+          {
+            "seconds": 0.002503709023585543,
+            "peak_rss_mib": 69.609375,
+            "shape": [
+              109,
+              2
+            ]
+          },
+          {
+            "seconds": 0.0030660000047646463,
+            "peak_rss_mib": 69.859375,
+            "shape": [
+              109,
+              2
+            ]
+          },
+          {
+            "seconds": 0.0033629579993430525,
+            "peak_rss_mib": 69.90625,
+            "shape": [
+              109,
+              2
+            ]
+          },
+          {
+            "seconds": 0.003249542001867667,
+            "peak_rss_mib": 70.140625,
+            "shape": [
+              109,
+              2
+            ]
+          },
+          {
+            "seconds": 0.002629624999826774,
+            "peak_rss_mib": 69.0625,
+            "shape": [
+              109,
+              2
+            ]
+          },
+          {
+            "seconds": 0.0026032500027213246,
+            "peak_rss_mib": 69.390625,
+            "shape": [
+              109,
+              2
+            ]
+          }
+        ]
+      },
+      "medians": {
+        "turboxl": 0.006331582990242168,
+        "calamine": 0.002629624999826774
+      },
+      "advantage": -1.4077893200206342,
+      "parity": true,
+      "mismatch": null
+    },
+    {
+      "id": "abs-migration",
+      "path": "files/abs-migration.xlsx",
+      "sha256": "cc878ab5e2183b9d42116586494e5d662e9f3b9e341a584b2d290a01ac2f1250",
+      "source": "https://www.abs.gov.au/statistics/people/population/national-state-and-territory-population/dec-2025/Regional%20internal%20migration%20estimates%2C%20provisional.xlsx",
+      "download_url": "https://www.abs.gov.au/statistics/people/population/national-state-and-territory-population/dec-2025/Regional%20internal%20migration%20estimates%2C%20provisional.xlsx",
+      "publisher": "Australian Bureau of Statistics",
+      "license": "CC BY 4.0",
+      "kind": "real",
+      "sheet_name": "Table 3",
+      "read_options": {
+        "header": null
+      },
+      "samples": {
+        "turboxl": [
+          {
+            "seconds": 0.018986832990776747,
+            "peak_rss_mib": 71.578125,
+            "shape": [
+              350,
+              70
+            ]
+          },
+          {
+            "seconds": 0.020254167000530288,
+            "peak_rss_mib": 70.59375,
+            "shape": [
+              350,
+              70
+            ]
+          },
+          {
+            "seconds": 0.01946266699815169,
+            "peak_rss_mib": 71.46875,
+            "shape": [
+              350,
+              70
+            ]
+          },
+          {
+            "seconds": 0.03397329099243507,
+            "peak_rss_mib": 71.953125,
+            "shape": [
+              350,
+              70
+            ]
+          },
+          {
+            "seconds": 0.01826274997438304,
+            "peak_rss_mib": 70.8125,
+            "shape": [
+              350,
+              70
+            ]
+          },
+          {
+            "seconds": 0.0187282920232974,
+            "peak_rss_mib": 70.84375,
+            "shape": [
+              350,
+              70
+            ]
+          },
+          {
+            "seconds": 0.0188830420083832,
+            "peak_rss_mib": 70.9375,
+            "shape": [
+              350,
+              70
+            ]
+          },
+          {
+            "seconds": 0.019792458013398573,
+            "peak_rss_mib": 70.671875,
+            "shape": [
+              350,
+              70
+            ]
+          },
+          {
+            "seconds": 0.019232208986068144,
+            "peak_rss_mib": 71.203125,
+            "shape": [
+              350,
+              70
+            ]
+          }
+        ],
+        "calamine": [
+          {
+            "seconds": 0.012150166992796585,
+            "peak_rss_mib": 70.859375,
+            "shape": [
+              350,
+              70
+            ]
+          },
+          {
+            "seconds": 0.013248375005787238,
+            "peak_rss_mib": 69.921875,
+            "shape": [
+              350,
+              70
+            ]
+          },
+          {
+            "seconds": 0.01342591698630713,
+            "peak_rss_mib": 71.390625,
+            "shape": [
+              350,
+              70
+            ]
+          },
+          {
+            "seconds": 0.012949291995028034,
+            "peak_rss_mib": 70.921875,
+            "shape": [
+              350,
+              70
+            ]
+          },
+          {
+            "seconds": 0.012616082996828482,
+            "peak_rss_mib": 70.90625,
+            "shape": [
+              350,
+              70
+            ]
+          },
+          {
+            "seconds": 0.013081584009341896,
+            "peak_rss_mib": 70.921875,
+            "shape": [
+              350,
+              70
+            ]
+          },
+          {
+            "seconds": 0.01280791699537076,
+            "peak_rss_mib": 70.109375,
+            "shape": [
+              350,
+              70
+            ]
+          },
+          {
+            "seconds": 0.01385016698623076,
+            "peak_rss_mib": 69.84375,
+            "shape": [
+              350,
+              70
+            ]
+          },
+          {
+            "seconds": 0.013012874987907708,
+            "peak_rss_mib": 71.1875,
+            "shape": [
+              350,
+              70
+            ]
+          }
+        ]
+      },
+      "medians": {
+        "turboxl": 0.019232208986068144,
+        "calamine": 0.013012874987907708
+      },
+      "advantage": -0.4779369665765475,
+      "parity": true,
+      "mismatch": null
+    },
+    {
+      "id": "ons-mid-2024",
+      "path": "files/ons-mid-2024.xlsx",
+      "sha256": "f78d50e8d77fe5ed9d04667d6875aefcf62b56380af7aceb2e90dce067981526",
+      "source": "https://www.ons.gov.uk/file?uri=%2Fpeoplepopulationandcommunity%2Fpopulationandmigration%2Fpopulationestimates%2Fdatasets%2Fpopulationestimatesforukenglandandwalesscotlandandnorthernireland%2Fmid2024%2Fmye24tablesuk.xlsx",
+      "download_url": "https://www.ons.gov.uk/file?uri=%2Fpeoplepopulationandcommunity%2Fpopulationandmigration%2Fpopulationestimates%2Fdatasets%2Fpopulationestimatesforukenglandandwalesscotlandandnorthernireland%2Fmid2024%2Fmye24tablesuk.xlsx",
+      "publisher": "Office for National Statistics",
+      "license": "Open Government Licence 3.0",
+      "kind": "real",
+      "sheet_name": "MYE2 - Persons",
+      "read_options": {
+        "header": null
+      },
+      "samples": {
+        "turboxl": [
+          {
+            "seconds": 0.033510417008074,
+            "peak_rss_mib": 75.453125,
+            "shape": [
+              412,
+              95
+            ]
+          },
+          {
+            "seconds": 0.033658625005045906,
+            "peak_rss_mib": 76.453125,
+            "shape": [
+              412,
+              95
+            ]
+          },
+          {
+            "seconds": 0.03342487500049174,
+            "peak_rss_mib": 76.640625,
+            "shape": [
+              412,
+              95
+            ]
+          },
+          {
+            "seconds": 0.033758999983547255,
+            "peak_rss_mib": 75.390625,
+            "shape": [
+              412,
+              95
+            ]
+          },
+          {
+            "seconds": 0.034229875018354505,
+            "peak_rss_mib": 75.6875,
+            "shape": [
+              412,
+              95
+            ]
+          },
+          {
+            "seconds": 0.03502866701455787,
+            "peak_rss_mib": 76.109375,
+            "shape": [
+              412,
+              95
+            ]
+          },
+          {
+            "seconds": 0.03394716602633707,
+            "peak_rss_mib": 76.921875,
+            "shape": [
+              412,
+              95
+            ]
+          },
+          {
+            "seconds": 0.03494679200230166,
+            "peak_rss_mib": 76.75,
+            "shape": [
+              412,
+              95
+            ]
+          },
+          {
+            "seconds": 0.034465375007130206,
+            "peak_rss_mib": 76.59375,
+            "shape": [
+              412,
+              95
+            ]
+          }
+        ],
+        "calamine": [
+          {
+            "seconds": 0.02836804199614562,
+            "peak_rss_mib": 79.015625,
+            "shape": [
+              412,
+              95
+            ]
+          },
+          {
+            "seconds": 0.02806074998807162,
+            "peak_rss_mib": 79.59375,
+            "shape": [
+              412,
+              95
+            ]
+          },
+          {
+            "seconds": 0.02836024999851361,
+            "peak_rss_mib": 80.6875,
+            "shape": [
+              412,
+              95
+            ]
+          },
+          {
+            "seconds": 0.027817125024739653,
+            "peak_rss_mib": 78.515625,
+            "shape": [
+              412,
+              95
+            ]
+          },
+          {
+            "seconds": 0.029438375000609085,
+            "peak_rss_mib": 79.703125,
+            "shape": [
+              412,
+              95
+            ]
+          },
+          {
+            "seconds": 0.028173915983643383,
+            "peak_rss_mib": 78.140625,
+            "shape": [
+              412,
+              95
+            ]
+          },
+          {
+            "seconds": 0.028622667014133185,
+            "peak_rss_mib": 78.359375,
+            "shape": [
+              412,
+              95
+            ]
+          },
+          {
+            "seconds": 0.02783108301809989,
+            "peak_rss_mib": 78.8125,
+            "shape": [
+              412,
+              95
+            ]
+          },
+          {
+            "seconds": 0.028978832997381687,
+            "peak_rss_mib": 78.0625,
+            "shape": [
+              412,
+              95
+            ]
+          }
+        ]
+      },
+      "medians": {
+        "turboxl": 0.03394716602633707,
+        "calamine": 0.02836024999851361
+      },
+      "advantage": -0.19699812336337935,
+      "parity": true,
+      "mismatch": null
+    },
+    {
+      "id": "ons-1838-2024",
+      "path": "files/ons-1838-2024.xlsx",
+      "sha256": "3ce12e7129a86e16f03da47580980653d0deddc0776ee64c99ff66c8371c3ab6",
+      "source": "https://www.ons.gov.uk/file?uri=%2Fpeoplepopulationandcommunity%2Fpopulationandmigration%2Fpopulationestimates%2Fdatasets%2Fpopulationestimatesforukenglandandwalesscotlandandnorthernireland%2Fukpopulationestimates1838to2024%2Fukpopulationestimates18382024.xlsx",
+      "download_url": "https://www.ons.gov.uk/file?uri=%2Fpeoplepopulationandcommunity%2Fpopulationandmigration%2Fpopulationestimates%2Fdatasets%2Fpopulationestimatesforukenglandandwalesscotlandandnorthernireland%2Fukpopulationestimates1838to2024%2Fukpopulationestimates18382024.xlsx",
+      "publisher": "Office for National Statistics",
+      "license": "Open Government Licence 3.0",
+      "kind": "real",
+      "sheet_name": "Table 3",
+      "read_options": {
+        "header": null
+      },
+      "samples": {
+        "turboxl": [
+          {
+            "seconds": 0.031594415981089696,
+            "peak_rss_mib": 73.015625,
+            "shape": [
+              278,
+              56
+            ]
+          },
+          {
+            "seconds": 0.03148270901874639,
+            "peak_rss_mib": 72.328125,
+            "shape": [
+              278,
+              56
+            ]
+          },
+          {
+            "seconds": 0.03186583399656229,
+            "peak_rss_mib": 73.546875,
+            "shape": [
+              278,
+              56
+            ]
+          },
+          {
+            "seconds": 0.03059095799108036,
+            "peak_rss_mib": 72.109375,
+            "shape": [
+              278,
+              56
+            ]
+          },
+          {
+            "seconds": 0.030647542007500306,
+            "peak_rss_mib": 72.65625,
+            "shape": [
+              278,
+              56
+            ]
+          },
+          {
+            "seconds": 0.030894791998434812,
+            "peak_rss_mib": 72.046875,
+            "shape": [
+              278,
+              56
+            ]
+          },
+          {
+            "seconds": 0.030722292023710907,
+            "peak_rss_mib": 73.34375,
+            "shape": [
+              278,
+              56
+            ]
+          },
+          {
+            "seconds": 0.03151883400278166,
+            "peak_rss_mib": 72.71875,
+            "shape": [
+              278,
+              56
+            ]
+          },
+          {
+            "seconds": 0.031033749983180314,
+            "peak_rss_mib": 72.4375,
+            "shape": [
+              278,
+              56
+            ]
+          }
+        ],
+        "calamine": [
+          {
+            "seconds": 0.01627562500652857,
+            "peak_rss_mib": 73.109375,
+            "shape": [
+              278,
+              56
+            ]
+          },
+          {
+            "seconds": 0.01660987501963973,
+            "peak_rss_mib": 73.03125,
+            "shape": [
+              278,
+              56
+            ]
+          },
+          {
+            "seconds": 0.016657625004881993,
+            "peak_rss_mib": 73.6875,
+            "shape": [
+              278,
+              56
+            ]
+          },
+          {
+            "seconds": 0.017600999999558553,
+            "peak_rss_mib": 74.640625,
+            "shape": [
+              278,
+              56
+            ]
+          },
+          {
+            "seconds": 0.01669641601620242,
+            "peak_rss_mib": 72.84375,
+            "shape": [
+              278,
+              56
+            ]
+          },
+          {
+            "seconds": 0.016286583995679393,
+            "peak_rss_mib": 73.78125,
+            "shape": [
+              278,
+              56
+            ]
+          },
+          {
+            "seconds": 0.016621374990791082,
+            "peak_rss_mib": 74.28125,
+            "shape": [
+              278,
+              56
+            ]
+          },
+          {
+            "seconds": 0.016832875000545755,
+            "peak_rss_mib": 72.515625,
+            "shape": [
+              278,
+              56
+            ]
+          },
+          {
+            "seconds": 0.016331624996382743,
+            "peak_rss_mib": 73.265625,
+            "shape": [
+              278,
+              56
+            ]
+          }
+        ]
+      },
+      "medians": {
+        "turboxl": 0.031033749983180314,
+        "calamine": 0.016621374990791082
+      },
+      "advantage": -0.8670988411232088,
+      "parity": true,
+      "mismatch": null
+    },
+    {
+      "id": "ons-mid-2023",
+      "path": "files/ons-mid-2023.xlsx",
+      "sha256": "7ee5724ecf71abc3d811c89174cdddf1bce7f07d3eefc8b69b15ee8371414b16",
+      "source": "https://www.ons.gov.uk/file?uri=%2Fpeoplepopulationandcommunity%2Fpopulationandmigration%2Fpopulationestimates%2Fdatasets%2Fpopulationestimatesforukenglandandwalesscotlandandnorthernireland%2Fmid2023%2Fmye23tablesuk.xlsx",
+      "download_url": "https://www.ons.gov.uk/file?uri=%2Fpeoplepopulationandcommunity%2Fpopulationandmigration%2Fpopulationestimates%2Fdatasets%2Fpopulationestimatesforukenglandandwalesscotlandandnorthernireland%2Fmid2023%2Fmye23tablesuk.xlsx",
+      "publisher": "Office for National Statistics",
+      "license": "Open Government Licence 3.0",
+      "kind": "real",
+      "sheet_name": "MYE1",
+      "read_options": {
+        "header": null
+      },
+      "samples": {
+        "turboxl": [
+          {
+            "seconds": 0.012098333012545481,
+            "peak_rss_mib": 69.484375,
+            "shape": [
+              31,
+              8
+            ]
+          },
+          {
+            "seconds": 0.012254291999852285,
+            "peak_rss_mib": 69.3125,
+            "shape": [
+              31,
+              8
+            ]
+          },
+          {
+            "seconds": 0.012445666012354195,
+            "peak_rss_mib": 69.203125,
+            "shape": [
+              31,
+              8
+            ]
+          },
+          {
+            "seconds": 0.012178666016552597,
+            "peak_rss_mib": 69.546875,
+            "shape": [
+              31,
+              8
+            ]
+          },
+          {
+            "seconds": 0.012307958997553214,
+            "peak_rss_mib": 69.140625,
+            "shape": [
+              31,
+              8
+            ]
+          },
+          {
+            "seconds": 0.013590791990282014,
+            "peak_rss_mib": 69.21875,
+            "shape": [
+              31,
+              8
+            ]
+          },
+          {
+            "seconds": 0.012880166992545128,
+            "peak_rss_mib": 69.375,
+            "shape": [
+              31,
+              8
+            ]
+          },
+          {
+            "seconds": 0.01325295798596926,
+            "peak_rss_mib": 69.625,
+            "shape": [
+              31,
+              8
+            ]
+          },
+          {
+            "seconds": 0.013985208002850413,
+            "peak_rss_mib": 69.734375,
+            "shape": [
+              31,
+              8
+            ]
+          }
+        ],
+        "calamine": [
+          {
+            "seconds": 0.0032456250046379864,
+            "peak_rss_mib": 69.671875,
+            "shape": [
+              31,
+              8
+            ]
+          },
+          {
+            "seconds": 0.0032544579880777746,
+            "peak_rss_mib": 70.015625,
+            "shape": [
+              31,
+              8
+            ]
+          },
+          {
+            "seconds": 0.003500415972666815,
+            "peak_rss_mib": 69.328125,
+            "shape": [
+              31,
+              8
+            ]
+          },
+          {
+            "seconds": 0.0037136669852770865,
+            "peak_rss_mib": 70.15625,
+            "shape": [
+              31,
+              8
+            ]
+          },
+          {
+            "seconds": 0.0032035409822128713,
+            "peak_rss_mib": 69.21875,
+            "shape": [
+              31,
+              8
+            ]
+          },
+          {
+            "seconds": 0.0036168749793432653,
+            "peak_rss_mib": 69.640625,
+            "shape": [
+              31,
+              8
+            ]
+          },
+          {
+            "seconds": 0.003909541992470622,
+            "peak_rss_mib": 69.453125,
+            "shape": [
+              31,
+              8
+            ]
+          },
+          {
+            "seconds": 0.003854457987472415,
+            "peak_rss_mib": 69.15625,
+            "shape": [
+              31,
+              8
+            ]
+          },
+          {
+            "seconds": 0.0037301669945009053,
+            "peak_rss_mib": 69.390625,
+            "shape": [
+              31,
+              8
+            ]
+          }
+        ]
+      },
+      "medians": {
+        "turboxl": 0.012445666012354195,
+        "calamine": 0.0036168749793432653
+      },
+      "advantage": -2.4409997811464357,
+      "parity": true,
+      "mismatch": null
+    },
+    {
+      "id": "ons-1838-2023",
+      "path": "files/ons-1838-2023.xlsx",
+      "sha256": "b1c509eca572b7101a516b72bb6fb00c6ec613d510bb59d85dadd464e4df2f5c",
+      "source": "https://www.ons.gov.uk/file?uri=%2Fpeoplepopulationandcommunity%2Fpopulationandmigration%2Fpopulationestimates%2Fdatasets%2Fpopulationestimatesforukenglandandwalesscotlandandnorthernireland%2Fukpopulationestimates1838to2023%2Fukpopulationestimates183820231.xlsx",
+      "download_url": "https://www.ons.gov.uk/file?uri=%2Fpeoplepopulationandcommunity%2Fpopulationandmigration%2Fpopulationestimates%2Fdatasets%2Fpopulationestimatesforukenglandandwalesscotlandandnorthernireland%2Fukpopulationestimates1838to2023%2Fukpopulationestimates183820231.xlsx",
+      "publisher": "Office for National Statistics",
+      "license": "Open Government Licence 3.0",
+      "kind": "real",
+      "sheet_name": "Table 3",
+      "read_options": {
+        "header": null
+      },
+      "samples": {
+        "turboxl": [
+          {
+            "seconds": 0.03033395900274627,
+            "peak_rss_mib": 73.203125,
+            "shape": [
+              278,
+              54
+            ]
+          },
+          {
+            "seconds": 0.030585625005187467,
+            "peak_rss_mib": 72.515625,
+            "shape": [
+              278,
+              54
+            ]
+          },
+          {
+            "seconds": 0.03081612501409836,
+            "peak_rss_mib": 72.265625,
+            "shape": [
+              278,
+              54
+            ]
+          },
+          {
+            "seconds": 0.03224358300212771,
+            "peak_rss_mib": 73.28125,
+            "shape": [
+              278,
+              54
+            ]
+          },
+          {
+            "seconds": 0.03102749999379739,
+            "peak_rss_mib": 71.828125,
+            "shape": [
+              278,
+              54
+            ]
+          },
+          {
+            "seconds": 0.030860375001793727,
+            "peak_rss_mib": 72.796875,
+            "shape": [
+              278,
+              54
+            ]
+          },
+          {
+            "seconds": 0.03108549999888055,
+            "peak_rss_mib": 72.65625,
+            "shape": [
+              278,
+              54
+            ]
+          },
+          {
+            "seconds": 0.030480707995593548,
+            "peak_rss_mib": 72.421875,
+            "shape": [
+              278,
+              54
+            ]
+          },
+          {
+            "seconds": 0.030149832979077473,
+            "peak_rss_mib": 72.875,
+            "shape": [
+              278,
+              54
+            ]
+          }
+        ],
+        "calamine": [
+          {
+            "seconds": 0.020072624989552423,
+            "peak_rss_mib": 74.15625,
+            "shape": [
+              278,
+              54
+            ]
+          },
+          {
+            "seconds": 0.017662915983237326,
+            "peak_rss_mib": 74.171875,
+            "shape": [
+              278,
+              54
+            ]
+          },
+          {
+            "seconds": 0.01574516700929962,
+            "peak_rss_mib": 74.15625,
+            "shape": [
+              278,
+              54
+            ]
+          },
+          {
+            "seconds": 0.01583933297661133,
+            "peak_rss_mib": 73.109375,
+            "shape": [
+              278,
+              54
+            ]
+          },
+          {
+            "seconds": 0.01636016700649634,
+            "peak_rss_mib": 72.984375,
+            "shape": [
+              278,
+              54
+            ]
+          },
+          {
+            "seconds": 0.016295417008223012,
+            "peak_rss_mib": 74.453125,
+            "shape": [
+              278,
+              54
+            ]
+          },
+          {
+            "seconds": 0.01611925000906922,
+            "peak_rss_mib": 73.59375,
+            "shape": [
+              278,
+              54
+            ]
+          },
+          {
+            "seconds": 0.016038000001572073,
+            "peak_rss_mib": 72.84375,
+            "shape": [
+              278,
+              54
+            ]
+          },
+          {
+            "seconds": 0.015439042006619275,
+            "peak_rss_mib": 73.359375,
+            "shape": [
+              278,
+              54
+            ]
+          }
+        ]
+      },
+      "medians": {
+        "turboxl": 0.03081612501409836,
+        "calamine": 0.01611925000906922
+      },
+      "advantage": -0.9117592317732027,
+      "parity": true,
+      "mismatch": null
+    },
+    {
+      "id": "bea-financial-transactions",
+      "path": "files/bea-financial-transactions.xlsx",
+      "sha256": "3a563b6626056b34e83c09415d7713b8af3fcf463d238181bfb71d1247f116b6",
+      "source": "https://www.bea.gov/sites/default/files/2022-06/fdius-financial-transactions-122.xlsx",
+      "download_url": "https://www.bea.gov/sites/default/files/2022-06/fdius-financial-transactions-122.xlsx",
+      "publisher": "U.S. Bureau of Economic Analysis",
+      "license": "US federal government public domain",
+      "kind": "real",
+      "sheet_name": "1994",
+      "read_options": {
+        "header": null
+      },
+      "samples": {
+        "turboxl": [
+          {
+            "seconds": 0.018503500003134832,
+            "peak_rss_mib": 70.34375,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.018726832990068942,
+            "peak_rss_mib": 69.84375,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.018507083994336426,
+            "peak_rss_mib": 70.53125,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.018491750000976026,
+            "peak_rss_mib": 70.078125,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.01887758300290443,
+            "peak_rss_mib": 70.5625,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.018596457986859605,
+            "peak_rss_mib": 70.296875,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.018517500022426248,
+            "peak_rss_mib": 69.671875,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.018394124985206872,
+            "peak_rss_mib": 69.921875,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.01839695801027119,
+            "peak_rss_mib": 69.578125,
+            "shape": [
+              92,
+              6
+            ]
+          }
+        ],
+        "calamine": [
+          {
+            "seconds": 0.0028287919994909316,
+            "peak_rss_mib": 71.40625,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.002997959003550932,
+            "peak_rss_mib": 70.75,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.0028925829974468797,
+            "peak_rss_mib": 70.34375,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.0031102499924600124,
+            "peak_rss_mib": 71.328125,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.0028505419904831797,
+            "peak_rss_mib": 70.796875,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.003038875001948327,
+            "peak_rss_mib": 71.046875,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.002940417005447671,
+            "peak_rss_mib": 70.859375,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.003073041996685788,
+            "peak_rss_mib": 71.984375,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.003114499995717779,
+            "peak_rss_mib": 71.421875,
+            "shape": [
+              92,
+              6
+            ]
+          }
+        ]
+      },
+      "medians": {
+        "turboxl": 0.018507083994336426,
+        "calamine": 0.002997959003550932
+      },
+      "advantage": -5.1732278434814205,
+      "parity": true,
+      "mismatch": null
+    },
+    {
+      "id": "bea-income",
+      "path": "files/bea-income.xlsx",
+      "sha256": "30228e69cf7bdd7b20e062529b5b2f3ba73fd2bc445e1440ce01939a73db46a5",
+      "source": "https://www.bea.gov/sites/default/files/2022-06/fdius-income-122.xlsx",
+      "download_url": "https://www.bea.gov/sites/default/files/2022-06/fdius-income-122.xlsx",
+      "publisher": "U.S. Bureau of Economic Analysis",
+      "license": "US federal government public domain",
+      "kind": "real",
+      "sheet_name": "1994",
+      "read_options": {
+        "header": null
+      },
+      "samples": {
+        "turboxl": [
+          {
+            "seconds": 0.018845333019271493,
+            "peak_rss_mib": 69.703125,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.01903420902090147,
+            "peak_rss_mib": 69.84375,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.018926040997030213,
+            "peak_rss_mib": 68.96875,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.018462832988006994,
+            "peak_rss_mib": 69.359375,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.018671124998945743,
+            "peak_rss_mib": 69.140625,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.018519374978495762,
+            "peak_rss_mib": 69.625,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.01925650000339374,
+            "peak_rss_mib": 69.28125,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.018504749983549118,
+            "peak_rss_mib": 69.359375,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.01948975000414066,
+            "peak_rss_mib": 69.953125,
+            "shape": [
+              92,
+              6
+            ]
+          }
+        ],
+        "calamine": [
+          {
+            "seconds": 0.003130917000817135,
+            "peak_rss_mib": 69.21875,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.0026981249975506216,
+            "peak_rss_mib": 69.546875,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.0027790829772129655,
+            "peak_rss_mib": 69.640625,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.003011499997228384,
+            "peak_rss_mib": 70.171875,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.0026961670082528144,
+            "peak_rss_mib": 69.640625,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.0027299590001348406,
+            "peak_rss_mib": 70.015625,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.003461334010353312,
+            "peak_rss_mib": 69.671875,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.0032915000047069043,
+            "peak_rss_mib": 69.78125,
+            "shape": [
+              92,
+              6
+            ]
+          },
+          {
+            "seconds": 0.002998665993800387,
+            "peak_rss_mib": 69.8125,
+            "shape": [
+              92,
+              6
+            ]
+          }
+        ]
+      },
+      "medians": {
+        "turboxl": 0.018845333019271493,
+        "calamine": 0.002998665993800387
+      },
+      "advantage": -5.284572225860903,
+      "parity": true,
+      "mismatch": null
+    },
+    {
+      "id": "bea-financial-country-industry",
+      "path": "files/bea-financial-country-industry.xlsx",
+      "sha256": "a2eeab069357518c92dc9826cb51b981562e4561fbe9c3e5aab61bcbe00f92b5",
+      "source": "https://apps.bea.gov/international/xls/fdius-historical/FDIUS%20ctry%20by%20ind%20Financial%20Transactions%202000-2009.xlsx",
+      "download_url": "https://apps.bea.gov/international/xls/fdius-historical/FDIUS%20ctry%20by%20ind%20Financial%20Transactions%202000-2009.xlsx",
+      "publisher": "U.S. Bureau of Economic Analysis",
+      "license": "US federal government public domain",
+      "kind": "real",
+      "sheet_name": "2000",
+      "read_options": {
+        "header": null
+      },
+      "samples": {
+        "turboxl": [
+          {
+            "seconds": 0.008516957983374596,
+            "peak_rss_mib": 69.859375,
+            "shape": [
+              78,
+              18
+            ]
+          },
+          {
+            "seconds": 0.008763042016653344,
+            "peak_rss_mib": 69.34375,
+            "shape": [
+              78,
+              18
+            ]
+          },
+          {
+            "seconds": 0.009654124994995072,
+            "peak_rss_mib": 69.5625,
+            "shape": [
+              78,
+              18
+            ]
+          },
+          {
+            "seconds": 0.008682915999088436,
+            "peak_rss_mib": 69.453125,
+            "shape": [
+              78,
+              18
+            ]
+          },
+          {
+            "seconds": 0.008999416982987896,
+            "peak_rss_mib": 70.015625,
+            "shape": [
+              78,
+              18
+            ]
+          },
+          {
+            "seconds": 0.012500207987613976,
+            "peak_rss_mib": 69.9375,
+            "shape": [
+              78,
+              18
+            ]
+          },
+          {
+            "seconds": 0.009052417008206248,
+            "peak_rss_mib": 69.3125,
+            "shape": [
+              78,
+              18
+            ]
+          },
+          {
+            "seconds": 0.011348791013006121,
+            "peak_rss_mib": 70.140625,
+            "shape": [
+              78,
+              18
+            ]
+          },
+          {
+            "seconds": 0.010107584006618708,
+            "peak_rss_mib": 69.78125,
+            "shape": [
+              78,
+              18
+            ]
+          }
+        ],
+        "calamine": [
+          {
+            "seconds": 0.0032490410085301846,
+            "peak_rss_mib": 69.9375,
+            "shape": [
+              78,
+              18
+            ]
+          },
+          {
+            "seconds": 0.0033278330229222775,
+            "peak_rss_mib": 69.453125,
+            "shape": [
+              78,
+              18
+            ]
+          },
+          {
+            "seconds": 0.0033711669966578484,
+            "peak_rss_mib": 69.671875,
+            "shape": [
+              78,
+              18
+            ]
+          },
+          {
+            "seconds": 0.00335316700511612,
+            "peak_rss_mib": 69.8125,
+            "shape": [
+              78,
+              18
+            ]
+          },
+          {
+            "seconds": 0.003264083992689848,
+            "peak_rss_mib": 69.28125,
+            "shape": [
+              78,
+              18
+            ]
+          },
+          {
+            "seconds": 0.0033511250221636146,
+            "peak_rss_mib": 69.546875,
+            "shape": [
+              78,
+              18
+            ]
+          },
+          {
+            "seconds": 0.0036165000055916607,
+            "peak_rss_mib": 69.46875,
+            "shape": [
+              78,
+              18
+            ]
+          },
+          {
+            "seconds": 0.00418679098947905,
+            "peak_rss_mib": 70.0625,
+            "shape": [
+              78,
+              18
+            ]
+          },
+          {
+            "seconds": 0.003451625001616776,
+            "peak_rss_mib": 70.078125,
+            "shape": [
+              78,
+              18
+            ]
+          }
+        ]
+      },
+      "medians": {
+        "turboxl": 0.009052417008206248,
+        "calamine": 0.00335316700511612
+      },
+      "advantage": -1.6996618404017618,
+      "parity": true,
+      "mismatch": null
+    },
+    {
+      "id": "bea-income-country-industry",
+      "path": "files/bea-income-country-industry.xlsx",
+      "sha256": "901b6e9b1f695e119e75bb658d192545dcb967be74ba9efc07d85172fb6ff42b",
+      "source": "https://apps.bea.gov/international/xls/FDIUS%20ctry%20by%20ind%20Income%202000-2009.xlsx",
+      "download_url": "https://apps.bea.gov/international/xls/FDIUS%20ctry%20by%20ind%20Income%202000-2009.xlsx",
+      "publisher": "U.S. Bureau of Economic Analysis",
+      "license": "US federal government public domain",
+      "kind": "real",
+      "sheet_name": "2000",
+      "read_options": {
+        "header": null
+      },
+      "samples": {
+        "turboxl": [
+          {
+            "seconds": 0.008667540998430923,
+            "peak_rss_mib": 69.359375,
+            "shape": [
+              77,
+              18
+            ]
+          },
+          {
+            "seconds": 0.00837029199465178,
+            "peak_rss_mib": 69.453125,
+            "shape": [
+              77,
+              18
+            ]
+          },
+          {
+            "seconds": 0.008737333992030472,
+            "peak_rss_mib": 69.8125,
+            "shape": [
+              77,
+              18
+            ]
+          },
+          {
+            "seconds": 0.008620165986940265,
+            "peak_rss_mib": 68.90625,
+            "shape": [
+              77,
+              18
+            ]
+          },
+          {
+            "seconds": 0.008425125008216128,
+            "peak_rss_mib": 69.859375,
+            "shape": [
+              77,
+              18
+            ]
+          },
+          {
+            "seconds": 0.008466500003123656,
+            "peak_rss_mib": 69.390625,
+            "shape": [
+              77,
+              18
+            ]
+          },
+          {
+            "seconds": 0.008854500018060207,
+            "peak_rss_mib": 69.453125,
+            "shape": [
+              77,
+              18
+            ]
+          },
+          {
+            "seconds": 0.00881870900047943,
+            "peak_rss_mib": 69.078125,
+            "shape": [
+              77,
+              18
+            ]
+          },
+          {
+            "seconds": 0.008721374993911013,
+            "peak_rss_mib": 69.0,
+            "shape": [
+              77,
+              18
+            ]
+          }
+        ],
+        "calamine": [
+          {
+            "seconds": 0.003224999993108213,
+            "peak_rss_mib": 69.4375,
+            "shape": [
+              77,
+              18
+            ]
+          },
+          {
+            "seconds": 0.0033038750116247684,
+            "peak_rss_mib": 69.734375,
+            "shape": [
+              77,
+              18
+            ]
+          },
+          {
+            "seconds": 0.0030197500018402934,
+            "peak_rss_mib": 69.46875,
+            "shape": [
+              77,
+              18
+            ]
+          },
+          {
+            "seconds": 0.003493917000014335,
+            "peak_rss_mib": 69.65625,
+            "shape": [
+              77,
+              18
+            ]
+          },
+          {
+            "seconds": 0.0032296249992214143,
+            "peak_rss_mib": 69.734375,
+            "shape": [
+              77,
+              18
+            ]
+          },
+          {
+            "seconds": 0.0033043749863281846,
+            "peak_rss_mib": 69.84375,
+            "shape": [
+              77,
+              18
+            ]
+          },
+          {
+            "seconds": 0.003353624982992187,
+            "peak_rss_mib": 70.265625,
+            "shape": [
+              77,
+              18
+            ]
+          },
+          {
+            "seconds": 0.003345875011291355,
+            "peak_rss_mib": 70.109375,
+            "shape": [
+              77,
+              18
+            ]
+          },
+          {
+            "seconds": 0.003356000001076609,
+            "peak_rss_mib": 69.078125,
+            "shape": [
+              77,
+              18
+            ]
+          }
+        ]
+      },
+      "medians": {
+        "turboxl": 0.008667540998430923,
+        "calamine": 0.0033043749863281846
+      },
+      "advantage": -1.6230500576637878,
+      "parity": true,
+      "mismatch": null
+    },
+    {
+      "id": "ons-daily-deaths",
+      "path": "files/ons-daily-deaths.xlsx",
+      "sha256": "542df949a75905e49b51259cb3e4934f09d1c116119e1f755fa4e9a227358327",
+      "source": "https://www.ons.gov.uk/file?uri=%2Fpeoplepopulationandcommunity%2Fbirthsdeathsandmarriages%2Fdeaths%2Fadhocs%2F14173dailydeathsoccurrencesenglandandwales1981and2020%2Fdailydeaths19812020adhocfinal.xlsx",
+      "download_url": "https://www.ons.gov.uk/file?uri=%2Fpeoplepopulationandcommunity%2Fbirthsdeathsandmarriages%2Fdeaths%2Fadhocs%2F14173dailydeathsoccurrencesenglandandwales1981and2020%2Fdailydeaths19812020adhocfinal.xlsx",
+      "publisher": "Office for National Statistics",
+      "license": "Open Government Licence 3.0",
+      "kind": "real",
+      "sheet_name": "Table 1",
+      "read_options": {
+        "header": null
+      },
+      "samples": {
+        "turboxl": [
+          {
+            "seconds": 0.1076965419924818,
+            "peak_rss_mib": 118.53125,
+            "shape": [
+              7325,
+              45
+            ]
+          },
+          {
+            "seconds": 0.10879945798660628,
+            "peak_rss_mib": 117.328125,
+            "shape": [
+              7325,
+              45
+            ]
+          },
+          {
+            "seconds": 0.10843400002340786,
+            "peak_rss_mib": 117.453125,
+            "shape": [
+              7325,
+              45
+            ]
+          },
+          {
+            "seconds": 0.10812695798813365,
+            "peak_rss_mib": 119.171875,
+            "shape": [
+              7325,
+              45
+            ]
+          },
+          {
+            "seconds": 0.10724966699490324,
+            "peak_rss_mib": 116.25,
+            "shape": [
+              7325,
+              45
+            ]
+          },
+          {
+            "seconds": 0.10803070801193826,
+            "peak_rss_mib": 119.171875,
+            "shape": [
+              7325,
+              45
+            ]
+          },
+          {
+            "seconds": 0.10744962500757538,
+            "peak_rss_mib": 118.453125,
+            "shape": [
+              7325,
+              45
+            ]
+          },
+          {
+            "seconds": 0.10920783301116899,
+            "peak_rss_mib": 118.90625,
+            "shape": [
+              7325,
+              45
+            ]
+          },
+          {
+            "seconds": 0.11070683400612324,
+            "peak_rss_mib": 119.21875,
+            "shape": [
+              7325,
+              45
+            ]
+          }
+        ],
+        "calamine": [
+          {
+            "seconds": 0.1532650829758495,
+            "peak_rss_mib": 140.578125,
+            "shape": [
+              7325,
+              45
+            ]
+          },
+          {
+            "seconds": 0.15191704098833725,
+            "peak_rss_mib": 145.859375,
+            "shape": [
+              7325,
+              45
+            ]
+          },
+          {
+            "seconds": 0.1523843329923693,
+            "peak_rss_mib": 142.328125,
+            "shape": [
+              7325,
+              45
+            ]
+          },
+          {
+            "seconds": 0.15004470897838473,
+            "peak_rss_mib": 138.0625,
+            "shape": [
+              7325,
+              45
+            ]
+          },
+          {
+            "seconds": 0.1547637079784181,
+            "peak_rss_mib": 145.484375,
+            "shape": [
+              7325,
+              45
+            ]
+          },
+          {
+            "seconds": 0.15247374997125007,
+            "peak_rss_mib": 136.09375,
+            "shape": [
+              7325,
+              45
+            ]
+          },
+          {
+            "seconds": 0.15621774998726323,
+            "peak_rss_mib": 143.9375,
+            "shape": [
+              7325,
+              45
+            ]
+          },
+          {
+            "seconds": 0.1538549170072656,
+            "peak_rss_mib": 140.265625,
+            "shape": [
+              7325,
+              45
+            ]
+          },
+          {
+            "seconds": 0.15067245799582452,
+            "peak_rss_mib": 132.734375,
+            "shape": [
+              7325,
+              45
+            ]
+          }
+        ]
+      },
+      "medians": {
+        "turboxl": 0.10812695798813365,
+        "calamine": 0.15247374997125007
+      },
+      "advantage": 0.29084870013020797,
+      "parity": true,
+      "mismatch": null
+    }
+  ],
+  "real_median_advantage": -1.4077893200206342,
+  "passes_20_percent_gate": false
+}

@@ -108,6 +108,7 @@ third_party/
 
 # One-shot cloud benchmark reports
 benchmark-results/
+benchmarks/corpus/files/
 
 # Valgrind
 *.vglog

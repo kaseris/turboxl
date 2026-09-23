@@ -1,0 +1,533 @@
+{
+  "environment": {
+    "platform": "macOS-15.7.4-arm64-arm-64bit",
+    "machine": "arm64",
+    "processor": "arm",
+    "cloud_provider": null,
+    "cloud_region": null,
+    "cloud_vm_size": null,
+    "python": "3.12.11",
+    "pandas": "3.0.0",
+    "calamine": "0.8.2",
+    "turboxl": "0.3.0",
+    "wheel_sha256": "4937f623b490d55680a42869c29f312ce0d9443e67e857464633e4cd16f8d48e",
+    "git_revision": "",
+    "git_dirty": false,
+    "warmups": 2,
+    "rounds": 9
+  },
+  "workbooks": [
+    {
+      "id": "dense-inline",
+      "path": "dense-inline.xlsx",
+      "sha256": "dd8281e3bf081756c3e8ad9d1f72d06b3bc5c4cd4a394712330436bb0764a661",
+      "source": "tools/generate_benchmark_fixture.py",
+      "publisher": "TurboXL",
+      "license": "MIT",
+      "kind": "synthetic",
+      "sheet_name": 0,
+      "read_options": {
+        "header": null
+      },
+      "samples": {
+        "turboxl": [
+          {
+            "seconds": 0.16229683297569863,
+            "peak_rss_mib": 144.078125,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.16213379200780764,
+            "peak_rss_mib": 145.5,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.1658667500014417,
+            "peak_rss_mib": 140.578125,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.16841762501280755,
+            "peak_rss_mib": 142.703125,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.1632955840032082,
+            "peak_rss_mib": 147.109375,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.15984941701753996,
+            "peak_rss_mib": 135.484375,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.1620672499993816,
+            "peak_rss_mib": 145.609375,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.16383741699974053,
+            "peak_rss_mib": 140.484375,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.1670290830079466,
+            "peak_rss_mib": 149.75,
+            "shape": [
+              60001,
+              8
+            ]
+          }
+        ],
+        "calamine": [
+          {
+            "seconds": 0.24680945801082999,
+            "peak_rss_mib": 162.984375,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.24808804100030102,
+            "peak_rss_mib": 159.640625,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.25050695799291134,
+            "peak_rss_mib": 164.265625,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.25315979099832475,
+            "peak_rss_mib": 168.6875,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.25565670800278895,
+            "peak_rss_mib": 164.796875,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.24763666701619513,
+            "peak_rss_mib": 158.6875,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.2921170420013368,
+            "peak_rss_mib": 164.5,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.2561788749881089,
+            "peak_rss_mib": 168.328125,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.24753779199090786,
+            "peak_rss_mib": 166.3125,
+            "shape": [
+              60001,
+              8
+            ]
+          }
+        ]
+      },
+      "medians": {
+        "turboxl": 0.1632955840032082,
+        "calamine": 0.25050695799291134
+      },
+      "advantage": 0.34813952749436594,
+      "parity": true,
+      "mismatch": null
+    },
+    {
+      "id": "dense-shared",
+      "path": "dense-shared.xlsx",
+      "sha256": "63f1b5331ce32e07b35828c5047f1604528bf179c739c05987f7f658946fb3f2",
+      "source": "tools/generate_benchmark_fixture.py",
+      "publisher": "TurboXL",
+      "license": "MIT",
+      "kind": "synthetic",
+      "sheet_name": 0,
+      "read_options": {
+        "header": null
+      },
+      "samples": {
+        "turboxl": [
+          {
+            "seconds": 0.18690995799261145,
+            "peak_rss_mib": 142.953125,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.1611590830143541,
+            "peak_rss_mib": 143.484375,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.15999454201664776,
+            "peak_rss_mib": 143.390625,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.16562033302034251,
+            "peak_rss_mib": 142.453125,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.18883745800121687,
+            "peak_rss_mib": 145.671875,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.16198508301749825,
+            "peak_rss_mib": 141.9375,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.1628098749788478,
+            "peak_rss_mib": 132.71875,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.16264566700556315,
+            "peak_rss_mib": 137.046875,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.16495158299221657,
+            "peak_rss_mib": 137.265625,
+            "shape": [
+              60001,
+              8
+            ]
+          }
+        ],
+        "calamine": [
+          {
+            "seconds": 0.24488529202062637,
+            "peak_rss_mib": 166.296875,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.23306366600445472,
+            "peak_rss_mib": 167.671875,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.23602841698448174,
+            "peak_rss_mib": 159.453125,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.2418828750087414,
+            "peak_rss_mib": 162.90625,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.2709139999933541,
+            "peak_rss_mib": 168.390625,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.2684747079911176,
+            "peak_rss_mib": 166.0,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.2344842920138035,
+            "peak_rss_mib": 163.34375,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.23320095799863338,
+            "peak_rss_mib": 159.859375,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.23333495800034143,
+            "peak_rss_mib": 163.484375,
+            "shape": [
+              60001,
+              8
+            ]
+          }
+        ]
+      },
+      "medians": {
+        "turboxl": 0.1628098749788478,
+        "calamine": 0.23602841698448174
+      },
+      "advantage": 0.31021070657965677,
+      "parity": true,
+      "mismatch": null
+    },
+    {
+      "id": "sparse-mixed",
+      "path": "sparse-mixed.xlsx",
+      "sha256": "f8cc26276d8e064c8241fb2c68923a20dfe05bf7a04b1b01d0ce81b8fcee1bf5",
+      "source": "tools/generate_benchmark_fixture.py",
+      "publisher": "TurboXL",
+      "license": "MIT",
+      "kind": "synthetic",
+      "sheet_name": 0,
+      "read_options": {
+        "header": null
+      },
+      "samples": {
+        "turboxl": [
+          {
+            "seconds": 0.07716049998998642,
+            "peak_rss_mib": 101.46875,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.07665316702332348,
+            "peak_rss_mib": 101.9375,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.07620399998268113,
+            "peak_rss_mib": 101.890625,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.07650329201715067,
+            "peak_rss_mib": 101.609375,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.07836787501582876,
+            "peak_rss_mib": 103.15625,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.07667645800393075,
+            "peak_rss_mib": 102.34375,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.07668720799847506,
+            "peak_rss_mib": 101.921875,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.07702799999970011,
+            "peak_rss_mib": 102.1875,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.07717212499119341,
+            "peak_rss_mib": 101.359375,
+            "shape": [
+              60001,
+              8
+            ]
+          }
+        ],
+        "calamine": [
+          {
+            "seconds": 0.12228987499838695,
+            "peak_rss_mib": 112.578125,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.1250257909996435,
+            "peak_rss_mib": 112.0,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.11787291700602509,
+            "peak_rss_mib": 111.9375,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.11994191698613577,
+            "peak_rss_mib": 111.765625,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.12037604197394103,
+            "peak_rss_mib": 111.953125,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.12136275001103058,
+            "peak_rss_mib": 111.203125,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.1191105830075685,
+            "peak_rss_mib": 110.59375,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.11962495799525641,
+            "peak_rss_mib": 112.703125,
+            "shape": [
+              60001,
+              8
+            ]
+          },
+          {
+            "seconds": 0.12121941699297167,
+            "peak_rss_mib": 111.21875,
+            "shape": [
+              60001,
+              8
+            ]
+          }
+        ]
+      },
+      "medians": {
+        "turboxl": 0.07668720799847506,
+        "calamine": 0.12037604197394103
+      },
+      "advantage": 0.36293628914068893,
+      "parity": true,
+      "mismatch": null
+    }
+  ],
+  "real_median_advantage": null,
+  "passes_20_percent_gate": false
+}

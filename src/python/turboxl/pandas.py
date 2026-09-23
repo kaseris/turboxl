@@ -84,9 +84,21 @@ def register() -> None:
                 return self.book.get_sheet_by_index(index)
 
             def get_sheet_data(self, sheet, file_rows_needed=None):
-                return sheet.to_python(
+                rows = sheet.to_python(
                     skip_empty_area=False, nrows=file_rows_needed
                 )
+                # XLSX files often style empty cells far beyond the data.
+                # pandas' built-in readers exclude those trailing cells, while
+                # retaining empty leading rows and columns for headers/indexes.
+                last_row = -1
+                last_column = -1
+                for row_index, row in enumerate(rows):
+                    occupied = [index for index, value in enumerate(row)
+                                if value is not None and value != ""]
+                    if occupied:
+                        last_row = row_index
+                        last_column = max(last_column, occupied[-1])
+                return [row[:last_column + 1] for row in rows[:last_row + 1]]
 
             def close(self):
                 if getattr(self, "_turboxl_closed", False):

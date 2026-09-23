@@ -5,16 +5,21 @@
 set -Eeuo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly HARNESS_PATH="${SCRIPT_DIR}/cloud_benchmark.py"
+MODE="csv"
+HARNESS_PATH="${SCRIPT_DIR}/cloud_benchmark.py"
 
 LOCATION="uksouth"
 ROUNDS=7
+ROUNDS_SET=0
 SHEET_INDEX=0
 OS_TYPE="linux"
 RESULTS_ROOT="${PWD}/benchmark-results"
 XLSX_PATH="${SCRIPT_DIR}/../benchmarks/turboxl-large-benchmark.xlsx"
 XLSX_URL=""
 SUBSCRIPTION=""
+PANDAS_MANIFEST=""
+PANDAS_WHEEL=""
+PREPARE_ONLY=0
 
 usage() {
   cat <<'EOF'
@@ -27,9 +32,13 @@ Options:
   --subscription NAME    Azure subscription name or ID (default: active subscription).
   --os TYPE              Guest OS: linux or windows (default: linux).
   --location REGION      Azure region (default: uksouth).
-  --rounds N             Timed rounds per implementation (default: 7).
+  --rounds N             Timed rounds per implementation (csv: 7, pandas: 9).
   --sheet-index N        Zero-based worksheet index (default: 0).
   --results-dir DIR      Parent directory for reports (default: ./benchmark-results).
+  --mode MODE            csv or pandas (default: csv).
+  --manifest FILE        Frozen pandas corpus manifest (pandas mode).
+  --wheel FILE           Candidate Linux x86-64 wheel (pandas mode).
+  --prepare-only         Validate pandas inputs and package locally; create no Azure resources.
   -h, --help             Show this help.
 
 The script uses the requested subscription, or the active Azure CLI
@@ -68,6 +77,7 @@ while (($#)); do
       ;;
     --rounds)
       ROUNDS="${2:-}"
+      ROUNDS_SET=1
       shift 2
       ;;
     --sheet-index)
@@ -77,6 +87,22 @@ while (($#)); do
     --results-dir)
       RESULTS_ROOT="${2:-}"
       shift 2
+      ;;
+    --mode)
+      MODE="${2:-}"
+      shift 2
+      ;;
+    --manifest)
+      PANDAS_MANIFEST="${2:-}"
+      shift 2
+      ;;
+    --wheel)
+      PANDAS_WHEEL="${2:-}"
+      shift 2
+      ;;
+    --prepare-only)
+      PREPARE_ONLY=1
+      shift
       ;;
     -h|--help)
       usage
@@ -90,11 +116,49 @@ while (($#)); do
   esac
 done
 
-if [[ -n "${XLSX_PATH}" && ! -f "${XLSX_PATH}" ]]; then
+if [[ "${MODE}" != "csv" && "${MODE}" != "pandas" ]]; then
+  echo "--mode must be csv or pandas." >&2
+  exit 2
+fi
+if [[ "${MODE}" == "pandas" ]]; then
+  if ((ROUNDS_SET == 0)); then ROUNDS=9; fi
+  HARNESS_PATH="${SCRIPT_DIR}/benchmark_pandas.py"
+  WHEEL_BLOB_NAME="$(basename "${PANDAS_WHEEL}")"
+  if [[ "${OS_TYPE}" != "linux" ]]; then
+    echo "Pandas Azure mode currently requires --os linux." >&2
+    exit 2
+  fi
+  if [[ ! -f "${PANDAS_MANIFEST}" || ! -f "${PANDAS_WHEEL}" ||
+        "${PANDAS_WHEEL}" != *manylinux*x86_64.whl ]]; then
+    echo "Pandas mode requires --manifest and a Linux x86-64 --wheel." >&2
+    exit 2
+  fi
+fi
+if ((PREPARE_ONLY)); then
+  if [[ "${MODE}" != "pandas" ]]; then
+    echo "--prepare-only requires --mode pandas." >&2
+    exit 2
+  fi
+  mkdir -p "${RESULTS_ROOT}"
+  python3 "${SCRIPT_DIR}/ci/prepare_pandas_azure.py" \
+    --manifest "${PANDAS_MANIFEST}" --wheel "${PANDAS_WHEEL}" \
+    --bundle "${RESULTS_ROOT}/pandas-corpus.zip"
+  python3 - "${PANDAS_WHEEL}" "${RESULTS_ROOT}/pandas-corpus.zip" <<'PY'
+import hashlib
+from pathlib import Path
+import sys
+for filename in sys.argv[1:]:
+    path = Path(filename)
+    print(f"{path}: {hashlib.sha256(path.read_bytes()).hexdigest()}")
+PY
+  echo "Pandas Azure inputs prepared; no Azure resources were created."
+  exit 0
+fi
+if [[ "${MODE}" == "csv" && -n "${XLSX_PATH}" && ! -f "${XLSX_PATH}" ]]; then
   echo "--xlsx must point to an existing workbook." >&2
   exit 2
 fi
-if [[ -z "${XLSX_PATH}" && -z "${XLSX_URL}" ]]; then
+if [[ "${MODE}" == "csv" && -z "${XLSX_PATH}" && -z "${XLSX_URL}" ]]; then
   echo "Provide --xlsx or --xlsx-url." >&2
   exit 2
 fi
@@ -232,7 +296,12 @@ ensure_provider_registered Microsoft.Network
 echo
 
 mkdir -p "${RESULTS_DIR}"
-if [[ -n "${XLSX_PATH}" ]]; then
+if [[ "${MODE}" == "pandas" ]]; then
+  python3 "${SCRIPT_DIR}/ci/prepare_pandas_azure.py" \
+    --manifest "${PANDAS_MANIFEST}" --wheel "${PANDAS_WHEEL}" \
+    --bundle "${TEMP_DIR}/corpus.zip"
+  INPUT_DESCRIPTION="${PANDAS_MANIFEST} (validated corpus bundle)"
+elif [[ -n "${XLSX_PATH}" ]]; then
   XLSX_PATH="$(cd "$(dirname "${XLSX_PATH}")" && pwd)/$(basename "${XLSX_PATH}")"
   INPUT_DESCRIPTION="${XLSX_PATH}"
 else
@@ -267,13 +336,14 @@ echo "TurboXL one-shot Azure benchmark"
 echo "Subscription : ${SUBSCRIPTION_NAME} (${SUBSCRIPTION_ID})"
 echo "Region       : ${LOCATION}"
 echo "Guest OS     : ${OS_TYPE}"
+echo "Mode         : ${MODE}"
 echo "Resource group: ${RESOURCE_GROUP}"
 echo "Input        : ${INPUT_DESCRIPTION}"
 echo "Results      : ${RESULTS_DIR}"
 if [[ "${OS_TYPE}" == "windows" ]]; then
   echo "Cost note    : Windows Server carries a license premium over the Linux run."
 else
-  echo "Estimated compute rate: about USD 0.52/hour for both VMs combined."
+  echo "Estimated compute rate: about USD 0.44/hour for both VMs combined."
 fi
 echo
 
@@ -314,19 +384,32 @@ for container in input results; do
     --output none
 done
 
+if [[ "${MODE}" == "pandas" ]]; then
+  for asset in "${TEMP_DIR}/corpus.zip:corpus.zip" "${PANDAS_WHEEL}:${WHEEL_BLOB_NAME}"; do
+    az storage blob upload \
+      --account-name "${STORAGE_ACCOUNT}" \
+      --account-key "${STORAGE_KEY}" \
+      --container-name input \
+      --name "${asset##*:}" \
+      --file "${asset%:*}" \
+      --overwrite \
+      --output none
+  done
+else
+  az storage blob upload \
+    --account-name "${STORAGE_ACCOUNT}" \
+    --account-key "${STORAGE_KEY}" \
+    --container-name input \
+    --name benchmark.xlsx \
+    --file "${XLSX_PATH}" \
+    --overwrite \
+    --output none
+fi
 az storage blob upload \
   --account-name "${STORAGE_ACCOUNT}" \
   --account-key "${STORAGE_KEY}" \
   --container-name input \
-  --name benchmark.xlsx \
-  --file "${XLSX_PATH}" \
-  --overwrite \
-  --output none
-az storage blob upload \
-  --account-name "${STORAGE_ACCOUNT}" \
-  --account-key "${STORAGE_KEY}" \
-  --container-name input \
-  --name cloud_benchmark.py \
+  --name "$(basename "${HARNESS_PATH}")" \
   --file "${HARNESS_PATH}" \
   --overwrite \
   --output none
@@ -349,8 +432,13 @@ OUTPUT_SAS="$(az storage container generate-sas \
   --https-only \
   --output tsv)"
 
-DATASET_URL="https://${STORAGE_ACCOUNT}.blob.core.windows.net/input/benchmark.xlsx?${INPUT_SAS}"
-HARNESS_URL="https://${STORAGE_ACCOUNT}.blob.core.windows.net/input/cloud_benchmark.py?${INPUT_SAS}"
+if [[ "${MODE}" == "pandas" ]]; then
+  DATASET_URL="https://${STORAGE_ACCOUNT}.blob.core.windows.net/input/corpus.zip?${INPUT_SAS}"
+  WHEEL_URL="https://${STORAGE_ACCOUNT}.blob.core.windows.net/input/${WHEEL_BLOB_NAME}?${INPUT_SAS}"
+else
+  DATASET_URL="https://${STORAGE_ACCOUNT}.blob.core.windows.net/input/benchmark.xlsx?${INPUT_SAS}"
+fi
+HARNESS_URL="https://${STORAGE_ACCOUNT}.blob.core.windows.net/input/$(basename "${HARNESS_PATH}")?${INPUT_SAS}"
 
 WINDOWS_ADMIN_PASSWORD=""
 if [[ "${OS_TYPE}" == "linux" ]]; then
@@ -512,8 +600,42 @@ Invoke-WebRequest -UseBasicParsing \`
 EOF
   else
     remote_script="${TEMP_DIR}/${vm_name}.sh"
-
-    cat >"${remote_script}" <<EOF
+    if [[ "${MODE}" == "pandas" ]]; then
+      local wheel_b64
+      wheel_b64="$(printf '%s' "${WHEEL_URL}" | base64 | tr -d '\n')"
+      cat >"${remote_script}" <<EOF
+#!/usr/bin/env bash
+set -Eeuo pipefail
+DATASET_URL="\$(printf '%s' '${dataset_b64}' | base64 -d)"
+HARNESS_URL="\$(printf '%s' '${harness_b64}' | base64 -d)"
+WHEEL_URL="\$(printf '%s' '${wheel_b64}' | base64 -d)"
+OUTPUT_URL="\$(printf '%s' '${output_b64}' | base64 -d)"
+sudo apt-get update -qq
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3-venv curl
+python3 -m venv /tmp/turboxl-benchmark-venv
+curl --fail --silent --show-error --location "\${DATASET_URL}" --output /tmp/corpus.zip
+curl --fail --silent --show-error --location "\${HARNESS_URL}" --output /tmp/benchmark_pandas.py
+curl --fail --silent --show-error --location "\${WHEEL_URL}" --output '/tmp/${WHEEL_BLOB_NAME}'
+python3 -m zipfile -e /tmp/corpus.zip /tmp/turboxl-pandas-corpus
+/tmp/turboxl-benchmark-venv/bin/python -m pip install --quiet \
+  'pandas==3.0.0' 'python-calamine==0.8.2' 'numpy==2.5.3' \
+  '/tmp/${WHEEL_BLOB_NAME}'
+BENCHMARK_CLOUD_PROVIDER=azure \
+BENCHMARK_CLOUD_REGION='${LOCATION}' \
+BENCHMARK_CLOUD_VM_SIZE='${vm_size}' \
+/tmp/turboxl-benchmark-venv/bin/python /tmp/benchmark_pandas.py \
+  --manifest /tmp/turboxl-pandas-corpus/manifest.json \
+  --wheel '/tmp/${WHEEL_BLOB_NAME}' \
+  --warmups 2 --rounds '${ROUNDS}' --json-output /tmp/result.json || \
+  echo 'Benchmark reported a parity or worker failure; uploading its result.' >&2
+python3 -c 'import json; json.load(open("/tmp/result.json"))'
+curl --fail --silent --show-error \
+  --request PUT --header 'x-ms-blob-type: BlockBlob' \
+  --header 'Content-Type: application/json' \
+  --data-binary @/tmp/result.json "\${OUTPUT_URL}"
+EOF
+    else
+      cat >"${remote_script}" <<EOF
 #!/usr/bin/env bash
 set -Eeuo pipefail
 DATASET_URL="\$(printf '%s' '${dataset_b64}' | base64 -d)"
@@ -543,6 +665,7 @@ curl --fail --silent --show-error \
   --data-binary @/tmp/result.json \
   "\${OUTPUT_URL}"
 EOF
+    fi
   fi
 
   echo "Running benchmark on ${vm_name} (${vm_size})..."
@@ -615,6 +738,23 @@ az storage blob download-batch \
   --overwrite \
   --output none
 
+if [[ "${MODE}" == "pandas" ]]; then
+  python3 - "${RESULTS_DIR}" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+directory = Path(sys.argv[1])
+reports = list(sorted(directory.glob("*.json")))
+if not reports:
+    raise SystemExit("No pandas benchmark reports were downloaded")
+for path in reports:
+    report = json.loads(path.read_text())
+    print(f"{path.name}: real median advantage={report['real_median_advantage']}, "
+          f"parity={all(item['parity'] for item in report['workbooks'])}, "
+          f"gate={report['passes_20_percent_gate']}")
+PY
+else
 python3 - "${RESULTS_DIR}" <<'PY'
 import csv
 import json
@@ -660,6 +800,7 @@ with (directory / "summary.csv").open("w", newline="") as output:
     writer.writeheader()
     writer.writerows(summary_rows)
 PY
+fi
 
 if ((BENCHMARK_FAILED)); then
   echo "At least one VM failed. Any successful report was preserved in ${RESULTS_DIR}." >&2

@@ -153,6 +153,13 @@ TurboXL returns `None` for both blank and Excel error cells. pandas therefore
 cannot recover their distinction with options such as
 `keep_default_na=False`. Other `read_excel` processing, including headers,
 `skiprows`, `usecols`, dtypes, converters, and dates, is performed by pandas.
+The adapter trims trailing styled empty rows and columns so they do not expand
+the resulting DataFrame; leading blank cells remain in place.
+
+The [pandas engine evaluation](benchmarks/results/pandas/README.md) records a
+frozen public XLSX corpus, upstream reader-suite compatibility, and complete
+`pd.read_excel` timing against calamine. TurboXL is not currently a first-party
+pandas engine; continue to call `turboxl.pandas.register()` explicitly.
 
 ### Typed worksheet benchmark
 

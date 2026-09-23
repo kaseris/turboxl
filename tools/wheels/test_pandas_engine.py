@@ -204,6 +204,25 @@ class PandasEngineTests(unittest.TestCase):
         self.assert_released(scalar_path)
         self.assert_released(self.path)
 
+    def test_styled_trailing_blanks_do_not_expand_dataframe(self):
+        self.make_simple()
+        book = openpyxl.load_workbook(self.path)
+        try:
+            book["Values"]["J20"].number_format = "0.00"
+            book.save(self.path)
+        finally:
+            book.close()
+        self.register()
+        actual = pd.read_excel(self.path, engine="turboxl", sheet_name="Values")
+        expected = pd.read_excel(self.path, engine="calamine", sheet_name="Values")
+        self.assertEqual(actual.shape, expected.shape)
+        assert_frame_equal(actual.isna(), expected.isna())
+        missing = object()
+        left = actual.astype(object).where(actual.notna(), missing)
+        right = expected.astype(object).where(expected.notna(), missing)
+        assert_frame_equal(left, right, check_dtype=True)
+        self.assert_released(self.path)
+
 
 if __name__ == "__main__":
     unittest.main()
