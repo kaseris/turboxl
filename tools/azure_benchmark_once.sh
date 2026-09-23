@@ -46,6 +46,7 @@ subscription when none is supplied. It creates two matched 4-vCPU x86-64 VMs
 (Intel Standard_D4s_v6 and AMD Standard_D4as_v6), a storage account,
 networking, and supporting resources in one temporary resource group. No
 inbound ports are opened. Results are downloaded before the group is deleted.
+Pandas mode uses Ubuntu 24.04 / Python 3.12; CSV mode keeps Ubuntu 22.04.
 
 The default input is the generated 150,000-row TurboXL benchmark workbook.
 EOF
@@ -499,8 +500,12 @@ create_vm() {
       --os-disk-size-gb 127
     )
   else
+    local linux_image="Canonical:0001-com-ubuntu-server-jammy:22_04-lts-gen2:latest"
+    if [[ "${MODE}" == "pandas" ]]; then
+      linux_image="Canonical:ubuntu-24_04-lts:server:latest"
+    fi
     vm_args+=(
-      --image Canonical:0001-com-ubuntu-server-jammy:22_04-lts-gen2:latest
+      --image "${linux_image}"
       --ssh-key-values "${TEMP_DIR}/benchmark_key.pub"
       --os-disk-size-gb 30
     )

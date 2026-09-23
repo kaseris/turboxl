@@ -70,18 +70,33 @@ versions. TurboXL supports XLSX only, whereas calamine covers additional Excel
 and OpenDocument formats; the wheel matrix currently covers Linux, Windows,
 macOS arm64, and macOS Intel.
 
-## Azure preparation
+## Azure runs
 
-`tools/azure_benchmark_once.sh --mode pandas` packages a frozen manifest and
-exact Linux candidate wheel, then uses the existing matched Intel D4s v6 and
-AMD D4as v6 VMs in UK South. The `--prepare-only` path validated bundle
-creation and all 13 input hashes locally. No Azure resources were provisioned.
-The active subscription has 10 regional vCPUs available; both four-core SKUs
-were listed without restrictions. The [Azure Retail Prices API](https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices) quoted USD
-$0.233/hour and $0.211/hour for the Linux VMs on 23 September 2026, or
-$0.444/hour together, plus storage and network charges. A Linux wheel from
-candidate CI is needed before an Azure pandas run. Given the local no-go
-result, an Azure run would be exploratory rather than a gate-clearing step.
+`tools/azure_benchmark_once.sh --mode pandas` packages the frozen manifest and
+exact Linux candidate wheel, then uses matched Intel D4s v6 and AMD D4as v6
+VMs in UK South. Pandas mode uses Ubuntu 24.04 / Python 3.12, with wheel-tag
+compatibility checked before provisioning; CSV mode keeps Ubuntu 22.04. The
+`--prepare-only` path validates the bundle and all 13 input hashes locally.
+
+An initial Azure attempt on Ubuntu 22.04 failed before measurement: its
+Python 3.10 interpreter could not install the selected CPython 3.12 wheel.
+The corrected run used the CI-built Linux wheel with SHA256
+`ceac1f36488cdfa060b0dc1f60584f44d2c13502d2a5113eb762d58db74eebd1`.
+Each VM completed one run with two warmups and nine timed rounds. The raw
+reports are [AMD](azure-linux-20260923-amd.json) and
+[Intel](azure-linux-20260923-intel.json):
+
+| Azure VM | DataFrame parity | Median real-workbook advantage | 20% gate |
+| --- | ---: | ---: | ---: |
+| AMD Standard_D4as_v6 | 13/13 | 3.4% | Fail |
+| Intel Standard_D4s_v6 | 13/13 | -3.8% | Fail |
+
+Both runs used pandas 3.0.0 and python-calamine 0.8.2. The temporary resource
+group was deleted after each attempt. The [Azure Retail Prices API](https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices)
+quoted USD $0.233/hour and $0.211/hour for these Linux VMs on 23 September
+2026, or $0.444/hour combined, plus storage and network charges. These two
+machine runs reinforce the no-go result; they are not two independent repeats
+on the same machine.
 
 ## Reproduction
 

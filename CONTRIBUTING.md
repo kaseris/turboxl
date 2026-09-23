@@ -122,6 +122,9 @@ twice, sequentially, in a clean environment with pandas 3.0.0 and
 python-calamine 0.8.2. The raw reports include exact DataFrame parity and the
 median per-workbook advantage. Corpus files are local inputs and excluded from
 the sdist; the manifest and fetch tool are distributed.
+For Azure pandas runs, `tools/azure_benchmark_once.sh --mode pandas` uses
+Ubuntu 24.04 / Python 3.12 and rejects an incompatible Linux wheel before
+provisioning. CSV mode retains its Ubuntu 22.04 default.
 
 ### 4. Open and merge a pull request
 
