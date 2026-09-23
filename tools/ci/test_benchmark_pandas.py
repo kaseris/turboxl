@@ -16,9 +16,27 @@ BENCHMARK = Path(__file__).resolve().parents[1] / "benchmark_pandas.py"
 SPEC = importlib.util.spec_from_file_location("benchmark_pandas", BENCHMARK)
 benchmark = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(benchmark)
+AZURE_PREP = BENCHMARK.parent / "ci/prepare_pandas_azure.py"
+AZURE_SPEC = importlib.util.spec_from_file_location("prepare_pandas_azure", AZURE_PREP)
+azure_prep = importlib.util.module_from_spec(AZURE_SPEC)
+AZURE_SPEC.loader.exec_module(azure_prep)
 
 
 class BenchmarkPandasTests(unittest.TestCase):
+    def test_pandas_azure_wheel_matches_guest_python(self):
+        self.assertTrue(
+            azure_prep.supports_pandas_vm("cp312-abi3-manylinux_2_28_x86_64")
+        )
+        self.assertTrue(
+            azure_prep.supports_pandas_vm("cp310-abi3-manylinux_2_28_x86_64")
+        )
+        self.assertFalse(
+            azure_prep.supports_pandas_vm("cp310-cp310-manylinux_2_28_x86_64")
+        )
+        self.assertFalse(
+            azure_prep.supports_pandas_vm("cp312-abi3-manylinux_2_40_x86_64")
+        )
+
     def test_manifest_rejects_changed_input_and_duplicate_ids(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -106,11 +124,10 @@ class BenchmarkPandasTests(unittest.TestCase):
                     "Tag: cp312-abi3-manylinux_2_28_x86_64\n",
                 )
             bundle = root / "bundle.zip"
-            script = BENCHMARK.parent / "ci/prepare_pandas_azure.py"
             subprocess.run(
                 [
                     sys.executable,
-                    str(script),
+                    str(AZURE_PREP),
                     "--manifest",
                     str(manifest),
                     "--wheel",
@@ -126,6 +143,28 @@ class BenchmarkPandasTests(unittest.TestCase):
                 self.assertEqual(archive.read("data/000.xlsx"), b"frozen workbook")
                 packed = json.loads(archive.read("manifest.json"))
                 self.assertEqual(packed["workbooks"][0]["path"], "data/000.xlsx")
+            incompatible = root / "turboxl-0.3.0-cp310-cp310-manylinux_2_28_x86_64.whl"
+            with zipfile.ZipFile(incompatible, "w") as archive:
+                archive.writestr(
+                    "turboxl-0.3.0.dist-info/WHEEL",
+                    "Tag: cp310-cp310-manylinux_2_28_x86_64\n",
+                )
+            rejected = subprocess.run(
+                [
+                    sys.executable,
+                    str(AZURE_PREP),
+                    "--manifest",
+                    str(manifest),
+                    "--wheel",
+                    str(incompatible),
+                    "--bundle",
+                    str(bundle),
+                ],
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("incompatible with the pandas VM", rejected.stderr)
 
     @unittest.skipUnless(importlib.util.find_spec("pandas"), "pandas not installed")
     def test_frame_parity_detects_dtype_and_missing_value_differences(self):
