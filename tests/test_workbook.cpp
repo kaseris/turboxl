@@ -507,3 +507,75 @@ TEST_F(WorkbookTest, MoveAssignment) {
     EXPECT_TRUE(workbook2.isOpen());
     // Note: Moved-from object is in valid but unspecified state, don't test its state
 }
+
+namespace {
+
+const char* const WorkbookRels = R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id='rId2' Type='http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet' Target='worksheets/R&amp;D.xml'/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chartsheet" Target="chartsheets/sheet1.xml"/>
+  <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>)";
+
+} // namespace
+
+TEST_F(WorkbookTest, ParsesSheetsWithEntitiesQuotingAndStates) {
+    const auto archive = writePackageWithParts(testDir, "fast_workbook", {
+        {"xl/workbook.xml", R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r='http://schemas.openxmlformats.org/officeDocument/2006/relationships'>
+  <workbookPr date1904="true" defaultThemeVersion="124226"/>
+  <sheets>
+    <sheet name="Q&amp;A &quot;one&quot;" sheetId="7" r:id="rId1"/>
+    <sheet sheetId='9' name='Hidden' state='hidden' r:id='rId2'/>
+    <sheet name="Secret" sheetId="11" state="veryHidden" r:id="rId3"/>
+  </sheets>
+</workbook>)"},
+        {"xl/_rels/workbook.xml.rels", WorkbookRels}});
+    xlsxcsv::core::OpcPackage package;
+    package.open(archive.string());
+    xlsxcsv::core::Workbook workbook;
+    workbook.open(package);
+
+    EXPECT_EQ(workbook.getDateSystem(), xlsxcsv::core::DateSystem::Date1904);
+    const auto sheets = workbook.getSheets();
+    ASSERT_EQ(sheets.size(), 3u);
+    EXPECT_EQ(sheets[0].name, "Q&A \"one\"");
+    EXPECT_EQ(sheets[0].sheetId, 7);
+    EXPECT_EQ(sheets[0].relationshipId, "rId1");
+    EXPECT_EQ(sheets[0].target, "worksheets/sheet1.xml");
+    EXPECT_EQ(sheets[0].kind, xlsxcsv::core::SheetKind::Worksheet);
+    EXPECT_TRUE(sheets[0].visible);
+    EXPECT_EQ(sheets[1].name, "Hidden");
+    EXPECT_EQ(sheets[1].target, "worksheets/R&D.xml");
+    EXPECT_EQ(sheets[1].visibility, xlsxcsv::core::SheetVisibility::Hidden);
+    EXPECT_EQ(sheets[2].visibility, xlsxcsv::core::SheetVisibility::VeryHidden);
+    EXPECT_EQ(sheets[2].kind, xlsxcsv::core::SheetKind::Chartsheet);
+}
+
+TEST_F(WorkbookTest, ReportsMalformedAndUndeclaredPrefixDocuments) {
+    // An end tag that does not match its start tag must still be an error.
+    auto archive = writePackageWithParts(testDir, "mismatched_workbook", {
+        {"xl/workbook.xml", R"(<?xml version="1.0"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheets><sheet name="A" sheetId="1"/></sheet></workbook>)"},
+        {"xl/_rels/workbook.xml.rels", WorkbookRels}});
+    {
+        xlsxcsv::core::OpcPackage package;
+        package.open(archive.string());
+        xlsxcsv::core::Workbook workbook;
+        EXPECT_THROW(workbook.open(package), xlsxcsv::core::XlsxError);
+    }
+
+    // Without an in-scope "r" prefix libxml2 cannot resolve r:id, so the
+    // sheet has no relationship.
+    archive = writePackageWithParts(testDir, "undeclared_prefix", {
+        {"xl/workbook.xml", R"(<?xml version="1.0"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheets><sheet name="A" sheetId="1" r:id="rId1"/></sheets></workbook>)"},
+        {"xl/_rels/workbook.xml.rels", WorkbookRels}});
+    {
+        xlsxcsv::core::OpcPackage package;
+        package.open(archive.string());
+        xlsxcsv::core::Workbook workbook;
+        EXPECT_THROW(workbook.open(package), xlsxcsv::core::XlsxError);
+    }
+}

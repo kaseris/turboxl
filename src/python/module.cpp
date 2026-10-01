@@ -8,6 +8,7 @@
 #include "xlsxcsv.hpp"
 #include "typed_reader.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
@@ -57,12 +58,36 @@ bool profileTypedTimings() {
                      value[0] == 'y' || value[0] == 'Y');
 }
 
-nb::list boxTypedWorksheet(const xlsxcsv::internal::TypedWorksheet& rows,
-                           const nb::object& datetimeType, const nb::object& timeType) {
-    nb::list result = nb::steal<nb::list>(PyList_New(static_cast<Py_ssize_t>(rows.size())));
+bool isBlankTypedValue(const xlsxcsv::internal::TypedCellValue& value) {
+    return value.index() == 0 || (value.index() == 4 && std::get<4>(value).empty());
+}
+
+// Extent of cells holding data. Empty strings count as blank, matching how
+// pandas' built-in readers ignore trailing styled-but-empty cells.
+std::pair<std::size_t, std::size_t> occupiedExtent(
+    const xlsxcsv::internal::TypedWorksheet& rows) {
+    std::size_t rowCount = 0;
+    std::size_t columnCount = 0;
     for (std::size_t i = 0; i < rows.size(); ++i) {
-        nb::list row = nb::steal<nb::list>(PyList_New(static_cast<Py_ssize_t>(rows[i].size())));
-        for (std::size_t j = 0; j < rows[i].size(); ++j) {
+        const auto& row = rows[i];
+        std::size_t last = row.size();
+        while (last > 0 && isBlankTypedValue(row[last - 1])) --last;
+        if (last == 0) continue;
+        rowCount = i + 1;
+        columnCount = std::max(columnCount, last);
+    }
+    return {rowCount, columnCount};
+}
+
+nb::list boxTypedWorksheet(const xlsxcsv::internal::TypedWorksheet& rows,
+                           const nb::object& datetimeType, const nb::object& timeType,
+                           std::size_t rowLimit, std::size_t columnLimit) {
+    rowLimit = std::min(rowLimit, rows.size());
+    nb::list result = nb::steal<nb::list>(PyList_New(static_cast<Py_ssize_t>(rowLimit)));
+    for (std::size_t i = 0; i < rowLimit; ++i) {
+        const std::size_t width = std::min(rows[i].size(), columnLimit);
+        nb::list row = nb::steal<nb::list>(PyList_New(static_cast<Py_ssize_t>(width)));
+        for (std::size_t j = 0; j < width; ++j) {
             auto value = boxTypedValue(rows[i][j], datetimeType, timeType);
             if (PyList_SetItem(row.ptr(), static_cast<Py_ssize_t>(j), value.release().ptr()) < 0)
                 throw nb::python_error();
@@ -71,6 +96,12 @@ nb::list boxTypedWorksheet(const xlsxcsv::internal::TypedWorksheet& rows,
             throw nb::python_error();
     }
     return result;
+}
+
+nb::list boxTypedWorksheet(const xlsxcsv::internal::TypedWorksheet& rows,
+                           const nb::object& datetimeType, const nb::object& timeType) {
+    return boxTypedWorksheet(
+        rows, datetimeType, timeType, rows.size(), std::numeric_limits<std::size_t>::max());
 }
 
 struct PySheet {
@@ -140,7 +171,7 @@ NB_MODULE(_turboxl, m) {
 
     nb::class_<PySheet>(m, "Sheet")
         .def("to_python", [datetimeType, timeType](const PySheet& self, bool skipEmptyArea,
-                const std::optional<std::int64_t>& nrows) {
+                const std::optional<std::int64_t>& nrows, bool trimTrailingEmpty) {
             if (nrows && *nrows < 0) throw nb::value_error("nrows must be non-negative or None");
             xlsxcsv::internal::TypedReadOptions options;
             options.skipEmptyArea = skipEmptyArea;
@@ -152,7 +183,13 @@ NB_MODULE(_turboxl, m) {
             { nb::gil_scoped_release release; rows = self.session->read(self.info, options); }
             const auto nativeEnd = Clock::now();
             const auto boxingStart = Clock::now();
-            auto result = boxTypedWorksheet(rows, datetimeType, timeType);
+            nb::list result;
+            if (trimTrailingEmpty) {
+                const auto [rowCount, columnCount] = occupiedExtent(rows);
+                result = boxTypedWorksheet(rows, datetimeType, timeType, rowCount, columnCount);
+            } else {
+                result = boxTypedWorksheet(rows, datetimeType, timeType);
+            }
             const auto boxingEnd = Clock::now();
             if (profileTypedTimings()) {
                 const auto milliseconds = [](auto duration) {
@@ -169,7 +206,10 @@ NB_MODULE(_turboxl, m) {
             }
             return result;
         }, nb::kw_only(), nb::arg("skip_empty_area") = false, nb::arg("nrows") = nb::none(),
-        "Return dense rectangular rows of Python scalar values. The workbook's "
+        nb::arg("trim_trailing_empty") = false,
+        "Return dense rectangular rows of Python scalar values. With "
+        "trim_trailing_empty=True, rows and columns after the last cell holding "
+        "a value other than None or an empty string are dropped. The workbook's "
         "max_cells limit applies to every call; raises RuntimeError after close().");
 
     nb::class_<PyWorkbook>(m, "Workbook")

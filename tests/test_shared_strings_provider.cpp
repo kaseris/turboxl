@@ -1,12 +1,102 @@
 #include <gtest/gtest.h>
 #include "xlsxcsv/core.hpp"
 #include "fixture_helpers.hpp"
+#include <filesystem>
+#include <string>
+#include <vector>
 
 class SharedStringsProviderTest : public ::testing::Test {
 protected:
-    void SetUp() override {}
-    void TearDown() override {}
+    void SetUp() override {
+        testDir = std::filesystem::temp_directory_path() / "turboxl_shared_strings_test";
+        std::filesystem::create_directories(testDir);
+    }
+    void TearDown() override { std::filesystem::remove_all(testDir); }
+
+    // Parses the same sharedStrings.xml through the in-memory fast scan and
+    // the libxml2 reader (External storage) and returns both string lists.
+    struct Both {
+        std::vector<std::string> fast;
+        std::vector<std::string> reference;
+    };
+
+    Both parseBoth(const std::string& name, const std::string& xml,
+                   size_t maxStringLength = 32767) {
+        const auto archive = writePackageWithPart(testDir, name, "xl/sharedStrings.xml", xml);
+        xlsxcsv::core::OpcPackage package;
+        package.open(archive.string());
+        Both both;
+        for (const bool fast : {true, false}) {
+            xlsxcsv::core::SharedStringsConfig config;
+            config.mode = fast ? xlsxcsv::core::SharedStringsMode::InMemory
+                               : xlsxcsv::core::SharedStringsMode::External;
+            config.maxStringLength = maxStringLength;
+            xlsxcsv::core::SharedStringsProvider provider(config);
+            provider.parse(package);
+            auto& output = fast ? both.fast : both.reference;
+            for (size_t i = 0; i < provider.getStringCount(); ++i) {
+                output.push_back(provider.getString(i));
+            }
+        }
+        return both;
+    }
+
+    std::filesystem::path testDir;
 };
+
+TEST_F(SharedStringsProviderTest, FastScanMatchesLibxml2Reader) {
+    const auto both = parseBoth("plain_and_rich", R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="9" uniqueCount="9">
+  <si><t>plain</t></si>
+  <si><t xml:space="preserve">  padded  </t></si>
+  <si><r><rPr><b/></rPr><t>bold </t></r><r><t>and plain</t></r></si>
+  <si><t>R&amp;D &lt;tag&gt; &quot;q&quot; &apos;a&apos; &#233; &#x1F600;</t></si>
+  <si/>
+  <si><t/></si>
+  <si><t><![CDATA[raw <cdata> & text]]></t></si>
+  <si><t>base</t><rPh sb="0" eb="1"><t>phonetic</t></rPh><phoneticPr fontId="1"/></si>
+  <si><t>line one
+line two</t></si>
+</sst>)");
+    ASSERT_EQ(both.fast.size(), 9u);
+    EXPECT_EQ(both.fast, both.reference);
+    EXPECT_EQ(both.fast[0], "plain");
+    EXPECT_EQ(both.fast[1], "  padded  ");
+    EXPECT_EQ(both.fast[2], "bold and plain");
+    EXPECT_EQ(both.fast[4], "");
+    EXPECT_EQ(both.fast[6], "raw <cdata> & text");
+}
+
+TEST_F(SharedStringsProviderTest, FastScanDefersToLibxml2ForUnsupportedInput) {
+    // Carriage returns are normalized by libxml2 but not by the scan.
+    auto both = parseBoth("crlf", std::string(
+        "<?xml version=\"1.0\"?><sst xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">"
+        "<si><t>a\r\nb</t></si></sst>"));
+    EXPECT_EQ(both.fast, both.reference);
+    ASSERT_EQ(both.fast.size(), 1u);
+    EXPECT_EQ(both.fast[0], "a\nb");
+
+    // Custom entities and extension lists are outside the scan's subset.
+    both = parseBoth("dtd", R"(<?xml version="1.0"?>
+<!DOCTYPE sst [<!ENTITY co "Acme">]>
+<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><si><t>&co; Ltd</t></si></sst>)");
+    EXPECT_EQ(both.fast, both.reference);
+    ASSERT_EQ(both.fast.size(), 1u);
+    EXPECT_EQ(both.fast[0], "Acme Ltd");
+
+    both = parseBoth("extlst", R"(<?xml version="1.0"?>
+<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><si><t>x</t></si><extLst><ext uri="u"><si/></ext></extLst><si><t>y</t></si></sst>)");
+    EXPECT_EQ(both.fast, both.reference);
+}
+
+TEST_F(SharedStringsProviderTest, FastScanAppliesMaximumStringLength) {
+    const auto both = parseBoth("truncate", R"(<?xml version="1.0"?>
+<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><si><t>abcdefghij</t></si><si><t>abc</t></si></sst>)", 5);
+    EXPECT_EQ(both.fast, both.reference);
+    ASSERT_EQ(both.fast.size(), 2u);
+    EXPECT_EQ(both.fast[0], "abcde");
+    EXPECT_EQ(both.fast[1], "abc");
+}
 
 TEST_F(SharedStringsProviderTest, BasicConstruction) {
     xlsxcsv::core::SharedStringsProvider provider;

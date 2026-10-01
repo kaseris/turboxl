@@ -1,4 +1,5 @@
 #include "xlsxcsv/core.hpp"
+#include "core/fast_xml.hpp"
 #include <libxml/xmlreader.h>
 #include <memory>
 #include <map>
@@ -121,7 +122,37 @@ private:
         parseXmlForRelationships(xmlData);
     }
     
+    // Reads <Default>/<Override> entries without libxml2. Returns false when the
+    // document needs the full parser; the caller discards partial results.
+    bool parseContentTypesFast(const ByteVector& xmlData) {
+        std::string partName, extension, contentType;
+        return fastxml::forEachStartTag(
+            std::string_view(reinterpret_cast<const char*>(xmlData.data()), xmlData.size()),
+            [&](std::string_view name, std::string_view tag) {
+                if (name != "Override" && name != "Default") return true;
+                bool hasPartName = false, hasExtension = false, hasContentType = false;
+                if (!fastxml::readAttribute(tag, "PartName", partName, hasPartName) ||
+                    !fastxml::readAttribute(tag, "Extension", extension, hasExtension) ||
+                    !fastxml::readAttribute(tag, "ContentType", contentType, hasContentType)) {
+                    return false;
+                }
+                if (!hasContentType) return true;
+                std::string key;
+                if (hasPartName) {
+                    key = partName;
+                    if (!key.empty() && key[0] == '/') key.erase(0, 1);
+                } else if (hasExtension) {
+                    key = "*." + extension;
+                }
+                if (!key.empty()) m_contentTypes[key] = contentType;
+                return true;
+            });
+    }
+
     void parseXmlForContentTypes(const ByteVector& xmlData) {
+        if (parseContentTypesFast(xmlData)) return;
+        m_contentTypes.clear();
+
         // Initialize libxml2 reader
         xmlTextReaderPtr reader = xmlReaderForMemory(
             reinterpret_cast<const char*>(xmlData.data()),
@@ -183,6 +214,19 @@ private:
     }
     
     void parseXmlForRelationships(const ByteVector& xmlData) {
+        const bool scanned = fastxml::parseRelationshipsFast(
+            std::string_view(reinterpret_cast<const char*>(xmlData.data()), xmlData.size()),
+            [&](const std::string& id, const std::string& type, const std::string& target) {
+                m_relationships[id] = Relationship{id, type, target};
+            });
+        if (scanned) {
+            if (m_relationships.empty()) {
+                throw XlsxError("No relationships found in _rels/.rels");
+            }
+            return;
+        }
+        m_relationships.clear();
+
         // Initialize libxml2 reader
         xmlTextReaderPtr reader = xmlReaderForMemory(
             reinterpret_cast<const char*>(xmlData.data()),

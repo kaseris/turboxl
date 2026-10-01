@@ -335,6 +335,31 @@ R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         fs::remove_all(testDir / "xl");
     }
     
+
+    fs::path writeStylesWorkbook(const std::string& name, const std::string& stylesXml) {
+        return writePackageWithPart(testDir, name, "xl/styles.xml", stylesXml);
+    }
+
+    // The CsvOnly scan and the full libxml2 parser must classify every style
+    // identically.
+    void expectModesAgree(const fs::path& archive, size_t expectedStyles) {
+        xlsxcsv::core::OpcPackage package;
+        package.open(archive.string());
+        xlsxcsv::core::StylesRegistry fast;
+        fast.parse(package, xlsxcsv::core::StylesRegistry::ParseMode::CsvOnly);
+        xlsxcsv::core::StylesRegistry full;
+        full.parse(package, xlsxcsv::core::StylesRegistry::ParseMode::Full);
+        ASSERT_EQ(fast.getStyleCount(), expectedStyles);
+        ASSERT_EQ(fast.getStyleCount(), full.getStyleCount());
+        EXPECT_EQ(fast.getNumberFormatCount(), full.getNumberFormatCount());
+        for (size_t i = 0; i < expectedStyles; ++i) {
+            const int index = static_cast<int>(i);
+            EXPECT_EQ(fast.getNumberFormatTypeForStyle(index), full.getNumberFormatTypeForStyle(index))
+                << "style " << i;
+            EXPECT_EQ(fast.isDateTimeStyle(index), full.isDateTimeStyle(index)) << "style " << i;
+        }
+    }
+
     fs::path testDir;
     fs::path basicStylesXlsxPath;
     fs::path complexStylesXlsxPath;
@@ -569,6 +594,59 @@ TEST_F(StylesRegistryTest, ComplexStylesParsing) {
     EXPECT_EQ(style2->font.name, "Courier New");
     EXPECT_EQ(style2->font.size, 10.0);
     EXPECT_TRUE(style2->font.underline);
+}
+
+
+TEST_F(StylesRegistryTest, CsvOnlyScanMatchesFullParser) {
+    // Entities in format codes, formats defined after unrelated sections,
+    // xf elements outside cellXfs, and xf records without numFmtId.
+    const auto archive = writeStylesWorkbook("scan_entities", R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <numFmts count="5">
+    <numFmt numFmtId="164" formatCode="&quot;$&quot;#,##0.00"/>
+    <numFmt numFmtId="165" formatCode="yyyy\-mm\-dd"/>
+    <numFmt numFmtId="166" formatCode="h:mm:ss&quot; elapsed&quot;"/>
+    <numFmt numFmtId="167" formatCode="0.0%;[Red]\-0.0%"/>
+    <numFmt numFmtId="168" formatCode="d&#32;mmm&#x20;yyyy"/>
+  </numFmts>
+  <fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>
+  <cellStyleXfs count="1"><xf numFmtId="14" fontId="0"/></cellStyleXfs>
+  <cellXfs count="7">
+    <xf numFmtId="0"/>
+    <xf numFmtId="14"/>
+    <xf numFmtId="164"><alignment horizontal="center"/></xf>
+    <xf numFmtId="165"/>
+    <xf numFmtId="166"/>
+    <xf/>
+    <xf numFmtId="168"/>
+  </cellXfs>
+  <dxfs count="0"/>
+</styleSheet>)");
+    expectModesAgree(archive, 7);
+}
+
+TEST_F(StylesRegistryTest, CsvOnlyFallsBackForPrefixedDocuments) {
+    const auto archive = writeStylesWorkbook("scan_prefixed", R"(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<x:styleSheet xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <x:numFmts count="1"><x:numFmt numFmtId="164" formatCode="yyyy-mm-dd"/></x:numFmts>
+  <x:cellXfs count="2"><x:xf numFmtId="0"/><x:xf numFmtId="164"/></x:cellXfs>
+</x:styleSheet>)");
+    // libxml2 matches qualified names, so a prefixed stylesheet yields no
+    // styles in either mode; the scan must defer to it rather than diverge.
+    expectModesAgree(archive, 0);
+}
+
+TEST_F(StylesRegistryTest, NumberFormatTypeEdgeCases) {
+    xlsxcsv::core::StylesRegistry registry;
+    using xlsxcsv::core::NumberFormatType;
+    // Uppercase M is a month unless the code is an AM/PM clock.
+    EXPECT_EQ(registry.detectNumberFormatType("MMM"), NumberFormatType::Date);
+    EXPECT_EQ(registry.detectNumberFormatType("AM/PM"), NumberFormatType::Fraction);
+    // Lowercase m alone is neither date nor time.
+    EXPECT_EQ(registry.detectNumberFormatType("mm"), NumberFormatType::Custom);
+    EXPECT_EQ(registry.detectNumberFormatType("0E+0"), NumberFormatType::Scientific);
+    EXPECT_EQ(registry.detectNumberFormatType("0E0"), NumberFormatType::Integer);
+    EXPECT_EQ(registry.detectNumberFormatType("[h]:mm:ss"), NumberFormatType::Time);
 }
 
 TEST_F(StylesRegistryTest, CloseRegistry) {

@@ -34,6 +34,21 @@ def main():
             assert workbook_api.sheet_names == ['Data', 'Hidden', 'VeryHidden', 'Sparse']
             assert workbook_api.get_sheet_by_index(0).to_python() == typed
             assert len(workbook_api.sheets_metadata) == 6
+            # Native trimming must match the reference definition: drop rows
+            # and columns after the last cell that is neither None nor "".
+            for name in ('Data', 'Sparse'):
+                sheet = workbook_api.get_sheet_by_name(name)
+                full = sheet.to_python()
+                last_row = last_column = -1
+                for index, row in enumerate(full):
+                    occupied = [i for i, v in enumerate(row) if v is not None and v != '']
+                    if occupied:
+                        last_row = index
+                        last_column = max(last_column, occupied[-1])
+                expected = [row[:last_column + 1] for row in full[:last_row + 1]]
+                assert sheet.to_python(trim_trailing_empty=True) == expected
+                limited_rows = sheet.to_python(nrows=1, trim_trailing_empty=True)
+                assert len(limited_rows) <= 1
             # The configured workbook limit, rather than the collector default,
             # must protect every public Sheet read.
             with turboxl.load_workbook(path, max_cells=10) as limited:
