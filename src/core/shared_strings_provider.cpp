@@ -1,4 +1,5 @@
 #include "xlsxcsv/core.hpp"
+#include "core/fast_xml.hpp"
 #include <libxml/xmlreader.h>
 #include <vector>
 #include <fstream>
@@ -7,6 +8,9 @@
 #include <regex>
 #include <filesystem>
 #include <algorithm>
+#include <charconv>
+#include <cstring>
+#include <string_view>
 
 namespace xlsxcsv::core {
 
@@ -155,6 +159,11 @@ private:
         // of magnitude as sharedStrings.xml.
         decideStorageMode(xmlData.size());
 
+        if (!m_isUsingDisk) {
+            if (parseStringsFast(xmlData)) return;
+            resetInMemoryStrings();
+        }
+
         xmlTextReaderPtr reader = xmlReaderForMemory(
             reinterpret_cast<const char*>(xmlData.data()),
             static_cast<int>(xmlData.size()),
@@ -176,6 +185,125 @@ private:
         xmlFreeTextReader(reader);
     }
     
+    void resetInMemoryStrings() {
+        m_arena.clear();
+        m_offsets.clear();
+        m_lengths.clear();
+        m_stringCount = 0;
+        m_memoryUsage = 0;
+    }
+
+    // Appends the text of one <t> element whose start tag was just consumed.
+    // Returns false for constructs that need libxml2 (nested elements,
+    // unsupported entities).
+    static bool readTextElement(fastxml::XmlCursor& cursor, std::string& out) {
+        using fastxml::TokenKind;
+        for (;;) {
+            const auto token = cursor.next();
+            switch (token.kind) {
+                case TokenKind::Text:
+                    if (!fastxml::appendXmlText(out, token.raw, false)) return false;
+                    break;
+                case TokenKind::CData:
+                    out.append(token.raw);
+                    break;
+                case TokenKind::End:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+    }
+
+    // Reads one <si> whose start tag was just consumed. Like the libxml2
+    // reader path, the string is the concatenation of every <t> descendant,
+    // whether or not it sits inside a rich-text run.
+    static bool readStringItem(fastxml::XmlCursor& cursor, std::string& out) {
+        using fastxml::TokenKind;
+        int depth = 1;
+        for (;;) {
+            const auto token = cursor.next();
+            switch (token.kind) {
+                case TokenKind::Start:
+                    if (token.name == "t") {
+                        if (!token.empty && !readTextElement(cursor, out)) return false;
+                    } else if (!token.empty) {
+                        ++depth;
+                    }
+                    break;
+                case TokenKind::End:
+                    if (--depth == 0) return true;
+                    break;
+                case TokenKind::Text:
+                case TokenKind::CData:
+                    break;
+                default:
+                    return false;
+            }
+        }
+    }
+
+    // Fast path for in-memory storage. Returns false when the document uses
+    // anything beyond plain elements and predefined entities; the caller then
+    // discards partial results and reparses with libxml2.
+    bool parseStringsFast(const ByteVector& xmlData) {
+        using fastxml::TokenKind;
+        // libxml2 normalizes CR/LF line endings; the lexer does not.
+        if (std::memchr(xmlData.data(), '\r', xmlData.size()) != nullptr) return false;
+
+        fastxml::XmlCursor cursor(std::string_view(
+            reinterpret_cast<const char*>(xmlData.data()), xmlData.size()));
+        std::string value;
+        size_t index = 0;
+        int depth = 0;
+        bool sawRoot = false;
+
+        for (;;) {
+            const auto token = cursor.next();
+            switch (token.kind) {
+                case TokenKind::Invalid:
+                    return false;
+                case TokenKind::Eof:
+                    if (!sawRoot || depth != 0) return false;
+                    m_stringCount = index;
+                    return true;
+                case TokenKind::Text:
+                case TokenKind::CData:
+                    continue;
+                case TokenKind::End:
+                    if (--depth < 0) return false;
+                    continue;
+                case TokenKind::Start:
+                    break;
+            }
+
+            if (depth == 0) {
+                sawRoot = true;
+                std::string_view count;
+                int reserveHint = 0;
+                if (fastxml::findAttribute(token.raw, "uniqueCount", count) &&
+                    std::from_chars(count.data(), count.data() + count.size(), reserveHint).ec == std::errc{} &&
+                    reserveHint > 0) {
+                    const auto hint = std::min<size_t>(reserveHint, xmlData.size() / 8 + 1);
+                    m_offsets.reserve(hint);
+                    m_lengths.reserve(hint);
+                }
+            } else if (depth == 1 && token.name == "si") {
+                value.clear();
+                if (!token.empty && !readStringItem(cursor, value)) return false;
+                if (value.length() > m_config.maxStringLength) {
+                    value.resize(m_config.maxStringLength);
+                }
+                storeString(index++, value);
+                continue;
+            }
+            // Any other element at depth 1 is skipped by tracking depth;
+            // deeper elements outside <si> are not part of the schema.
+            if (depth >= 2) return false;
+            if (!token.empty) ++depth;
+        }
+    }
+
     void decideStorageMode(size_t estimatedSize) {
         switch (m_config.mode) {
             case SharedStringsMode::InMemory:
@@ -427,7 +555,7 @@ private:
     std::vector<uint32_t> m_offsets;       // Start offset of each string in arena
     std::vector<uint32_t> m_lengths;       // Byte length of each arena string
     size_t m_arenaCapacity;                // Current arena capacity
-    static constexpr size_t INITIAL_ARENA_SIZE = 8 * 1024 * 1024;  // 8MB initial
+    static constexpr size_t INITIAL_ARENA_SIZE = 64 * 1024;  // grows by doubling
     
     // Disk storage
     bool m_isUsingDisk;

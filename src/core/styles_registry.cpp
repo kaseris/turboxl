@@ -1,9 +1,11 @@
 #include "xlsxcsv/core.hpp"
+#include "core/fast_xml.hpp"
 #include <libxml/xmlreader.h>
 #include <map>
 #include <vector>
-#include <regex>
 #include <algorithm>
+#include <charconv>
+#include <string_view>
 
 namespace xlsxcsv::core {
 
@@ -29,13 +31,22 @@ public:
         
         auto xmlData = package.getZipReader().readEntry(stylesPath);
         m_parseMode = mode;
-        parseStylesXml(xmlData);
+        // Only number formats and xf records matter in CsvOnly mode, so a
+        // lightweight scan can skip fonts, fills, borders and the rest.
+        if (mode != StylesRegistry::ParseMode::CsvOnly || !parseStylesFast(xmlData)) {
+            resetParsedData();
+            parseStylesXml(xmlData);
+        }
         
         m_isOpen = true;
     }
     
     void close() {
         m_isOpen = false;
+        resetParsedData();
+    }
+
+    void resetParsedData() {
         m_numberFormats.clear();
         m_fonts.clear();
         m_fills.clear();
@@ -70,71 +81,58 @@ public:
         return getBuiltInNumberFormat(formatId);
     }
     
+    // Classification works on the raw format code without regular
+    // expressions: constructing std::regex objects per format dominated the
+    // cost of opening workbooks that define many custom number formats.
     NumberFormatType detectNumberFormatType(const std::string& formatCode) const {
         if (formatCode.empty() || formatCode == "General") {
             return NumberFormatType::General;
         }
-        
-        // Date/time patterns - be more specific about date patterns
-        bool hasDatePattern = std::regex_search(formatCode, std::regex(R"([yY])")); // Year
-        hasDatePattern = hasDatePattern || std::regex_search(formatCode, std::regex(R"(d+)")); // Day (dd, ddd, etc)
-        // Month pattern (MM, MMM) but not AM/PM 
-        hasDatePattern = hasDatePattern || (std::regex_search(formatCode, std::regex(R"(M+)")) && 
-                                           formatCode.find("AM/PM") == std::string::npos);
-        
-        bool hasTimePattern = std::regex_search(formatCode, std::regex(R"([hHsS])")); // Hour, second
-        hasTimePattern = hasTimePattern || (std::regex_search(formatCode, std::regex(R"(m+)")) && 
-                                           std::regex_search(formatCode, std::regex(R"([hHsS])"))); // Minutes with hours/seconds
-        
-        if (hasDatePattern && hasTimePattern) {
-            return NumberFormatType::DateTime;
+
+        bool hasYear = false, hasDay = false, hasMonth = false, hasTime = false;
+        bool hasPercent = false, hasCurrencySymbol = false, hasScientific = false;
+        bool hasSlash = false, hasAt = false, hasDot = false, hasDigitPlaceholder = false;
+        const std::size_t length = formatCode.size();
+        for (std::size_t i = 0; i < length; ++i) {
+            switch (formatCode[i]) {
+                case 'y': case 'Y': hasYear = true; break;
+                case 'd': hasDay = true; break;
+                case 'M': hasMonth = true; break;
+                case 'h': case 'H': case 's': case 'S': hasTime = true; break;
+                case '%': hasPercent = true; break;
+                case '$': hasCurrencySymbol = true; break;
+                case '/': hasSlash = true; break;
+                case '@': hasAt = true; break;
+                case '.': hasDot = true; break;
+                case '0': case '#': hasDigitPlaceholder = true; break;
+                case 'e': case 'E':
+                    if (i + 1 < length &&
+                        (formatCode[i + 1] == '+' || formatCode[i + 1] == '-')) {
+                        hasScientific = true;
+                    }
+                    break;
+                default: break;
+            }
         }
-        
-        if (hasDatePattern) {
-            return NumberFormatType::Date;
-        }
-        
-        if (hasTimePattern) {
-            return NumberFormatType::Time;
-        }
-        
-        // Percentage
-        if (formatCode.find('%') != std::string::npos) {
-            return NumberFormatType::Percentage;
-        }
-        
-        // Currency/accounting
-        if (formatCode.find('$') != std::string::npos || 
+
+        // Month letters count as a date pattern unless they belong to AM/PM.
+        const bool hasDatePattern = hasYear || hasDay ||
+            (hasMonth && formatCode.find("AM/PM") == std::string::npos);
+
+        if (hasDatePattern && hasTime) return NumberFormatType::DateTime;
+        if (hasDatePattern) return NumberFormatType::Date;
+        if (hasTime) return NumberFormatType::Time;
+        if (hasPercent) return NumberFormatType::Percentage;
+        if (hasCurrencySymbol ||
             formatCode.find("\xC2\xA4") != std::string::npos ||  // UTF-8 for ¤
-            std::regex_search(formatCode, std::regex(R"(\[Currency\])"))) {
+            formatCode.find("[Currency]") != std::string::npos) {
             return NumberFormatType::Currency;
         }
-        
-        // Scientific notation
-        if (std::regex_search(formatCode, std::regex(R"([eE][+-])"))) {
-            return NumberFormatType::Scientific;
-        }
-        
-        // Fraction
-        if (formatCode.find('/') != std::string::npos) {
-            return NumberFormatType::Fraction;
-        }
-        
-        // Text format
-        if (formatCode.find('@') != std::string::npos) {
-            return NumberFormatType::Text;
-        }
-        
-        // Decimal numbers (has decimal point)
-        if (formatCode.find('.') != std::string::npos) {
-            return NumberFormatType::Decimal;
-        }
-        
-        // Integer (contains digits, zeros, formatting, but no decimal point)
-        if (std::regex_search(formatCode, std::regex(R"([0#])"))) {
-            return NumberFormatType::Integer;
-        }
-        
+        if (hasScientific) return NumberFormatType::Scientific;
+        if (hasSlash) return NumberFormatType::Fraction;
+        if (hasAt) return NumberFormatType::Text;
+        if (hasDot) return NumberFormatType::Decimal;
+        if (hasDigitPlaceholder) return NumberFormatType::Integer;
         return NumberFormatType::Custom;
     }
     
@@ -181,6 +179,115 @@ public:
     }
 
 private:
+    // Parsed custom formats take precedence over built-in ones; unknown ids
+    // are treated as General.
+    NumberFormat resolveNumberFormat(int formatId) const {
+        auto it = m_numberFormats.find(formatId);
+        if (it != m_numberFormats.end()) {
+            return it->second;
+        }
+        if (auto builtIn = getBuiltInNumberFormat(formatId)) {
+            return *builtIn;
+        }
+        NumberFormat format;
+        format.formatId = formatId;
+        format.formatCode = "General";
+        format.type = NumberFormatType::General;
+        format.isBuiltIn = true;
+        return format;
+    }
+
+    void recordStyleType(NumberFormatType type) {
+        const bool isDateTime = type == NumberFormatType::Date ||
+                                type == NumberFormatType::Time ||
+                                type == NumberFormatType::DateTime;
+        m_dateTimeStyleMask.push_back(isDateTime ? 1 : 0);
+        m_styleTypes.push_back(type);
+    }
+
+    static bool parseFastInt(std::string_view text, int& value) {
+        if (text.empty()) return false;
+        const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+        return error == std::errc{} && end == text.data() + text.size();
+    }
+
+    // Returns false when the document needs libxml2 (unsupported entities,
+    // malformed markup, unexpected attribute syntax). The caller then discards
+    // partial state. Element names are compared in qualified form, as the
+    // libxml2 reader does.
+    bool parseStylesFast(const ByteVector& xmlData) {
+        using fastxml::TokenKind;
+        fastxml::XmlCursor cursor(std::string_view(
+            reinterpret_cast<const char*>(xmlData.data()), xmlData.size()));
+        enum class Section { None, NumFmts, CellXfs };
+        Section section = Section::None;
+        fastxml::TagStack stack;
+        int depth = 0;
+        bool sawRoot = false;
+        std::string code;
+
+        for (;;) {
+            const auto token = cursor.next();
+            switch (token.kind) {
+                case TokenKind::Invalid:
+                    return false;
+                case TokenKind::Eof:
+                    return sawRoot && depth == 0;
+                case TokenKind::Text:
+                case TokenKind::CData:
+                    continue;
+                case TokenKind::End:
+                    if (!stack.close(fastxml::qualifiedName(token.raw))) return false;
+                    --depth;
+                    if (depth <= 1) section = Section::None;
+                    continue;
+                case TokenKind::Start:
+                    break;
+            }
+
+            sawRoot = true;
+            const auto element = fastxml::qualifiedName(token.raw);
+            if (depth == 1) {
+                section = element == "numFmts" ? Section::NumFmts
+                        : element == "cellXfs" ? Section::CellXfs
+                        : Section::None;
+            } else if (depth == 2 && section == Section::NumFmts && element == "numFmt") {
+                std::string_view id, rawCode;
+                const bool hasId = fastxml::findAttribute(token.raw, "numFmtId", id);
+                const bool hasCode = fastxml::findAttribute(token.raw, "formatCode", rawCode);
+                if (hasId && hasCode) {
+                    // libxml2 normalizes literal whitespace in attribute values.
+                    if (rawCode.find_first_of("\t\r\n") != std::string_view::npos) return false;
+                    NumberFormat format;
+                    code.clear();
+                    if (!parseFastInt(id, format.formatId) ||
+                        !fastxml::appendXmlText(code, rawCode, false)) {
+                        return false;
+                    }
+                    format.formatCode = code;
+                    format.type = detectNumberFormatType(format.formatCode);
+                    format.isBuiltIn = false;
+                    m_numberFormats[format.formatId] = format;
+                }
+            } else if (depth == 2 && section == Section::CellXfs && element == "xf") {
+                std::string_view id;
+                NumberFormatType type = NumberFormatType::General;
+                if (fastxml::findAttribute(token.raw, "numFmtId", id)) {
+                    int formatId = 0;
+                    if (!parseFastInt(id, formatId)) return false;
+                    type = resolveNumberFormat(formatId).type;
+                }
+                recordStyleType(type);
+            }
+            if (!token.empty) {
+                stack.open(element);
+                ++depth;
+            } else if (depth <= 1) {
+                section = Section::None;
+            }
+        }
+    }
+
     void parseStylesXml(const ByteVector& xmlData) {
         // Initialize libxml2 reader
         xmlTextReaderPtr reader = xmlReaderForMemory(
@@ -462,24 +569,8 @@ private:
                     if (numFmtId) {
                         int formatId = std::atoi(reinterpret_cast<const char*>(numFmtId));
                         
-                        // Look up the format directly from our parsed formats or built-in formats
-                        auto it = m_numberFormats.find(formatId);
-                        if (it != m_numberFormats.end()) {
-                            style.numberFormat = it->second;
-                        } else {
-                            // Try built-in formats
-                            auto builtIn = getBuiltInNumberFormat(formatId);
-                            if (builtIn.has_value()) {
-                                style.numberFormat = *builtIn;
-                            } else {
-                                // Default format
-                                style.numberFormat.formatId = formatId;
-                                style.numberFormat.formatCode = "General";
-                                style.numberFormat.type = NumberFormatType::General;
-                                style.numberFormat.isBuiltIn = true;
-                            }
-                        }
-                        
+                        style.numberFormat = resolveNumberFormat(formatId);
+
                         xmlFree(numFmtId);
                     }
                     
@@ -507,12 +598,7 @@ private:
                     }
                     if (borderId) xmlFree(borderId);
                     
-                    const NumberFormatType type = style.numberFormat.type;
-                    const bool isDateTime = (type == NumberFormatType::Date) ||
-                                            (type == NumberFormatType::Time) ||
-                                            (type == NumberFormatType::DateTime);
-                    m_dateTimeStyleMask.push_back(isDateTime ? 1 : 0);
-                    m_styleTypes.push_back(type);
+                    recordStyleType(style.numberFormat.type);
                     if (m_parseMode == StylesRegistry::ParseMode::Full) {
                         m_cellStyles.push_back(std::move(style));
                     }

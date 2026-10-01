@@ -1,7 +1,10 @@
 #include "xlsxcsv/core.hpp"
+#include "core/fast_xml.hpp"
 #include <libxml/xmlreader.h>
 #include <map>
 #include <algorithm>
+#include <charconv>
+#include <string_view>
 
 namespace xlsxcsv::core {
 
@@ -127,9 +130,74 @@ private:
         std::string target;
     };
     
+    // Reads workbook properties and <sheet> entries without libxml2. Returns
+    // false when the document needs the full parser; the caller discards
+    // partial results.
+    bool parseWorkbookFast(const ByteVector& xmlData) {
+        static constexpr std::string_view relationshipsNamespace =
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+        bool sawRoot = false;
+        bool rootDeclaresRelationships = false;
+        std::string name, sheetId, relationshipId, state, date1904;
+        return fastxml::forEachStartTag(
+            std::string_view(reinterpret_cast<const char*>(xmlData.data()), xmlData.size()),
+            [&](std::string_view element, std::string_view tag) {
+                if (!sawRoot) {
+                    sawRoot = true;
+                    const std::string prefix = "xmlns:r=";
+                    const std::string uri(relationshipsNamespace);
+                    rootDeclaresRelationships =
+                        tag.find(prefix + "\"" + uri + "\"") != std::string_view::npos ||
+                        tag.find(prefix + "'" + uri + "'") != std::string_view::npos;
+                }
+                if (element == "workbookPr") {
+                    bool present = false;
+                    if (!fastxml::readAttribute(tag, "date1904", date1904, present)) return false;
+                    m_properties.dateSystem = present && (date1904 == "1" || date1904 == "true")
+                        ? DateSystem::Date1904 : DateSystem::Date1900;
+                    return true;
+                }
+                if (element != "sheet") return true;
+
+                bool hasName = false, hasId = false, hasRelationship = false, hasState = false;
+                if (!fastxml::readAttribute(tag, "name", name, hasName) ||
+                    !fastxml::readAttribute(tag, "sheetId", sheetId, hasId) ||
+                    !fastxml::readAttribute(tag, "r:id", relationshipId, hasRelationship) ||
+                    !fastxml::readAttribute(tag, "state", state, hasState)) {
+                    return false;
+                }
+                // libxml2 resolves "r:id" through the in-scope prefix binding,
+                // so only trust the textual match when the conventional
+                // declaration is present on the root element.
+                if (hasRelationship && !rootDeclaresRelationships) return false;
+
+                SheetInfo sheet;
+                if (hasName) sheet.name = name;
+                if (hasId) {
+                    int value = 0;
+                    const auto [end, error] = std::from_chars(
+                        sheetId.data(), sheetId.data() + sheetId.size(), value);
+                    if (error != std::errc{} || end != sheetId.data() + sheetId.size()) return false;
+                    sheet.sheetId = value;
+                }
+                if (hasRelationship) sheet.relationshipId = relationshipId;
+                sheet.visibility = SheetVisibility::Visible;
+                if (hasState) {
+                    if (state == "hidden") sheet.visibility = SheetVisibility::Hidden;
+                    if (state == "veryHidden") sheet.visibility = SheetVisibility::VeryHidden;
+                }
+                sheet.visible = sheet.visibility == SheetVisibility::Visible;
+                m_sheets.push_back(std::move(sheet));
+                return true;
+            });
+    }
+
     void parseWorkbook() {
         std::string workbookPath = m_package->findWorkbookPath();
         auto xmlData = m_package->getZipReader().readEntry(workbookPath);
+        if (parseWorkbookFast(xmlData)) return;
+        m_sheets.clear();
+        m_properties = WorkbookProperties{};
         
         // Initialize libxml2 reader
         xmlTextReaderPtr reader = xmlReaderForMemory(
@@ -233,7 +301,15 @@ private:
         }
         
         auto xmlData = m_package->getZipReader().readEntry(relsPath);
-        
+
+        const bool scanned = fastxml::parseRelationshipsFast(
+            std::string_view(reinterpret_cast<const char*>(xmlData.data()), xmlData.size()),
+            [&](const std::string& id, const std::string& type, const std::string& target) {
+                m_relationships[id] = Relationship{id, type, target};
+            });
+        if (scanned) return;
+        m_relationships.clear();
+
         // Initialize libxml2 reader
         xmlTextReaderPtr reader = xmlReaderForMemory(
             reinterpret_cast<const char*>(xmlData.data()),

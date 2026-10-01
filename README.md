@@ -87,7 +87,10 @@ they are never closed. `sheets_metadata` includes chartsheets and other sheet
 kinds for inspection, while name and index lookup select worksheets only.
 `Sheet.to_python()` returns rectangular rows containing `None`, `bool`, `int`,
 `float`, `str`, `datetime.datetime`, and `datetime.time`. It accepts
-`skip_empty_area` and `nrows`; `max_cells` on `load_workbook` limits each read.
+`skip_empty_area`, `nrows`, and `trim_trailing_empty`; the last drops rows and
+columns after the final cell that is neither `None` nor an empty string, which
+is how the pandas adapter ignores trailing styled-but-empty cells.
+`max_cells` on `load_workbook` limits each read.
 Call `close()` or use a context manager when done. Reads and lookups after
 close raise `RuntimeError` and retained sheets are also invalidated.
 
