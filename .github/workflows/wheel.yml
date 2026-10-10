@@ -65,7 +65,7 @@ jobs:
         shell: bash
         run: python tools/ci/wheel_environment.py
       - name: Build, repair, and test all supported interpreters
-        uses: pypa/cibuildwheel@e090b81e30c4d855ea63bf4b6e59204c09a101ae # v4.2.1
+        uses: pypa/cibuildwheel@adba99c781d3746d38b3a09b1cf797965bcb7fe6 # v4.3.0
         with:
           package-dir: source
           config-file: source/pyproject.toml
