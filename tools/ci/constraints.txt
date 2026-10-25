@@ -7,7 +7,7 @@ twine==6.2.0
 abi3audit==0.0.26
 auditwheel==6.8.2
 delocate==0.13.0
-delvewheel==1.13.0
+delvewheel==1.13.1
 virtualenv==21.7.10
 uv==0.8.22
 python-calamine==0.8.2
